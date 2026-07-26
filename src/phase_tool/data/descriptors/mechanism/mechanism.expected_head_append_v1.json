@@ -1,0 +1,8 @@
+{
+  "capability": "mutation_mechanism",
+  "descriptor_version": "1.0",
+  "execution_allowed": false,
+  "id": "mechanism.expected_head_append_v1",
+  "implementation": "phase_core_builtin",
+  "version": "1.0.0"
+}

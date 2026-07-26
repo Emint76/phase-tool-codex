@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fixture://schemas/conformance-case.v1",
+  "title": "Stage 1 deterministic conformance case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["vector_version", "case_id", "class", "contract_id", "covers", "preconditions", "stimulus", "expected"],
+  "properties": {
+    "vector_version": {"const": "1.0"},
+    "case_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "class": {"enum": ["positive", "negative", "adversarial"]},
+    "contract_id": {"enum": ["fixture_append.v1", "fixture_copy.v1"]},
+    "covers": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}, "uniqueItems": true},
+    "preconditions": {"type": "object"},
+    "stimulus": {"type": "object"},
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_valid", "validator_results", "terminal_status", "mutation_attempted", "retry_disposition", "recovery_required", "success_exit_allowed", "target_mutation_permitted_in_stage1", "rationale"],
+      "properties": {
+        "schema_valid": {"type": "boolean"},
+        "validator_results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["validator_id", "status", "code"],
+            "properties": {
+              "validator_id": {"type": "string", "minLength": 1},
+              "status": {"enum": ["pass", "fail", "unknown", "not_reached"]},
+              "code": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "terminal_status": {"enum": ["rejected", "aborted", "failed_no_effect", "failed_partial", "committed_unverified", "indeterminate", "succeeded_verified"]},
+        "mutation_attempted": {"type": "boolean"},
+        "retry_disposition": {"enum": ["noop_existing", "safe_idempotent_retry", "inspect_before_retry", "forbidden", "conflict"]},
+        "recovery_required": {"type": "boolean"},
+        "success_exit_allowed": {"type": "boolean"},
+        "target_mutation_permitted_in_stage1": {"const": false},
+        "rationale": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

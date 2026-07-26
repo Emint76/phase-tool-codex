@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phase-tool"
+version = "0.2.0"
+description = "Validation-only Phase Tool Core"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.18", "referencing>=0.30"]
+
+[project.scripts]
+phase = "phase_tool.cli.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+phase_tool = ["data/**/*.json"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]

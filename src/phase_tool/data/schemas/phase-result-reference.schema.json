@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
+  "title": "Phase Canonical Result Reference v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reference_version", "owner_id", "root_binding", "locator", "contract", "authority_rule", "state", "observed_at"],
+  "properties": {
+    "reference_version": {"const": "1.0"},
+    "owner_id": {"$ref": "#/$defs/identifier"},
+    "root_binding": {"$ref": "#/$defs/identifier"},
+    "locator": {"$ref": "#/$defs/relativeLocator"},
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "package_digest"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "version": {"$ref": "#/$defs/semver"},
+        "package_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "authority_rule": {"$ref": "#/$defs/identifier"},
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exists", "digest", "length", "head_token"],
+      "properties": {
+        "exists": {"type": "boolean"},
+        "digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "length": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
+        "head_token": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]}
+      }
+    },
+    "observed_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+    "semver": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "relativeLocator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?(?:/[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?)*$",
+      "not": {"pattern": "(?:^|/)(?:[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[A-Za-z0-9_{}.-]+)?(?:/|$)"}
+    }
+  }
+}

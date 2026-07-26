@@ -1,0 +1,359 @@
+{
+  "entries": [
+    {
+      "artifact": "contracts/fixture_append.v1.json",
+      "artifact_digest": "sha256:5b6988fbcc10fe84721be1960e3e3fa7961e8b7f3b35e9eafb06f7d322e7a1d5",
+      "capability": "operation_contract",
+      "id": "fixture_append.v1",
+      "kind": "contract",
+      "mutable": false,
+      "package_artifacts": [
+        {
+          "digest": "sha256:5b6988fbcc10fe84721be1960e3e3fa7961e8b7f3b35e9eafb06f7d322e7a1d5",
+          "resource": "contracts/fixture_append.v1.json"
+        },
+        {
+          "digest": "sha256:16293656528fb1b5732d0b67911f0335026e90bdfb086abafb495267a62f9f17",
+          "resource": "schemas/fixture-append-candidate.schema.json"
+        },
+        {
+          "digest": "sha256:33587c74cca0e78e8a5e56a7f139297fdca572f500c8e292c169a66951e4d4ee",
+          "resource": "schemas/fixture-append-result.schema.json"
+        },
+        {
+          "digest": "sha256:65b08812390822ae2694d27727b8af5a8a9adbf263dc488a16b0d3b5af2b2a0a",
+          "resource": "schemas/phase-receipt.schema.json"
+        }
+      ],
+      "package_digest": "sha256:b8924aa677ee4230659fb92ba6afcc8c13aa2d956ce8610d32330caea22c7bf7",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "contracts/fixture_copy.v1.json",
+      "artifact_digest": "sha256:a9d12bf780fe22bd521e68b8ad1620e6c78c8358668264ccbf9c5f979dce196d",
+      "capability": "operation_contract",
+      "id": "fixture_copy.v1",
+      "kind": "contract",
+      "mutable": false,
+      "package_artifacts": [
+        {
+          "digest": "sha256:a9d12bf780fe22bd521e68b8ad1620e6c78c8358668264ccbf9c5f979dce196d",
+          "resource": "contracts/fixture_copy.v1.json"
+        },
+        {
+          "digest": "sha256:d924a9b974d6d1e3c120aafd9debe84bc4265d3a2a0f1feb6438ab479c2328bb",
+          "resource": "schemas/fixture-copy-candidate.schema.json"
+        },
+        {
+          "digest": "sha256:9e74ee0f49f4f5f081fe3abfa94ecc7153668041fda879b4277d1786ff75e1b4",
+          "resource": "schemas/fixture-copy-result.schema.json"
+        },
+        {
+          "digest": "sha256:65b08812390822ae2694d27727b8af5a8a9adbf263dc488a16b0d3b5af2b2a0a",
+          "resource": "schemas/phase-receipt.schema.json"
+        }
+      ],
+      "package_digest": "sha256:bf8f4af5444d7c5ccaec5d94e3b93119b455d575ad24861962f46c48df5a9cf9",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/mechanism/mechanism.content_addressed_copy_v1.json",
+      "artifact_digest": "sha256:e560824fb64a8e109a5ddca51d9ad7cc98d7dc45f153f1e48acbd0d415e63f11",
+      "capability": "mutation_mechanism",
+      "id": "mechanism.content_addressed_copy_v1",
+      "kind": "mechanism",
+      "mutable": false,
+      "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/mechanism/mechanism.expected_head_append_v1.json",
+      "artifact_digest": "sha256:9bb5449c822d7a234bd4ac6680cf7b11caa0b84b223c8c6f7d42a54735e59b8d",
+      "capability": "mutation_mechanism",
+      "id": "mechanism.expected_head_append_v1",
+      "kind": "mechanism",
+      "mutable": false,
+      "package_digest": "sha256:9d69f2b6f68866c35e78bfa1a6ddce912f21a55c42d34d2ebc689d3bf0f4d0c1",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/path_policy/path.strict_local_v1.json",
+      "artifact_digest": "sha256:e5bb86262e4394cb81a044bb94e2b86bcdb2dc1f56ff972ff93d3981d91a4b39",
+      "capability": "path_policy",
+      "id": "path.strict_local_v1",
+      "kind": "path_policy",
+      "mutable": false,
+      "package_digest": "sha256:238b3431352a94dab33ffa0190fd78cd2825679377cb0e14dfa4bd4c6da8b0f4",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/phase-receipt.schema.json",
+      "artifact_digest": "sha256:65b08812390822ae2694d27727b8af5a8a9adbf263dc488a16b0d3b5af2b2a0a",
+      "capability": "schema",
+      "id": "schema.0b87344a09e7de74",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:65b08812390822ae2694d27727b8af5a8a9adbf263dc488a16b0d3b5af2b2a0a",
+      "schema_ref": "https://phase-tool.local/schemas/phase-receipt.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/validator-result.schema.json",
+      "artifact_digest": "sha256:386f52faecaf2fde26febbc44dfee8474792f53e47cee30b08b57625259fdaf8",
+      "capability": "schema",
+      "id": "schema.10458f0836191039",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:386f52faecaf2fde26febbc44dfee8474792f53e47cee30b08b57625259fdaf8",
+      "schema_ref": "https://phase-tool.local/schemas/validator-result.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/fixture-copy-candidate.schema.json",
+      "artifact_digest": "sha256:d924a9b974d6d1e3c120aafd9debe84bc4265d3a2a0f1feb6438ab479c2328bb",
+      "capability": "schema",
+      "id": "schema.1d7bb563f47989a4",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:d924a9b974d6d1e3c120aafd9debe84bc4265d3a2a0f1feb6438ab479c2328bb",
+      "schema_ref": "fixture://schemas/fixture-copy-candidate.v1",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/fixture-copy-result.schema.json",
+      "artifact_digest": "sha256:9e74ee0f49f4f5f081fe3abfa94ecc7153668041fda879b4277d1786ff75e1b4",
+      "capability": "schema",
+      "id": "schema.43e35839d9d84367",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:9e74ee0f49f4f5f081fe3abfa94ecc7153668041fda879b4277d1786ff75e1b4",
+      "schema_ref": "fixture://schemas/fixture-copy-result.v1",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/conformance-case.schema.json",
+      "artifact_digest": "sha256:699d8cc3ff38c423875cee9a685842972e2b97f05ef2cd33c6327c6416f8f041",
+      "capability": "schema",
+      "id": "schema.5720e79a1c7da2a8",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:699d8cc3ff38c423875cee9a685842972e2b97f05ef2cd33c6327c6416f8f041",
+      "schema_ref": "fixture://schemas/conformance-case.v1",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/effect-plan.schema.json",
+      "artifact_digest": "sha256:27c51cd8127f396e424716621cc577e75a8f4dcd72ac336dfa355bfc5c8175ff",
+      "capability": "schema",
+      "id": "schema.637c582fa58f9c8e",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:27c51cd8127f396e424716621cc577e75a8f4dcd72ac336dfa355bfc5c8175ff",
+      "schema_ref": "https://phase-tool.local/schemas/effect-plan.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/phase-contract.schema.json",
+      "artifact_digest": "sha256:4c6899bf79dd516bf8d959382cc1b9b827d8bbb2f4db52b04934056ff9e5d47b",
+      "capability": "schema",
+      "id": "schema.81eed77d5d36e8e5",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:4c6899bf79dd516bf8d959382cc1b9b827d8bbb2f4db52b04934056ff9e5d47b",
+      "schema_ref": "https://phase-tool.local/schemas/phase-contract.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/effect-journal-entry.schema.json",
+      "artifact_digest": "sha256:c32d13796eb902ac1d02c7b5977ded4dcc15b09b228a82fa67c7d534bdc7ffc8",
+      "capability": "schema",
+      "id": "schema.9a603053f45a036b",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:c32d13796eb902ac1d02c7b5977ded4dcc15b09b228a82fa67c7d534bdc7ffc8",
+      "schema_ref": "https://phase-tool.local/schemas/effect-journal-entry.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/phase-result-reference.schema.json",
+      "artifact_digest": "sha256:92daeee37fdc7039a34bca6e49aea78323c519e541cc7adadf4389eec94299b4",
+      "capability": "schema",
+      "id": "schema.c74fdd8f2a14c811",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:92daeee37fdc7039a34bca6e49aea78323c519e541cc7adadf4389eec94299b4",
+      "schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/effect-receipt.schema.json",
+      "artifact_digest": "sha256:e49cbe22446fbf75e9ee0b9b6a13a90481592d4708cedfa579f9c2d8eaba933f",
+      "capability": "schema",
+      "id": "schema.ce906216def2222e",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:e49cbe22446fbf75e9ee0b9b6a13a90481592d4708cedfa579f9c2d8eaba933f",
+      "schema_ref": "https://phase-tool.local/schemas/effect-receipt.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/fixture-append-candidate.schema.json",
+      "artifact_digest": "sha256:16293656528fb1b5732d0b67911f0335026e90bdfb086abafb495267a62f9f17",
+      "capability": "schema",
+      "id": "schema.d6219bab2d39e538",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:16293656528fb1b5732d0b67911f0335026e90bdfb086abafb495267a62f9f17",
+      "schema_ref": "fixture://schemas/fixture-append-candidate.v1",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/fixture-append-result.schema.json",
+      "artifact_digest": "sha256:33587c74cca0e78e8a5e56a7f139297fdca572f500c8e292c169a66951e4d4ee",
+      "capability": "schema",
+      "id": "schema.f0c8ab7d57bbddb4",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:33587c74cca0e78e8a5e56a7f139297fdca572f500c8e292c169a66951e4d4ee",
+      "schema_ref": "fixture://schemas/fixture-append-result.v1",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/phase-intent.schema.json",
+      "artifact_digest": "sha256:0e398f82490025238b2592aae50d5d5472d1595a6054bf397da51b729f1ccb1e",
+      "capability": "schema",
+      "id": "schema.fd5f3acfd3d72921",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:0e398f82490025238b2592aae50d5d5472d1595a6054bf397da51b729f1ccb1e",
+      "schema_ref": "https://phase-tool.local/schemas/phase-intent.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/stage2-command-result.schema.json",
+      "artifact_digest": "sha256:c7e7f94fad719b521799d0566ff47d02c443cd6e3bb837e7cb7db32764f62d6b",
+      "capability": "schema",
+      "id": "schema.stage2_command_result",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:c7e7f94fad719b521799d0566ff47d02c443cd6e3bb837e7cb7db32764f62d6b",
+      "schema_ref": "https://phase-tool.local/schemas/stage2-command-result.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/fixture.append.candidate_v1.json",
+      "artifact_digest": "sha256:0728f58f09ab11c8c2ba49c296d40c7cb88425ed365e9bab3a3136c01b19482f",
+      "capability": "validator",
+      "id": "fixture.append.candidate_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:d6dbd3dff45443b8083a324d3231988f703916bff0ed76e757041ffbde1605fb",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/fixture.copy.candidate_v1.json",
+      "artifact_digest": "sha256:e30dc8953cee68a2258975e698dae14ddfcc7f86f7deb51761c40e692d5a22dd",
+      "capability": "validator",
+      "id": "fixture.copy.candidate_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:e7f2ea57bf6104d2ea99ad1e17c562616d3b75427f4a0152a6c2437df0b86e50",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/validator.destination_preconditions_v1.json",
+      "artifact_digest": "sha256:f4a07702fd944878b7c518154df1d3ba60f45a335588d1b00b1bee480d7fa6eb",
+      "capability": "validator",
+      "id": "validator.destination_preconditions_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:be3eadbd783fc15b51e74a10202f970b02adbdc2758b6ef5e6379ee6e2de5fb8",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/validator.exact_binding_v1.json",
+      "artifact_digest": "sha256:38561b0e34f21fb34163c4b5131d69c943190a784bab13e39face7f9df3da8ce",
+      "capability": "validator",
+      "id": "validator.exact_binding_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:19f8b652b094e3079226d506bc6111ae8124e35807e54183e23d95bb13188bb3",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/validator.expected_head_v1.json",
+      "artifact_digest": "sha256:b6312948665f273da129c70ee25a2af6dc682fe67cb21e7b7ae9038138620993",
+      "capability": "validator",
+      "id": "validator.expected_head_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:0235f53aac0f4581a44d5d3e8b985780a994439d35985c3c4159fefca2e0ccd0",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/validator.frozen_blob_v1.json",
+      "artifact_digest": "sha256:ae0fd5b05aa6b8e763bd37deb6f5f77f7e2c64b8deee9323fad8c13846a2a3a8",
+      "capability": "validator",
+      "id": "validator.frozen_blob_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:3dfe6c8051f2ce6c24f1f9dc6589a95a6b3f49d6d2417f8f9562678bf2d16039",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/validator.result_digest_v1.json",
+      "artifact_digest": "sha256:b5aff9ca68e19db1e291aa52c005e6a60bb73b5e9830b0ee6973d222b110b302",
+      "capability": "validator",
+      "id": "validator.result_digest_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:fe1ec09ae9e0162090b2908feba7e51b293ac62e2a6a2f963aef4a9690592372",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/validator.valid_tail_v1.json",
+      "artifact_digest": "sha256:0c1c6eec55871e6fcaedb01f980878422ee4ddc2d2ba22dd6e7bab1939e5e994",
+      "capability": "validator",
+      "id": "validator.valid_tail_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:2c41a18f0daf88a0b70d9cbf137fd02f7614a6158edf0e07df1b2c4f2e81e05d",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    }
+  ],
+  "registry_snapshot_version": "1.0",
+  "trust_roots": [
+    {
+      "enabled": true,
+      "id": "phase.release.v1",
+      "kind": "bundled_digest_allowlist"
+    }
+  ]
+}

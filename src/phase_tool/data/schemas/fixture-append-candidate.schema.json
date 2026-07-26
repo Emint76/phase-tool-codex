@@ -1,0 +1,46 @@
+{
+  "$id": "fixture://schemas/fixture-append-candidate.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "expected_head": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "minLength": 1,
+          "type": "string"
+        }
+      ]
+    },
+    "idempotency_key": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "record": {
+      "type": "object"
+    },
+    "record_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "stream_id": {
+      "pattern": "^[a-z0-9._-]+$",
+      "type": "string"
+    },
+    "target_locator": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "stream_id",
+    "target_locator",
+    "record_id",
+    "expected_head",
+    "record",
+    "idempotency_key"
+  ],
+  "type": "object"
+}

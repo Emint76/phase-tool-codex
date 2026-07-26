@@ -10,6 +10,11 @@
     {
       "content_digest": "sha256:333251268b4fc0311342db7ef1c99edb4df455d8090c7e571e3943e98cc9e514",
       "content_length": 24,
+      "content_source": {
+        "binding_id": null,
+        "kind": "captured_candidate",
+        "source_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
       "durability_policy_id": "file_data_synced",
       "effect_id": "append.effect.001",
       "input_binding": null,

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/schemas/phase-intent.schema.json",
+  "title": "Phase Intent v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["phase_intent_version", "run_id", "created_at", "core", "registry_snapshot_digest", "contract", "candidate", "inputs", "write_scope_digest", "operation", "idempotency", "effect_plan_digest", "status"],
+  "properties": {
+    "phase_intent_version": {"const": "1.0"},
+    "run_id": {"$ref": "#/$defs/runId"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "core": {"$ref": "#/$defs/exactBinding"},
+    "registry_snapshot_digest": {"$ref": "#/$defs/digest"},
+    "contract": {"$ref": "#/$defs/exactBinding"},
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_mode", "digest", "length", "storage"],
+      "properties": {
+        "input_mode": {"enum": ["structured_json", "utf8_bytes", "binary_bundle"]},
+        "digest": {"$ref": "#/$defs/digest"},
+        "length": {"type": "integer", "minimum": 0},
+        "storage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "value", "attachment_digest"],
+          "properties": {
+            "mode": {"enum": ["inline", "attachment"]},
+            "value": {},
+            "attachment_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]}
+          },
+          "allOf": [
+            {"if": {"properties": {"mode": {"const": "attachment"}}}, "then": {"properties": {"value": {"type": "null"}, "attachment_digest": {"type": "string"}}}},
+            {"if": {"properties": {"mode": {"const": "inline"}}}, "then": {"properties": {"attachment_digest": {"type": "null"}}}}
+          ]
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["binding_id", "freeze_strategy", "digest", "manifest_digest", "blob_digest", "provenance_ref", "frozen_at", "revalidation_token"],
+        "properties": {
+          "binding_id": {"$ref": "#/$defs/identifier"},
+          "freeze_strategy": {"enum": ["copy_and_hash", "manifest_and_hash", "lock_snapshot_revalidate", "value_snapshot"]},
+          "digest": {"$ref": "#/$defs/digest"},
+          "manifest_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+          "blob_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+          "provenance_ref": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 2048}]},
+          "frozen_at": {"type": "string", "format": "date-time"},
+          "revalidation_token": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]}
+        }
+      }
+    },
+    "write_scope_digest": {"$ref": "#/$defs/digest"},
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent", "mechanism"],
+      "properties": {
+        "intent": {"enum": ["create", "append", "copy", "correction"]},
+        "mechanism": {"$ref": "#/$defs/exactBinding"}
+      }
+    },
+    "idempotency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "scope_digest", "request_digest"],
+      "properties": {
+        "key": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]},
+        "scope_digest": {"$ref": "#/$defs/digest"},
+        "request_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "effect_plan_digest": {"$ref": "#/$defs/digest"},
+    "status": {"const": "intent_recorded"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+    "runId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "semver": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "exactBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "package_digest"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "version": {"$ref": "#/$defs/semver"},
+        "package_digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

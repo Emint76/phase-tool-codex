@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/schemas/effect-receipt.schema.json",
+  "title": "Phase Effect Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["effect_receipt_version", "run_id", "effect_id", "kind", "status", "attempted", "before", "after", "bytes_written", "verification_refs", "error", "started_at", "finished_at"],
+  "properties": {
+    "effect_receipt_version": {"const": "1.0"},
+    "run_id": {"$ref": "#/$defs/runId"},
+    "effect_id": {"$ref": "#/$defs/identifier"},
+    "kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]},
+    "status": {"enum": ["not_attempted", "applied_verified", "failed_no_effect", "failed_partial", "applied_unverified", "indeterminate"]},
+    "attempted": {"type": "boolean"},
+    "before": {"$ref": "#/$defs/observedState"},
+    "after": {"$ref": "#/$defs/observedState"},
+    "bytes_written": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
+    "verification_refs": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 2048}, "uniqueItems": true},
+    "error": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"$ref": "#/$defs/identifier"},
+            "message": {"type": "string", "minLength": 1, "maxLength": 4096}
+          }
+        }
+      ]
+    },
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {"required": ["status"], "properties": {"status": {"const": "not_attempted"}}},
+      "then": {"properties": {"attempted": {"const": false}, "bytes_written": {"enum": [null, 0]}}}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["applied_verified", "failed_partial", "applied_unverified"]}}},
+      "then": {"properties": {"attempted": {"const": true}, "bytes_written": {"type": "integer"}}}
+    },
+    {
+      "if": {"required": ["status"], "properties": {"status": {"const": "applied_verified"}}},
+      "then": {"properties": {"error": {"type": "null"}, "verification_refs": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["failed_no_effect", "failed_partial", "applied_unverified", "indeterminate"]}}},
+      "then": {"properties": {"error": {"type": "object"}}}
+    },
+    {
+      "if": {"required": ["status"], "properties": {"status": {"const": "failed_no_effect"}}},
+      "then": {"properties": {"attempted": {"const": true}, "bytes_written": {"enum": [null, 0]}, "verification_refs": {"minItems": 1}, "error": {"type": "object"}}}
+    },
+    {
+      "if": {"required": ["status"], "properties": {"status": {"const": "indeterminate"}}},
+      "then": {"properties": {"attempted": {"const": true}, "error": {"type": "object"}}}
+    }
+  ],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+    "runId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "observedState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["known", "exists", "digest", "length", "head_token"],
+      "properties": {
+        "known": {"type": "boolean"},
+        "exists": {"oneOf": [{"type": "null"}, {"type": "boolean"}]},
+        "digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "length": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
+        "head_token": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]}
+      }
+    }
+  }
+}

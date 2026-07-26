@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/schemas/validator-result.schema.json",
+  "title": "Phase Validator Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "validator_result_version",
+    "run_id",
+    "phase",
+    "validator",
+    "status",
+    "code",
+    "blocking",
+    "expected",
+    "actual",
+    "observation_refs",
+    "blockers",
+    "started_at",
+    "finished_at"
+  ],
+  "properties": {
+    "validator_result_version": {"const": "1.0"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "phase": {"enum": ["contract", "candidate", "input", "policy", "pre_operation", "post_operation", "evidence"]},
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "package_digest"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"},
+        "package_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "status": {"enum": ["pass", "fail", "unknown", "not_reached"]},
+    "code": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+    "blocking": {"type": "boolean"},
+    "expected": {},
+    "actual": {},
+    "observation_refs": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 2048}, "uniqueItems": true},
+    "blockers": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128}, "uniqueItems": true},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "detail_attachment": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}]}
+  },
+  "allOf": [
+    {
+      "if": {"required": ["status"], "properties": {"status": {"const": "pass"}}},
+      "then": {"properties": {"blockers": {"maxItems": 0}}}
+    },
+    {
+      "if": {"required": ["status", "blocking"], "properties": {"status": {"enum": ["fail", "unknown"]}, "blocking": {"const": true}}},
+      "then": {"properties": {"blockers": {"minItems": 1}}}
+    },
+    {
+      "if": {"required": ["status"], "properties": {"status": {"const": "not_reached"}}},
+      "then": {"properties": {"actual": {"type": "null"}}}
+    }
+  ]
+}

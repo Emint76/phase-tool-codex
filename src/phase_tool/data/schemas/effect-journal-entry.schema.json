@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/schemas/effect-journal-entry.schema.json",
+  "title": "Phase Effect Journal Entry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "effect_journal_entry_version",
+    "run_id",
+    "sequence",
+    "effect_ordinal",
+    "effect_id",
+    "plan_digest",
+    "entry_kind",
+    "recorded_at",
+    "previous_entry_digest",
+    "observation_digest",
+    "observed_effect_status"
+  ],
+  "properties": {
+    "effect_journal_entry_version": {"const": "1.0"},
+    "run_id": {"$ref": "#/$defs/runId"},
+    "sequence": {"type": "integer", "minimum": 0},
+    "effect_ordinal": {"type": "integer", "minimum": 0},
+    "effect_id": {"$ref": "#/$defs/identifier"},
+    "plan_digest": {"$ref": "#/$defs/digest"},
+    "entry_kind": {"enum": ["attempt_started", "observation_recorded"]},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "previous_entry_digest": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/digest"}
+      ]
+    },
+    "observation_digest": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/digest"}
+      ]
+    },
+    "observed_effect_status": {
+      "oneOf": [
+        {"type": "null"},
+        {"enum": ["failed_no_effect", "applied_verified", "applied_unverified", "indeterminate"]}
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["entry_kind"],
+        "properties": {"entry_kind": {"const": "attempt_started"}}
+      },
+      "then": {
+        "properties": {
+          "observation_digest": {"type": "null"},
+          "observed_effect_status": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["entry_kind"],
+        "properties": {"entry_kind": {"const": "observation_recorded"}}
+      },
+      "then": {
+        "properties": {
+          "observation_digest": {"$ref": "#/$defs/digest"},
+          "observed_effect_status": {"enum": ["failed_no_effect", "applied_verified", "applied_unverified", "indeterminate"]}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

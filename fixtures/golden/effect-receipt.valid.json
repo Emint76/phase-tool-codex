@@ -1,0 +1,29 @@
+{
+  "after": {
+    "digest": "sha256:bd2f3bf9bfb6c67f02330d78a20ca65b9cada3324004260e4218f8056806a11b",
+    "exists": true,
+    "head_token": "head-b",
+    "known": true,
+    "length": 124
+  },
+  "attempted": true,
+  "before": {
+    "digest": "sha256:c73b6af0dd2d6e3bbbf2e513983243c41bf734cbf7c7bc9ee67d4e3123e5faaa",
+    "exists": true,
+    "head_token": "head-a",
+    "known": true,
+    "length": 100
+  },
+  "bytes_written": 24,
+  "effect_id": "append.effect.001",
+  "effect_receipt_version": "1.0",
+  "error": null,
+  "finished_at": "2026-07-26T14:00:01Z",
+  "kind": "append_record",
+  "run_id": "golden-run-001",
+  "started_at": "2026-07-26T14:00:00Z",
+  "status": "applied_verified",
+  "verification_refs": [
+    "validator-result:post-1"
+  ]
+}

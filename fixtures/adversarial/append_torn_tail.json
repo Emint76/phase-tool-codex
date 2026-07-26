@@ -1,0 +1,33 @@
+{
+  "case_id": "append_torn_tail",
+  "class": "adversarial",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "torn_tail",
+    "partial_effect"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "Nonzero partial append bytes are a known partial result, never no-effect or success.",
+    "recovery_required": true,
+    "retry_disposition": "inspect_before_retry",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "failed_partial",
+    "validator_results": [
+      {
+        "code": "torn_tail_detected",
+        "status": "fail",
+        "validator_id": "validator.valid_tail_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "valid_head": "head-a"
+  },
+  "stimulus": {
+    "fault": "short_write_after_nonzero_bytes"
+  },
+  "vector_version": "1.0"
+}

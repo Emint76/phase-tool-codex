@@ -1,0 +1,32 @@
+{
+  "case_id": "copy_conflicting_destination",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "conflicting_destination"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "A different-digest destination is not replaced; verified unchanged state is no-effect.",
+    "recovery_required": false,
+    "retry_disposition": "conflict",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "failed_no_effect",
+    "validator_results": [
+      {
+        "code": "destination_digest_conflict",
+        "status": "fail",
+        "validator_id": "validator.destination_preconditions_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "destination_digest": "digest-existing"
+  },
+  "stimulus": {
+    "planned_digest": "digest-new"
+  },
+  "vector_version": "1.0"
+}

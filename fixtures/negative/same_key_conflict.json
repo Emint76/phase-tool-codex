@@ -1,0 +1,34 @@
+{
+  "case_id": "same_key_conflict",
+  "class": "negative",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "same_key_conflict"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Same scoped key with a different canonical request digest is a pre-mutation conflict.",
+    "recovery_required": false,
+    "retry_disposition": "conflict",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "same_key_different_digest",
+        "status": "fail",
+        "validator_id": "validator.idempotency_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "key": "copy-1",
+    "prior_request_digest": "digest-a"
+  },
+  "stimulus": {
+    "key": "copy-1",
+    "request_digest": "digest-b"
+  },
+  "vector_version": "1.0"
+}

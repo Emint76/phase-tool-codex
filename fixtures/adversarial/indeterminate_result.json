@@ -1,0 +1,33 @@
+{
+  "case_id": "indeterminate_result",
+  "class": "adversarial",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "indeterminate_result_state"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "Unknown post-crash target state is indeterminate; no no-effect or success claim is allowed.",
+    "recovery_required": true,
+    "retry_disposition": "inspect_before_retry",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "indeterminate",
+    "validator_results": [
+      {
+        "code": "result_state_unresolved",
+        "status": "unknown",
+        "validator_id": "validator.recovery_inspection_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "durable_intent": true
+  },
+  "stimulus": {
+    "crash_point": "after_write_before_observation",
+    "target_read": "unavailable"
+  },
+  "vector_version": "1.0"
+}

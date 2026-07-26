@@ -1,0 +1,36 @@
+{
+  "case_id": "append_idempotent_replay",
+  "class": "positive",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "idempotency",
+    "same_key_same_digest"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Same scoped key and digest returns the existing verified record without another append.",
+    "recovery_required": false,
+    "retry_disposition": "noop_existing",
+    "schema_valid": true,
+    "success_exit_allowed": true,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "succeeded_verified",
+    "validator_results": [
+      {
+        "code": "verified_existing",
+        "status": "pass",
+        "validator_id": "validator.idempotency_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "key": "append-2",
+    "request_digest": "digest-a",
+    "verified_record_id": "r2"
+  },
+  "stimulus": {
+    "key": "append-2",
+    "request_digest": "digest-a"
+  },
+  "vector_version": "1.0"
+}

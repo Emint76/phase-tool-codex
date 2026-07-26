@@ -1,0 +1,46 @@
+{
+  "case_id": "append_expected_head_success",
+  "class": "positive",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "expected_head_append",
+    "post_verification"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "A verified append against the under-lock expected head succeeds.",
+    "recovery_required": false,
+    "retry_disposition": "noop_existing",
+    "schema_valid": true,
+    "success_exit_allowed": true,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "succeeded_verified",
+    "validator_results": [
+      {
+        "code": "tail_valid",
+        "status": "pass",
+        "validator_id": "validator.valid_tail_v1"
+      },
+      {
+        "code": "head_matches",
+        "status": "pass",
+        "validator_id": "validator.expected_head_v1"
+      },
+      {
+        "code": "new_head_matches",
+        "status": "pass",
+        "validator_id": "validator.result_digest_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "key": "append-2",
+    "target_head": "head-a",
+    "valid_tail": true
+  },
+  "stimulus": {
+    "expected_head": "head-a",
+    "record_id": "r2"
+  },
+  "vector_version": "1.0"
+}

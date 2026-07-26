@@ -1,0 +1,22 @@
+{
+  "actual": "sha256:bd2f3bf9bfb6c67f02330d78a20ca65b9cada3324004260e4218f8056806a11b",
+  "blockers": [],
+  "blocking": true,
+  "code": "digest_matches",
+  "detail_attachment": null,
+  "expected": "sha256:bd2f3bf9bfb6c67f02330d78a20ca65b9cada3324004260e4218f8056806a11b",
+  "finished_at": "2026-07-26T14:00:01Z",
+  "observation_refs": [
+    "effect-receipt:append.effect.001"
+  ],
+  "phase": "post_operation",
+  "run_id": "golden-run-001",
+  "started_at": "2026-07-26T14:00:00Z",
+  "status": "pass",
+  "validator": {
+    "id": "validator.result_digest_v1",
+    "package_digest": "sha256:e416614ba93d1b346ab9915ee2eec9a489bd12b978de320f424bb1313d57568b",
+    "version": "1.0.0"
+  },
+  "validator_result_version": "1.0"
+}

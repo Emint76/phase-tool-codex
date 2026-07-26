@@ -1,0 +1,68 @@
+{
+  "blockers": [
+    "known_partial_effect"
+  ],
+  "canonical_result": null,
+  "contract": {
+    "id": "fixture_append.v1",
+    "package_digest": "sha256:27c1ca9d41c4d5c5c7f31095ea9eb1c411c5d4b609f2b03c3124bb0f574462b8",
+    "version": "1.0.0"
+  },
+  "core": {
+    "id": "phase.core",
+    "package_digest": "sha256:0db2d0834d134a315ce41a8335a35dcbd411a176d1dbd0f2a212d38ae935bc30",
+    "version": "1.0.0"
+  },
+  "effect_receipts": [
+    {
+      "after": {
+        "digest": "sha256:9834a14ab9bcaa0f6a8da71073617eac8f004e596a3fa11d807b84631b825d9d",
+        "exists": true,
+        "head_token": "head-partial",
+        "known": true,
+        "length": 105
+      },
+      "attempted": true,
+      "before": {
+        "digest": "sha256:c73b6af0dd2d6e3bbbf2e513983243c41bf734cbf7c7bc9ee67d4e3123e5faaa",
+        "exists": true,
+        "head_token": "head-a",
+        "known": true,
+        "length": 100
+      },
+      "bytes_written": 5,
+      "effect_id": "append.effect.001",
+      "effect_receipt_version": "1.0",
+      "error": {
+        "code": "short_write",
+        "message": "Known partial target bytes"
+      },
+      "finished_at": "2026-07-26T14:00:01Z",
+      "kind": "append_record",
+      "run_id": "golden-run-001",
+      "started_at": "2026-07-26T14:00:00Z",
+      "status": "failed_partial",
+      "verification_refs": []
+    }
+  ],
+  "evidence": {
+    "attachment_digests": [],
+    "finalization_status": "finalized",
+    "intent_digest": "sha256:282bcbc3f0a34a8a4ac6f00c276fcf66cf3757a3332e83d92208e5079af46922",
+    "receipt_digest_policy_id": "digest.receipt_v1",
+    "required_attachments_present": true
+  },
+  "execution_disposition": "executed",
+  "exit_code": 21,
+  "finished_at": "2026-07-26T14:00:01Z",
+  "mutation_attempted": true,
+  "phase_receipt_version": "1.0",
+  "prior_verified_receipt_digest": null,
+  "recovery_required": true,
+  "result_state": "known_partial",
+  "retry_disposition": "inspect_before_retry",
+  "run_id": "golden-run-001",
+  "started_at": "2026-07-26T14:00:00Z",
+  "terminal_status": "failed_partial",
+  "validator_results": []
+}

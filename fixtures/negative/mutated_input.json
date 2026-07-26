@@ -1,0 +1,33 @@
+{
+  "case_id": "mutated_input",
+  "class": "negative",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "mutated_input",
+    "freeze_revalidation"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Input mismatch before mutation invalidates the frozen binding.",
+    "recovery_required": false,
+    "retry_disposition": "forbidden",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "frozen_input_digest_mismatch",
+        "status": "fail",
+        "validator_id": "validator.frozen_blob_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "frozen_digest": "digest-a"
+  },
+  "stimulus": {
+    "observed_before_use": "digest-b"
+  },
+  "vector_version": "1.0"
+}

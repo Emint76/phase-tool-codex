@@ -1,0 +1,32 @@
+{
+  "case_id": "symlink_component",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "symlink"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Default no-follow policy rejects a symlink component before mutation.",
+    "recovery_required": false,
+    "retry_disposition": "forbidden",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "symlink_rejected",
+        "status": "fail",
+        "validator_id": "validator.path_scope_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "component_type": "symlink"
+  },
+  "stimulus": {
+    "relative_locator": "alias/object.bin"
+  },
+  "vector_version": "1.0"
+}

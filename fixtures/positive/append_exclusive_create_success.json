@@ -1,0 +1,40 @@
+{
+  "case_id": "append_exclusive_create_success",
+  "class": "positive",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "exclusive_create",
+    "post_verification",
+    "truthful_terminal_state"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "Future mechanism creates and verifies the first stream object; Stage 1 performs no mutation.",
+    "recovery_required": false,
+    "retry_disposition": "noop_existing",
+    "schema_valid": true,
+    "success_exit_allowed": true,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "succeeded_verified",
+    "validator_results": [
+      {
+        "code": "target_absent_allowed",
+        "status": "pass",
+        "validator_id": "validator.expected_head_v1"
+      },
+      {
+        "code": "digest_matches",
+        "status": "pass",
+        "validator_id": "validator.result_digest_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "key": "append-create-1",
+    "target": "absent"
+  },
+  "stimulus": {
+    "record_bytes": "{\"id\":\"r1\",\"value\":1}\n"
+  },
+  "vector_version": "1.0"
+}

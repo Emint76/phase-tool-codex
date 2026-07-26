@@ -1,0 +1,240 @@
+{
+  "case_count": 22,
+  "cases": [
+    {
+      "case_id": "append_exclusive_create_success",
+      "class": "positive",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "exclusive_create",
+        "post_verification",
+        "truthful_terminal_state"
+      ],
+      "expected_terminal_status": "succeeded_verified",
+      "path": "fixtures/positive/append_exclusive_create_success.json"
+    },
+    {
+      "case_id": "append_expected_head_success",
+      "class": "positive",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "expected_head_append",
+        "post_verification"
+      ],
+      "expected_terminal_status": "succeeded_verified",
+      "path": "fixtures/positive/append_expected_head_success.json"
+    },
+    {
+      "case_id": "append_idempotent_replay",
+      "class": "positive",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "idempotency",
+        "same_key_same_digest"
+      ],
+      "expected_terminal_status": "succeeded_verified",
+      "path": "fixtures/positive/append_idempotent_replay.json"
+    },
+    {
+      "case_id": "append_torn_tail",
+      "class": "adversarial",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "torn_tail",
+        "partial_effect"
+      ],
+      "expected_terminal_status": "failed_partial",
+      "path": "fixtures/adversarial/append_torn_tail.json"
+    },
+    {
+      "case_id": "concurrent_append_stale_loser",
+      "class": "adversarial",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "concurrent_append",
+        "stale_head"
+      ],
+      "expected_terminal_status": "failed_no_effect",
+      "path": "fixtures/adversarial/concurrent_append_stale_loser.json"
+    },
+    {
+      "case_id": "copy_conflicting_destination",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "conflicting_destination"
+      ],
+      "expected_terminal_status": "failed_no_effect",
+      "path": "fixtures/adversarial/copy_conflicting_destination.json"
+    },
+    {
+      "case_id": "copy_create_success",
+      "class": "positive",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "content_addressed_copy",
+        "destination_absent",
+        "post_verification"
+      ],
+      "expected_terminal_status": "succeeded_verified",
+      "path": "fixtures/positive/copy_create_success.json"
+    },
+    {
+      "case_id": "copy_destination_path_race",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "destination_path_race",
+        "check_to_use"
+      ],
+      "expected_terminal_status": "indeterminate",
+      "path": "fixtures/adversarial/copy_destination_path_race.json"
+    },
+    {
+      "case_id": "copy_multi_effect_partial",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "multi_effect_partial_failure",
+        "partial_effect"
+      ],
+      "expected_terminal_status": "failed_partial",
+      "path": "fixtures/adversarial/copy_multi_effect_partial.json"
+    },
+    {
+      "case_id": "copy_same_hash_idempotent",
+      "class": "positive",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "same_hash_idempotency",
+        "idempotency"
+      ],
+      "expected_terminal_status": "succeeded_verified",
+      "path": "fixtures/positive/copy_same_hash_idempotent.json"
+    },
+    {
+      "case_id": "evidence_finalization_failure",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "committed_result_failed_evidence_finalization"
+      ],
+      "expected_terminal_status": "committed_unverified",
+      "path": "fixtures/adversarial/evidence_finalization_failure.json"
+    },
+    {
+      "case_id": "indeterminate_result",
+      "class": "adversarial",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "indeterminate_result_state"
+      ],
+      "expected_terminal_status": "indeterminate",
+      "path": "fixtures/adversarial/indeterminate_result.json"
+    },
+    {
+      "case_id": "mutated_input",
+      "class": "negative",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "mutated_input",
+        "freeze_revalidation"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/negative/mutated_input.json"
+    },
+    {
+      "case_id": "path_traversal",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "traversal"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/adversarial/path_traversal.json"
+    },
+    {
+      "case_id": "same_key_conflict",
+      "class": "negative",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "same_key_conflict"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/negative/same_key_conflict.json"
+    },
+    {
+      "case_id": "stale_concurrency_token",
+      "class": "negative",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "stale_concurrency_token",
+        "stale_head"
+      ],
+      "expected_terminal_status": "failed_no_effect",
+      "path": "fixtures/negative/stale_concurrency_token.json"
+    },
+    {
+      "case_id": "symlink_component",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "symlink"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/adversarial/symlink_component.json"
+    },
+    {
+      "case_id": "untrusted_mechanism",
+      "class": "negative",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "untrusted_mechanism"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/negative/untrusted_mechanism.json"
+    },
+    {
+      "case_id": "windows_reparse_component",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "reparse"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/adversarial/windows_reparse_component.json"
+    },
+    {
+      "case_id": "windows_reserved_name",
+      "class": "adversarial",
+      "contract_id": "fixture_copy.v1",
+      "covers": [
+        "reserved_windows_name"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/adversarial/windows_reserved_name.json"
+    },
+    {
+      "case_id": "wrong_contract_digest",
+      "class": "negative",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "wrong_contract_digest"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/negative/wrong_contract_digest.json"
+    },
+    {
+      "case_id": "wrong_contract_version",
+      "class": "negative",
+      "contract_id": "fixture_append.v1",
+      "covers": [
+        "wrong_contract_version"
+      ],
+      "expected_terminal_status": "rejected",
+      "path": "fixtures/negative/wrong_contract_version.json"
+    }
+  ],
+  "catalog_version": "1.0",
+  "generated_by": "deterministic_stage1_fixture_definition"
+}

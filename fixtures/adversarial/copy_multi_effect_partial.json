@@ -1,0 +1,35 @@
+{
+  "case_id": "copy_multi_effect_partial",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "multi_effect_partial_failure",
+    "partial_effect"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "Per-effect execution is not an all-effects transaction; an applied subset remains visible.",
+    "recovery_required": true,
+    "retry_disposition": "inspect_before_retry",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "failed_partial",
+    "validator_results": [
+      {
+        "code": "subset_applied",
+        "status": "fail",
+        "validator_id": "validator.aggregate_effects_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "effect_1": "absent",
+    "effect_2": "absent"
+  },
+  "stimulus": {
+    "effect_1": "applied_verified",
+    "effect_2": "failed_no_effect"
+  },
+  "vector_version": "1.0"
+}

@@ -1,0 +1,32 @@
+{
+  "case_id": "path_traversal",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "traversal"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Traversal is rejected lexically and must also be blocked by the physical path boundary.",
+    "recovery_required": false,
+    "retry_disposition": "forbidden",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "path_traversal",
+        "status": "fail",
+        "validator_id": "validator.path_scope_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "root_binding": "fixture_result_root"
+  },
+  "stimulus": {
+    "relative_locator": "../escape.bin"
+  },
+  "vector_version": "1.0"
+}

@@ -1,0 +1,40 @@
+{
+  "$id": "fixture://schemas/fixture-copy-candidate.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "destinations": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "idempotency_key": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "input_binding": {
+      "const": "payload"
+    },
+    "object_id": {
+      "pattern": "^[a-z0-9._-]+$",
+      "type": "string"
+    },
+    "transfer_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "transfer_id",
+    "object_id",
+    "input_binding",
+    "destinations",
+    "idempotency_key"
+  ],
+  "type": "object"
+}

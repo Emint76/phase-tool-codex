@@ -1,0 +1,13 @@
+{
+  "effect_id": "append.effect.001",
+  "effect_journal_entry_version": "1.0",
+  "effect_ordinal": 0,
+  "entry_kind": "attempt_started",
+  "observation_digest": null,
+  "observed_effect_status": null,
+  "plan_digest": "sha256:c2e104546312b9afe769ce66ddfe12e7f25a8a6d4c765218c4f8171cc0cbf774",
+  "previous_entry_digest": null,
+  "recorded_at": "2026-07-26T14:00:00Z",
+  "run_id": "golden-run-001",
+  "sequence": 0
+}

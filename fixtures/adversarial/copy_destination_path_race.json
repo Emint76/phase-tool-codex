@@ -1,0 +1,33 @@
+{
+  "case_id": "copy_destination_path_race",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "destination_path_race",
+    "check_to_use"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "If identity cannot be established after a publication attempt, Core must not assert no effect.",
+    "recovery_required": true,
+    "retry_disposition": "inspect_before_retry",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "indeterminate",
+    "validator_results": [
+      {
+        "code": "target_identity_unresolved",
+        "status": "unknown",
+        "validator_id": "validator.path_scope_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "preflight_parent_identity": "parent-a"
+  },
+  "stimulus": {
+    "publication_parent_identity": "unknown_after_race"
+  },
+  "vector_version": "1.0"
+}

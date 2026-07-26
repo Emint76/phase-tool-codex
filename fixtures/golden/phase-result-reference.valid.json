@@ -1,0 +1,19 @@
+{
+  "authority_rule": "authority.append_head_v1",
+  "contract": {
+    "id": "fixture_append.v1",
+    "package_digest": "sha256:27c1ca9d41c4d5c5c7f31095ea9eb1c411c5d4b609f2b03c3124bb0f574462b8",
+    "version": "1.0.0"
+  },
+  "locator": "streams/alpha.jsonl",
+  "observed_at": "2026-07-26T14:00:01Z",
+  "owner_id": "fixture.append.owner",
+  "reference_version": "1.0",
+  "root_binding": "fixture_result_root",
+  "state": {
+    "digest": "sha256:bd2f3bf9bfb6c67f02330d78a20ca65b9cada3324004260e4218f8056806a11b",
+    "exists": true,
+    "head_token": "head-b",
+    "length": 124
+  }
+}

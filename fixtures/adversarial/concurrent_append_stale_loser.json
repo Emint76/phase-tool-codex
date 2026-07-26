@@ -1,0 +1,34 @@
+{
+  "case_id": "concurrent_append_stale_loser",
+  "class": "adversarial",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "concurrent_append",
+    "stale_head"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "One future writer may succeed; the stale loser is serialized and classified no-effect.",
+    "recovery_required": false,
+    "retry_disposition": "safe_idempotent_retry",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "failed_no_effect",
+    "validator_results": [
+      {
+        "code": "stale_head_after_concurrent_winner",
+        "status": "fail",
+        "validator_id": "validator.expected_head_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "two_writers_expected_head": "head-a"
+  },
+  "stimulus": {
+    "loser_under_lock_head": "head-b",
+    "winner_result_head": "head-b"
+  },
+  "vector_version": "1.0"
+}

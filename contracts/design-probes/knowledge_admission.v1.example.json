@@ -1,0 +1,258 @@
+{
+  "candidate": {
+    "canonicalization": "canonical_json_v1",
+    "input_mode": "structured_json",
+    "privacy_policy_id": "privacy.no_secrets_v1",
+    "schema_digest": "sha256:d4caa0f15bc8b1900b5315091f7fb67ec8756f7b213ceb7393bf22876d4f47ec",
+    "schema_ref": "probe://schemas/knowledge-admission-candidate.v1"
+  },
+  "canonical_result": {
+    "authority_rule": "knowledge.canonical_destination_v1",
+    "locator_template": "{profile}/{taxonomy}/{record_id}",
+    "owner_id": "knowledge.repository",
+    "result_reference_schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
+    "result_schema_digest": "sha256:d8af39b481d842dcce9393349a26a1481e41106d8f0cd675185976b9b40efbdc",
+    "result_schema_ref": "probe://schemas/knowledge-admission-result.v1",
+    "root_binding": "canonical_destination_root"
+  },
+  "evidence": {
+    "receipt_schema_digest": "sha256:3a5bbe001161f2d88267176f4323e8adf49fba90249f0ca3cab2838c0baba947",
+    "receipt_schema_ref": "https://phase-tool.local/schemas/phase-receipt.schema.json",
+    "redaction_policy_id": "redaction.no_secrets_v1",
+    "required_attachment_kinds": [
+      "effect_receipts",
+      "validator_results"
+    ],
+    "retention_policy_id": "retention.fixture_v1"
+  },
+  "idempotency": {
+    "incomplete_previous_execution": "inspect_before_retry",
+    "key_required": true,
+    "request_digest_policy_id": "digest.canonical_request_v1",
+    "same_key_different_digest": "conflict",
+    "same_key_same_digest": "return_existing_verified",
+    "scope_fields": [
+      "contract",
+      "result_locator",
+      "operation_intent"
+    ],
+    "success_lookup": "canonical_result_then_receipt"
+  },
+  "identity": {
+    "core_compatibility": {
+      "maximum_exclusive": "2.0.0",
+      "minimum": "1.0.0"
+    },
+    "id": "knowledge_admission.v1",
+    "version": "1.0.0"
+  },
+  "input_bindings": [
+    {
+      "freeze_strategy": "copy_and_hash",
+      "id": "record_bundle",
+      "mutable_upstream_after_freeze": "forbidden",
+      "provenance_required": true,
+      "required": true,
+      "schema_digest": "sha256:2d2f537aa18dcc16b3918540f833e3b174401ee7825e1e52579fdeca1f63518c",
+      "schema_ref": "probe://schemas/knowledge-record-bundle.v1"
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "provenance_record",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": true,
+      "required": true,
+      "schema_digest": "sha256:8a59692d52e27975e7e637e4bef217efee7b6b5a9e387f36c4a7356ad590aa95",
+      "schema_ref": "probe://schemas/provenance-record.v1"
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "review_record",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": true,
+      "required": true,
+      "schema_digest": "sha256:4864eb5677639b5fcd359afc334f14a5f90a48dc2ac8787b311f4b1de60b5567",
+      "schema_ref": "probe://schemas/review-record.v1"
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "profile_selection",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": false,
+      "required": true,
+      "schema_digest": "sha256:e602b485387c6977d3a4a1ac187a48319ec475e5eca2aa09d6e60e19984f56fb",
+      "schema_ref": "probe://schemas/profile-selection.v1"
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "taxonomy_assignment",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": false,
+      "required": true,
+      "schema_digest": "sha256:06955a2d253f941a2a7ace4144b36e1e85e2baf5081b4612033c13bca1129411",
+      "schema_ref": "probe://schemas/taxonomy-assignment.v1"
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "placement_request",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": false,
+      "required": true,
+      "schema_digest": "sha256:259d7ee8ee973e877164f98211da017373b146853648274a5e463406d3b0bf0f",
+      "schema_ref": "probe://schemas/knowledge-placement.v1"
+    }
+  ],
+  "operation": {
+    "allowed_effects": [
+      "copy_blob"
+    ],
+    "atomicity_claim": "per_effect",
+    "effect_order": "static_predeclared",
+    "intent": "copy",
+    "maximum_effects": 64,
+    "mechanism": {
+      "availability": "deferred",
+      "capability": "mutation_mechanism",
+      "id": "probe.mechanism.unregistered_copy",
+      "package_digest": "sha256:3f0227df874a64df86967eb10378f1ba63722a9f494f67b4427e4b6b3ce859b5",
+      "version": "1.0.0"
+    }
+  },
+  "outcomes": {
+    "committed_unverified": "committed_unverified",
+    "known_no_effect": "failed_no_effect",
+    "known_partial": "failed_partial",
+    "pre_mutation_rejection": "rejected",
+    "success": "succeeded_verified",
+    "unknown_result": "indeterminate"
+  },
+  "phase_contract_version": "1.0",
+  "recovery": {
+    "automatic": false,
+    "policy": "none",
+    "requires_exact_before_state": false
+  },
+  "validators": [
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "knowledge.candidate_shape_v1",
+        "package_digest": "sha256:2f5c5f602a8883b07a125f4b7178814c851559b32517fa53528bc0b945bae7a7",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "candidate"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "knowledge.provenance_policy_v1",
+        "package_digest": "sha256:11fce1f43989ff72edf41a3f0a07e27fbce081c59d38f8141fb05dd43bcff9f0",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "knowledge.review_policy_v1",
+        "package_digest": "sha256:88bea9a1419cdfdd1b884fcb7e590f3e5104288a354769904bd83a22f114d335",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "knowledge.profile_policy_v1",
+        "package_digest": "sha256:c66551572181a8d706e855494339158d41c9da4a74b4630bce3af08e2c2b7d8b",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "knowledge.taxonomy_policy_v1",
+        "package_digest": "sha256:3baea7605ec847d8d1882033125c60cc7fa73343ddd7277cdace9d7656bef1e0",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "knowledge.placement_policy_v1",
+        "package_digest": "sha256:6c271c6d4626c53689d6494013135022625ddb28007d41017c51034ed4b18649",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "knowledge.destination_verification_v1",
+        "package_digest": "sha256:d57df001c8859cc7e30a2c268a384e3437e2e3f0cd044472be9b99da96859d8d",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "post_operation"
+    }
+  ],
+  "verification": {
+    "observation_scope": "result_only",
+    "required_predicates": [
+      "provenance_bound",
+      "review_bound",
+      "profile_satisfied",
+      "taxonomy_satisfied",
+      "placement_satisfied",
+      "destination_verified"
+    ],
+    "validators": [
+      {
+        "capability": "validator",
+        "id": "knowledge.destination_verification_v1",
+        "package_digest": "sha256:d57df001c8859cc7e30a2c268a384e3437e2e3f0cd044472be9b99da96859d8d",
+        "version": "1.0.0"
+      }
+    ]
+  },
+  "write_scope": {
+    "default_path_policy": {
+      "capability": "path_policy",
+      "id": "path.strict_local_v1",
+      "package_digest": "sha256:238b3431352a94dab33ffa0190fd78cd2825679377cb0e14dfa4bd4c6da8b0f4",
+      "version": "1.0.0"
+    },
+    "forbidden_root_bindings": [
+      "phase_evidence_root"
+    ],
+    "roots": [
+      {
+        "access": "write",
+        "binding_id": "canonical_destination_root",
+        "path_policy": {
+          "capability": "path_policy",
+          "id": "path.strict_local_v1",
+          "package_digest": "sha256:238b3431352a94dab33ffa0190fd78cd2825679377cb0e14dfa4bd4c6da8b0f4",
+          "version": "1.0.0"
+        },
+        "reparse_policy": "reject",
+        "symlink_policy": "reject"
+      }
+    ]
+  }
+}

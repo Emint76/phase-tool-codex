@@ -1,0 +1,32 @@
+{
+  "case_id": "untrusted_mechanism",
+  "class": "negative",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "untrusted_mechanism"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Untrusted or non-bundled mutation mechanism is rejected before planning effects.",
+    "recovery_required": false,
+    "retry_disposition": "forbidden",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "mechanism_untrusted",
+        "status": "fail",
+        "validator_id": "validator.exact_binding_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "trust_root": "root-a"
+  },
+  "stimulus": {
+    "mechanism_trust": "untrusted"
+  },
+  "vector_version": "1.0"
+}

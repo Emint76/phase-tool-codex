@@ -1,0 +1,33 @@
+{
+  "case_id": "windows_reparse_component",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "reparse"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Default Windows policy rejects reparse traversal before mutation.",
+    "recovery_required": false,
+    "retry_disposition": "forbidden",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "reparse_point_rejected",
+        "status": "fail",
+        "validator_id": "validator.path_scope_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "component_type": "reparse_point",
+    "platform": "windows"
+  },
+  "stimulus": {
+    "relative_locator": "junction/object.bin"
+  },
+  "vector_version": "1.0"
+}

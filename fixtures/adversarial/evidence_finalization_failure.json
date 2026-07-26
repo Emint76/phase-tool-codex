@@ -1,0 +1,38 @@
+{
+  "case_id": "evidence_finalization_failure",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "committed_result_failed_evidence_finalization"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "A committed result with failed required evidence finalization is non-success and must not be replayed blindly.",
+    "recovery_required": true,
+    "retry_disposition": "inspect_before_retry",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "committed_unverified",
+    "validator_results": [
+      {
+        "code": "digest_matches",
+        "status": "pass",
+        "validator_id": "validator.result_digest_v1"
+      },
+      {
+        "code": "receipt_finalization_failed",
+        "status": "fail",
+        "validator_id": "validator.evidence_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "canonical_result": "present",
+    "effect": "applied_verified"
+  },
+  "stimulus": {
+    "receipt_write": "failed"
+  },
+  "vector_version": "1.0"
+}

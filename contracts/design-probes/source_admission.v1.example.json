@@ -1,0 +1,216 @@
+{
+  "candidate": {
+    "canonicalization": "canonical_json_v1",
+    "input_mode": "structured_json",
+    "privacy_policy_id": "privacy.no_secrets_v1",
+    "schema_digest": "sha256:c19bed4579af6f7cc5134d064fe313fe562559155e4c13ce43739f0bb687297b",
+    "schema_ref": "probe://schemas/source-admission-candidate.v1"
+  },
+  "canonical_result": {
+    "authority_rule": "source.canonical_destination_v1",
+    "locator_template": "{placement}/{artifact_id}",
+    "owner_id": "source.catalog",
+    "result_reference_schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
+    "result_schema_digest": "sha256:4e589b126ce4a1f0dbd0bbd88e1035303871b8ac311a05dab6d524c8b75dc56e",
+    "result_schema_ref": "probe://schemas/source-admission-result.v1",
+    "root_binding": "canonical_destination_root"
+  },
+  "evidence": {
+    "receipt_schema_digest": "sha256:3a5bbe001161f2d88267176f4323e8adf49fba90249f0ca3cab2838c0baba947",
+    "receipt_schema_ref": "https://phase-tool.local/schemas/phase-receipt.schema.json",
+    "redaction_policy_id": "redaction.no_secrets_v1",
+    "required_attachment_kinds": [
+      "effect_receipts",
+      "validator_results"
+    ],
+    "retention_policy_id": "retention.fixture_v1"
+  },
+  "idempotency": {
+    "incomplete_previous_execution": "inspect_before_retry",
+    "key_required": true,
+    "request_digest_policy_id": "digest.canonical_request_v1",
+    "same_key_different_digest": "conflict",
+    "same_key_same_digest": "return_existing_verified",
+    "scope_fields": [
+      "contract",
+      "result_locator",
+      "operation_intent"
+    ],
+    "success_lookup": "canonical_result_then_receipt"
+  },
+  "identity": {
+    "core_compatibility": {
+      "maximum_exclusive": "2.0.0",
+      "minimum": "1.0.0"
+    },
+    "id": "source_admission.v1",
+    "version": "1.0.0"
+  },
+  "input_bindings": [
+    {
+      "freeze_strategy": "copy_and_hash",
+      "id": "artifact_bytes",
+      "mutable_upstream_after_freeze": "forbidden",
+      "provenance_required": true,
+      "required": true,
+      "schema_digest": null,
+      "schema_ref": null
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "provenance_record",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": true,
+      "required": true,
+      "schema_digest": "sha256:8a59692d52e27975e7e637e4bef217efee7b6b5a9e387f36c4a7356ad590aa95",
+      "schema_ref": "probe://schemas/provenance-record.v1"
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "review_record",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": true,
+      "required": true,
+      "schema_digest": "sha256:4864eb5677639b5fcd359afc334f14a5f90a48dc2ac8787b311f4b1de60b5567",
+      "schema_ref": "probe://schemas/review-record.v1"
+    },
+    {
+      "freeze_strategy": "value_snapshot",
+      "id": "placement_request",
+      "mutable_upstream_after_freeze": "not_applicable",
+      "provenance_required": false,
+      "required": true,
+      "schema_digest": "sha256:f3c4c839bbdca8e35f976feb1cf20bb7b7028e141fc521f2c40a9500b6d9790d",
+      "schema_ref": "probe://schemas/source-placement.v1"
+    }
+  ],
+  "operation": {
+    "allowed_effects": [
+      "copy_blob"
+    ],
+    "atomicity_claim": "per_effect",
+    "effect_order": "static_predeclared",
+    "intent": "copy",
+    "maximum_effects": 32,
+    "mechanism": {
+      "availability": "deferred",
+      "capability": "mutation_mechanism",
+      "id": "probe.mechanism.unregistered_copy",
+      "package_digest": "sha256:3f0227df874a64df86967eb10378f1ba63722a9f494f67b4427e4b6b3ce859b5",
+      "version": "1.0.0"
+    }
+  },
+  "outcomes": {
+    "committed_unverified": "committed_unverified",
+    "known_no_effect": "failed_no_effect",
+    "known_partial": "failed_partial",
+    "pre_mutation_rejection": "rejected",
+    "success": "succeeded_verified",
+    "unknown_result": "indeterminate"
+  },
+  "phase_contract_version": "1.0",
+  "recovery": {
+    "automatic": false,
+    "policy": "none",
+    "requires_exact_before_state": false
+  },
+  "validators": [
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "source.candidate_shape_v1",
+        "package_digest": "sha256:5f085e7a093c6919b62d628928ccdd453d53f05e4ef48d76be629a729892c7a1",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "candidate"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "source.provenance_policy_v1",
+        "package_digest": "sha256:2466e9631d6f2b1163f25567ca836f349381344dd9e550d248f6ef59aed91105",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "source.review_policy_v1",
+        "package_digest": "sha256:0e7f00aa354b7a789e83c9a1c071ac95dc994a0d2dcf81f3fc0856464cf18d1a",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "source.placement_policy_v1",
+        "package_digest": "sha256:5661fcaf4991ee32f725ed4f94b8177ceb9721d6ee6edae797848f98c4b6b2a7",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "policy"
+    },
+    {
+      "binding": {
+        "capability": "validator",
+        "id": "source.destination_verification_v1",
+        "package_digest": "sha256:1e7899a0511862508d99b798c23424ccdc14c1c753fe30f63810dfa5cdf93c68",
+        "version": "1.0.0"
+      },
+      "blocking": true,
+      "config": {},
+      "phase": "post_operation"
+    }
+  ],
+  "verification": {
+    "observation_scope": "result_only",
+    "required_predicates": [
+      "provenance_bound",
+      "review_bound",
+      "placement_satisfied",
+      "destination_verified"
+    ],
+    "validators": [
+      {
+        "capability": "validator",
+        "id": "source.destination_verification_v1",
+        "package_digest": "sha256:1e7899a0511862508d99b798c23424ccdc14c1c753fe30f63810dfa5cdf93c68",
+        "version": "1.0.0"
+      }
+    ]
+  },
+  "write_scope": {
+    "default_path_policy": {
+      "capability": "path_policy",
+      "id": "path.strict_local_v1",
+      "package_digest": "sha256:238b3431352a94dab33ffa0190fd78cd2825679377cb0e14dfa4bd4c6da8b0f4",
+      "version": "1.0.0"
+    },
+    "forbidden_root_bindings": [
+      "phase_evidence_root"
+    ],
+    "roots": [
+      {
+        "access": "write",
+        "binding_id": "canonical_destination_root",
+        "path_policy": {
+          "capability": "path_policy",
+          "id": "path.strict_local_v1",
+          "package_digest": "sha256:238b3431352a94dab33ffa0190fd78cd2825679377cb0e14dfa4bd4c6da8b0f4",
+          "version": "1.0.0"
+        },
+        "reparse_policy": "reject",
+        "symlink_policy": "reject"
+      }
+    ]
+  }
+}

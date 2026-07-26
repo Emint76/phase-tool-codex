@@ -1,0 +1,40 @@
+{
+  "terminal_statuses": [
+    {
+      "mutation_attempted": false,
+      "status": "rejected",
+      "success_exit_allowed": false
+    },
+    {
+      "mutation_attempted": false,
+      "status": "aborted",
+      "success_exit_allowed": false
+    },
+    {
+      "mutation_attempted": "mechanism_boundary_dependent",
+      "status": "failed_no_effect",
+      "success_exit_allowed": false
+    },
+    {
+      "mutation_attempted": true,
+      "status": "failed_partial",
+      "success_exit_allowed": false
+    },
+    {
+      "mutation_attempted": true,
+      "status": "committed_unverified",
+      "success_exit_allowed": false
+    },
+    {
+      "mutation_attempted": "unknown_or_true",
+      "status": "indeterminate",
+      "success_exit_allowed": false
+    },
+    {
+      "mutation_attempted": "true_or_verified_idempotent_existing",
+      "status": "succeeded_verified",
+      "success_exit_allowed": true
+    }
+  ],
+  "vector_version": "1.0"
+}

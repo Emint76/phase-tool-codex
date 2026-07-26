@@ -1,0 +1,86 @@
+{
+  "blockers": [
+    "verification_incomplete"
+  ],
+  "canonical_result": {
+    "authority_rule": "authority.append_head_v1",
+    "contract": {
+      "id": "fixture_append.v1",
+      "package_digest": "sha256:27c1ca9d41c4d5c5c7f31095ea9eb1c411c5d4b609f2b03c3124bb0f574462b8",
+      "version": "1.0.0"
+    },
+    "locator": "streams/alpha.jsonl",
+    "observed_at": "2026-07-26T14:00:01Z",
+    "owner_id": "fixture.append.owner",
+    "reference_version": "1.0",
+    "root_binding": "fixture_result_root",
+    "state": {
+      "digest": "sha256:bd2f3bf9bfb6c67f02330d78a20ca65b9cada3324004260e4218f8056806a11b",
+      "exists": true,
+      "head_token": "head-b",
+      "length": 124
+    }
+  },
+  "contract": {
+    "id": "fixture_append.v1",
+    "package_digest": "sha256:27c1ca9d41c4d5c5c7f31095ea9eb1c411c5d4b609f2b03c3124bb0f574462b8",
+    "version": "1.0.0"
+  },
+  "core": {
+    "id": "phase.core",
+    "package_digest": "sha256:0db2d0834d134a315ce41a8335a35dcbd411a176d1dbd0f2a212d38ae935bc30",
+    "version": "1.0.0"
+  },
+  "effect_receipts": [
+    {
+      "after": {
+        "digest": "sha256:bd2f3bf9bfb6c67f02330d78a20ca65b9cada3324004260e4218f8056806a11b",
+        "exists": true,
+        "head_token": "head-b",
+        "known": true,
+        "length": 124
+      },
+      "attempted": true,
+      "before": {
+        "digest": "sha256:c73b6af0dd2d6e3bbbf2e513983243c41bf734cbf7c7bc9ee67d4e3123e5faaa",
+        "exists": true,
+        "head_token": "head-a",
+        "known": true,
+        "length": 100
+      },
+      "bytes_written": 24,
+      "effect_id": "append.effect.001",
+      "effect_receipt_version": "1.0",
+      "error": {
+        "code": "post_verification_failed",
+        "message": "Commit observed; required verification incomplete"
+      },
+      "finished_at": "2026-07-26T14:00:01Z",
+      "kind": "append_record",
+      "run_id": "golden-run-001",
+      "started_at": "2026-07-26T14:00:00Z",
+      "status": "applied_unverified",
+      "verification_refs": []
+    }
+  ],
+  "evidence": {
+    "attachment_digests": [],
+    "finalization_status": "finalized",
+    "intent_digest": "sha256:282bcbc3f0a34a8a4ac6f00c276fcf66cf3757a3332e83d92208e5079af46922",
+    "receipt_digest_policy_id": "digest.receipt_v1",
+    "required_attachments_present": true
+  },
+  "execution_disposition": "executed",
+  "exit_code": 22,
+  "finished_at": "2026-07-26T14:00:01Z",
+  "mutation_attempted": true,
+  "phase_receipt_version": "1.0",
+  "prior_verified_receipt_digest": null,
+  "recovery_required": true,
+  "result_state": "committed_unverified",
+  "retry_disposition": "inspect_before_retry",
+  "run_id": "golden-run-001",
+  "started_at": "2026-07-26T14:00:00Z",
+  "terminal_status": "committed_unverified",
+  "validator_results": []
+}

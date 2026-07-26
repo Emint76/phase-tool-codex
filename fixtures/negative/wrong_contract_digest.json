@@ -1,0 +1,32 @@
+{
+  "case_id": "wrong_contract_digest",
+  "class": "negative",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "wrong_contract_digest"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Exact registry/package digest binding fails before mutation.",
+    "recovery_required": false,
+    "retry_disposition": "conflict",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "contract_digest_mismatch",
+        "status": "fail",
+        "validator_id": "validator.exact_binding_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "registry_package_digest": "digest-registry"
+  },
+  "stimulus": {
+    "resolved_package_digest": "digest-other"
+  },
+  "vector_version": "1.0"
+}

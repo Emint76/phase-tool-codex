@@ -1,0 +1,25 @@
+{
+  "claim": "Digests cover exact payload bytes; these vectors do not define general JSON canonicalization.",
+  "hash_algorithm": "sha256",
+  "vector_version": "1.0",
+  "vectors": [
+    {
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "id": "exact_bytes_1",
+      "length": 0,
+      "payload_hex": ""
+    },
+    {
+      "digest": "sha256:ecf9e98ec0641e23113ff3ce8bdc78d0ddd249886517fd4a7f68cc83d4e65667",
+      "id": "exact_bytes_2",
+      "length": 15,
+      "payload_hex": "7b2261223a312c2262223a2278227d"
+    },
+    {
+      "digest": "sha256:66ae8a9c3f16aa7aa87ac92e9f194170f5e186edb8f78e515373f03ed940574e",
+      "id": "exact_bytes_3",
+      "length": 6,
+      "payload_hex": "6d753acebc0a"
+    }
+  ]
+}

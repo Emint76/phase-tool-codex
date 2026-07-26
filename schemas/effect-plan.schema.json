@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/schemas/effect-plan.schema.json",
+  "title": "Phase Effect Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["effect_plan_version", "plan_id", "run_id", "contract", "operation_intent", "mechanism", "write_scope_digest", "generated_at", "effect_order", "effects"],
+  "properties": {
+    "effect_plan_version": {"const": "1.0"},
+    "plan_id": {"$ref": "#/$defs/identifier"},
+    "run_id": {"$ref": "#/$defs/runId"},
+    "contract": {"$ref": "#/$defs/exactBinding"},
+    "operation_intent": {"enum": ["create", "append", "copy", "correction"]},
+    "mechanism": {"$ref": "#/$defs/exactBinding"},
+    "write_scope_digest": {"$ref": "#/$defs/digest"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "effect_order": {"const": "static_predeclared"},
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {"$ref": "#/$defs/effect"}
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+    "runId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "semver": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "relativeLocator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?(?:/[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?)*$",
+      "not": {"pattern": "(?:^|/)(?:[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[A-Za-z0-9_{}.-]+)?(?:/|$)"}
+    },
+    "exactBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "package_digest"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "version": {"$ref": "#/$defs/semver"},
+        "package_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_binding", "relative_locator"],
+      "properties": {
+        "root_binding": {"$ref": "#/$defs/identifier"},
+        "relative_locator": {"$ref": "#/$defs/relativeLocator"}
+      }
+    },
+    "preconditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["existence", "expected_digest", "expected_head", "concurrency_token"],
+      "properties": {
+        "existence": {"enum": ["absent", "present", "absent_or_same_digest"]},
+        "expected_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "expected_head": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]},
+        "concurrency_token": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]}
+      }
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect_id", "kind", "target", "input_binding", "content_digest", "content_length", "preconditions", "lock_scope", "durability_policy_id", "on_failure"],
+      "properties": {
+        "effect_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]},
+        "target": {"$ref": "#/$defs/target"},
+        "input_binding": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identifier"}]},
+        "content_digest": {"$ref": "#/$defs/digest"},
+        "content_length": {"type": "integer", "minimum": 0},
+        "preconditions": {"$ref": "#/$defs/preconditions"},
+        "lock_scope": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identifier"}]},
+        "durability_policy_id": {"enum": ["best_effort_local", "file_data_synced", "file_and_directory_synced"]},
+        "on_failure": {"const": "stop_and_classify"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "exclusive_create"}}},
+          "then": {"properties": {"input_binding": {"type": "null"}, "lock_scope": {"type": "null"}, "preconditions": {"properties": {"existence": {"const": "absent"}, "expected_digest": {"type": "null"}, "expected_head": {"type": "null"}}}}}
+        },
+        {
+          "if": {"required": ["kind"], "properties": {"kind": {"const": "append_record"}}},
+          "then": {"properties": {"input_binding": {"type": "null"}, "lock_scope": {"type": "string"}, "preconditions": {"properties": {"existence": {"const": "present"}, "expected_digest": {"type": "null"}, "expected_head": {"type": "string"}, "concurrency_token": {"type": "string"}}}}}
+        },
+        {
+          "if": {"properties": {"kind": {"const": "copy_blob"}}},
+          "then": {"properties": {"input_binding": {"type": "string"}, "lock_scope": {"type": "null"}, "preconditions": {"properties": {"existence": {"const": "absent_or_same_digest"}, "expected_digest": {"type": "string"}, "expected_head": {"type": "null"}}}}}
+        }
+      ]
+    }
+  }
+}

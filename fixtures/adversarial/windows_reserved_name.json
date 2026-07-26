@@ -1,0 +1,32 @@
+{
+  "case_id": "windows_reserved_name",
+  "class": "adversarial",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "reserved_windows_name"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Reserved Windows device basename is rejected case-insensitively even with extension.",
+    "recovery_required": false,
+    "retry_disposition": "forbidden",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "windows_reserved_name",
+        "status": "fail",
+        "validator_id": "validator.path_scope_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "platform": "windows"
+  },
+  "stimulus": {
+    "relative_locator": "CON.txt"
+  },
+  "vector_version": "1.0"
+}

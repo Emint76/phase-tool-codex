@@ -1,0 +1,32 @@
+{
+  "case_id": "wrong_contract_version",
+  "class": "negative",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "wrong_contract_version"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Name-only or fallback version resolution is prohibited.",
+    "recovery_required": false,
+    "retry_disposition": "conflict",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "rejected",
+    "validator_results": [
+      {
+        "code": "contract_version_unavailable",
+        "status": "fail",
+        "validator_id": "validator.exact_binding_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "available_version": "1.0.0"
+  },
+  "stimulus": {
+    "requested_version": "1.1.0"
+  },
+  "vector_version": "1.0"
+}

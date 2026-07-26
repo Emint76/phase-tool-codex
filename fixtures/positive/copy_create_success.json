@@ -1,0 +1,46 @@
+{
+  "case_id": "copy_create_success",
+  "class": "positive",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "content_addressed_copy",
+    "destination_absent",
+    "post_verification"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "A future mechanism publishes one frozen blob without replacement and verifies it.",
+    "recovery_required": false,
+    "retry_disposition": "noop_existing",
+    "schema_valid": true,
+    "success_exit_allowed": true,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "succeeded_verified",
+    "validator_results": [
+      {
+        "code": "blob_matches",
+        "status": "pass",
+        "validator_id": "validator.frozen_blob_v1"
+      },
+      {
+        "code": "destination_absent",
+        "status": "pass",
+        "validator_id": "validator.destination_preconditions_v1"
+      },
+      {
+        "code": "digest_matches",
+        "status": "pass",
+        "validator_id": "validator.result_digest_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "destination": "absent",
+    "frozen_input_digest": "digest-p"
+  },
+  "stimulus": {
+    "effect_count": 1,
+    "planned_digest": "digest-p"
+  },
+  "vector_version": "1.0"
+}

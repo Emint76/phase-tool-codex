@@ -1,0 +1,33 @@
+{
+  "case_id": "stale_concurrency_token",
+  "class": "negative",
+  "contract_id": "fixture_append.v1",
+  "covers": [
+    "stale_concurrency_token",
+    "stale_head"
+  ],
+  "expected": {
+    "mutation_attempted": true,
+    "rationale": "Under-lock stale-head detection proves the target was not changed by this effect attempt.",
+    "recovery_required": false,
+    "retry_disposition": "safe_idempotent_retry",
+    "schema_valid": true,
+    "success_exit_allowed": false,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "failed_no_effect",
+    "validator_results": [
+      {
+        "code": "stale_head",
+        "status": "fail",
+        "validator_id": "validator.expected_head_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "expected_head": "head-a"
+  },
+  "stimulus": {
+    "under_lock_head": "head-b"
+  },
+  "vector_version": "1.0"
+}

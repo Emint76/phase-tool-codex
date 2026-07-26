@@ -1,0 +1,41 @@
+{
+  "contract": {
+    "id": "fixture_append.v1",
+    "package_digest": "sha256:27c1ca9d41c4d5c5c7f31095ea9eb1c411c5d4b609f2b03c3124bb0f574462b8",
+    "version": "1.0.0"
+  },
+  "effect_order": "static_predeclared",
+  "effect_plan_version": "1.0",
+  "effects": [
+    {
+      "content_digest": "sha256:333251268b4fc0311342db7ef1c99edb4df455d8090c7e571e3943e98cc9e514",
+      "content_length": 24,
+      "durability_policy_id": "file_data_synced",
+      "effect_id": "append.effect.001",
+      "input_binding": null,
+      "kind": "append_record",
+      "lock_scope": "stream.alpha",
+      "on_failure": "stop_and_classify",
+      "preconditions": {
+        "concurrency_token": "head-a",
+        "existence": "present",
+        "expected_digest": null,
+        "expected_head": "head-a"
+      },
+      "target": {
+        "relative_locator": "streams/alpha.jsonl",
+        "root_binding": "fixture_result_root"
+      }
+    }
+  ],
+  "generated_at": "2026-07-26T14:00:00Z",
+  "mechanism": {
+    "id": "mechanism.expected_head_append_v1",
+    "package_digest": "sha256:2496eeabd489eadcc105a4b9decd7791c9242cfae274a84c24c795ab93fd6b05",
+    "version": "1.0.0"
+  },
+  "operation_intent": "append",
+  "plan_id": "plan.golden.001",
+  "run_id": "golden-run-001",
+  "write_scope_digest": "sha256:c9d2f50815a7f1447fb02694712de8c400f735a459afc7abee8208d8fa7361dd"
+}

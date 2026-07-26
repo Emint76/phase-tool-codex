@@ -1,0 +1,42 @@
+{
+  "case_id": "copy_same_hash_idempotent",
+  "class": "positive",
+  "contract_id": "fixture_copy.v1",
+  "covers": [
+    "same_hash_idempotency",
+    "idempotency"
+  ],
+  "expected": {
+    "mutation_attempted": false,
+    "rationale": "Contract-approved same-hash verified result is reused with no write.",
+    "recovery_required": false,
+    "retry_disposition": "noop_existing",
+    "schema_valid": true,
+    "success_exit_allowed": true,
+    "target_mutation_permitted_in_stage1": false,
+    "terminal_status": "succeeded_verified",
+    "validator_results": [
+      {
+        "code": "same_digest_existing",
+        "status": "pass",
+        "validator_id": "validator.destination_preconditions_v1"
+      },
+      {
+        "code": "verified_existing",
+        "status": "pass",
+        "validator_id": "validator.idempotency_v1"
+      }
+    ]
+  },
+  "preconditions": {
+    "destination_digest": "digest-p",
+    "key": "copy-1",
+    "request_digest": "digest-r"
+  },
+  "stimulus": {
+    "key": "copy-1",
+    "planned_digest": "digest-p",
+    "request_digest": "digest-r"
+  },
+  "vector_version": "1.0"
+}

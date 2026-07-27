@@ -39,6 +39,10 @@
   },
   "allOf": [
     {
+      "if": {"required": ["execution_disposition"], "properties": {"execution_disposition": {"const": "executed"}}},
+      "then": {"properties": {"evidence": {"properties": {"intent_digest": {"$ref": "#/$defs/digest"}}}}}
+    },
+    {
       "if": {"required": ["terminal_status"], "properties": {"terminal_status": {"not": {"const": "succeeded_verified"}}}},
       "then": {"properties": {"prior_verified_receipt_digest": {"type": "null"}}}
     },

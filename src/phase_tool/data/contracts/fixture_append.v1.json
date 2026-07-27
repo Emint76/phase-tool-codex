@@ -16,7 +16,7 @@
     "root_binding": "fixture_result_root"
   },
   "evidence": {
-    "receipt_schema_digest": "sha256:65b08812390822ae2694d27727b8af5a8a9adbf263dc488a16b0d3b5af2b2a0a",
+    "receipt_schema_digest": "sha256:b68327ee676e8a51fabbd231e66ed5b3195171c9a169207a03782700892834bf",
     "receipt_schema_ref": "https://phase-tool.local/schemas/phase-receipt.schema.json",
     "redaction_policy_id": "redaction.no_secrets_v1",
     "required_attachment_kinds": [

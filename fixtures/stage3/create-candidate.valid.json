@@ -1,0 +1,6 @@
+{
+  "idempotency_key": "fixture-stage3-key-1",
+  "input_binding": "payload",
+  "operation_id": "fixture-stage3-operation-1",
+  "target_locator": "objects/item.bin"
+}

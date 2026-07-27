@@ -1,0 +1,142 @@
+{
+  "$id": "https://phase-tool.local/schemas/stage3-command-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "blockers": {
+      "items": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "command": {
+      "enum": [
+        "validate",
+        "plan",
+        "inspect",
+        "execute"
+      ]
+    },
+    "effect_plan_digest": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      ]
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        }
+      ]
+    },
+    "execution_disposition": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "not_executed",
+            "executed",
+            "reused_existing"
+          ]
+        }
+      ]
+    },
+    "exit_code": {
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "intent_digest": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      ]
+    },
+    "mutation_attempted": {
+      "type": "boolean"
+    },
+    "receipt_digest": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      ]
+    },
+    "run_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "type": "string"
+        }
+      ]
+    },
+    "stage3_command_result_version": {
+      "const": "1.0"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "terminal_status": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "rejected",
+            "aborted",
+            "validated_planned",
+            "failed_no_effect",
+            "failed_partial",
+            "committed_unverified",
+            "indeterminate",
+            "succeeded_verified"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "stage3_command_result_version",
+    "command",
+    "success",
+    "run_id",
+    "terminal_status",
+    "execution_disposition",
+    "mutation_attempted",
+    "effect_plan_digest",
+    "intent_digest",
+    "receipt_digest",
+    "blockers",
+    "error",
+    "exit_code"
+  ],
+  "title": "Phase Tool Stage 3 command result",
+  "type": "object"
+}

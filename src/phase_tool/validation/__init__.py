@@ -10,7 +10,7 @@ from ..candidate import CapturedCandidate
 from ..canonical import digest_bytes, parse_json_bytes
 from ..errors import PhaseError
 from ..freeze import FrozenInput, revalidate_frozen, revalidate_snapshot
-from ..paths import inspect_target_path
+from ..paths import contained_read_path, inspect_target_path
 from ..registry import RegistrySnapshot, ResolvedContract
 
 
@@ -79,7 +79,7 @@ class ValidatorRunner:
         value = parse_json_bytes(candidate.canonical_bytes)
         if identifier == "validator.exact_binding_v1":
             return "pass", "validation.pass", "exact_registry_binding", "exact_registry_binding", []
-        if identifier in {"fixture.append.candidate_v1", "fixture.copy.candidate_v1"}:
+        if identifier in {"fixture.append.candidate_v1", "fixture.copy.candidate_v1", "fixture.create.candidate_v1"}:
             return self._candidate_validation(contract, candidate)
         if identifier == "validator.frozen_blob_v1":
             frozen = frozen_inputs.get("payload")
@@ -90,6 +90,12 @@ class ValidatorRunner:
             except PhaseError as exc:
                 return "fail", exc.code, frozen.digest, "mismatch", [exc.code]
             return "pass", "validation.pass", frozen.digest, frozen.digest, []
+        if identifier == "validator.destination_absent_v1":
+            root = self._target_root(contract, root_bindings)
+            target, exists = inspect_target_path(root, value["target_locator"])
+            if exists:
+                return "fail", "target.destination_exists", "absent", "present", ["target.destination_exists"]
+            return "pass", "validation.pass", "absent", "absent", []
         if identifier == "validator.expected_head_v1":
             root = self._target_root(contract, root_bindings)
             target, exists = inspect_target_path(root, value["target_locator"])
@@ -174,3 +180,56 @@ class ValidatorRunner:
             if declaration["blocking"] and result["status"] in {"fail", "unknown"}:
                 blocked = True
         return results
+
+    def run_post_operation(
+        self,
+        contract: ResolvedContract,
+        prior_results: list[dict[str, Any]],
+        effect_plan: Mapping[str, Any],
+        root_bindings: Mapping[str, Path],
+        *,
+        run_id: str,
+        timestamp: str,
+    ) -> list[dict[str, Any]]:
+        """Re-run declared post validators against actual target bytes."""
+        completed = list(prior_results)
+        declarations = list(contract.document["validators"])
+        for index, declaration in enumerate(declarations):
+            if declaration["phase"] != "post_operation":
+                continue
+            identifier = declaration["binding"]["id"]
+            if identifier != "validator.result_digest_v1":
+                raise PhaseError("validator.unavailable", identifier)
+            expected: list[dict[str, Any]] = []
+            actual: list[dict[str, Any]] = []
+            blockers: list[str] = []
+            for effect in effect_plan["effects"]:
+                root_id = effect["target"]["root_binding"]
+                try:
+                    root = Path(root_bindings[root_id])
+                except KeyError as exc:
+                    raise PhaseError("plan.root_binding_missing", root_id) from exc
+                locator = effect["target"]["relative_locator"]
+                expected.append({"locator": locator, "digest": effect["content_digest"], "length": effect["content_length"]})
+                try:
+                    path = contained_read_path(root, locator)
+                    data = path.read_bytes()
+                    observation = {"locator": locator, "digest": digest_bytes(data), "length": len(data)}
+                    actual.append(observation)
+                    if observation["digest"] != effect["content_digest"] or observation["length"] != effect["content_length"]:
+                        blockers.append("verification.result_mismatch")
+                except (OSError, PhaseError):
+                    actual.append({"locator": locator, "digest": None, "length": None})
+                    blockers.append("verification.target_unavailable")
+            status = "pass" if not blockers else "fail"
+            completed[index] = self._result(
+                declaration,
+                run_id=run_id,
+                timestamp=timestamp,
+                status=status,
+                code="validation.pass" if not blockers else blockers[0],
+                expected=expected,
+                actual=actual,
+                blockers=sorted(set(blockers)),
+            )
+        return completed

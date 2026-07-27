@@ -91,7 +91,27 @@ def build_static_plan(
         "effect_order": "static_predeclared",
     }
     effects: list[dict[str, Any]] = []
-    if operation["intent"] == "append":
+    if operation["intent"] == "create":
+        binding_id = value["input_binding"]
+        frozen = frozen_inputs.get(binding_id)
+        if frozen is None:
+            raise PhaseError("input.required_missing", binding_id)
+        revalidate_frozen(frozen)
+        locator = safe_relative_locator(value["target_locator"])
+        effects.append({
+            "effect_id": "effect.create.001",
+            "kind": "exclusive_create",
+            "target": {"root_binding": contract.document["canonical_result"]["root_binding"], "relative_locator": locator},
+            "input_binding": binding_id,
+            "content_source": {"kind": "frozen_input", "binding_id": binding_id, "source_digest": frozen.digest},
+            "content_digest": frozen.digest,
+            "content_length": frozen.length,
+            "preconditions": {"existence": "absent", "expected_digest": None, "expected_head": None, "concurrency_token": None},
+            "lock_scope": None,
+            "durability_policy_id": "file_data_synced",
+            "on_failure": "stop_and_classify",
+        })
+    elif operation["intent"] == "append":
         expected_locator = contract.document["canonical_result"]["locator_template"].replace("{stream_id}", value["stream_id"])
         locator = safe_relative_locator(value["target_locator"])
         if locator != expected_locator:

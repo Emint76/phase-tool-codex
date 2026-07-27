@@ -60,8 +60,14 @@ class EvidenceStore:
         else:
             path = self.run_root / relative
         data = canonical_bytes(value)
-        with path.open("xb") as stream:
-            stream.write(data)
+        with path.open("xb", buffering=0) as stream:
+            view = memoryview(data)
+            written = 0
+            while written < len(view):
+                count = stream.write(view[written:])
+                if count is None or count <= 0:
+                    raise PhaseError("evidence.short_write", relative)
+                written += count
             stream.flush()
             os.fsync(stream.fileno())
         return path, digest_bytes(data)

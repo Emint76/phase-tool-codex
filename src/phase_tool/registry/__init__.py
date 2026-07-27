@@ -165,6 +165,9 @@ class RegistrySnapshot:
             registry = registry.with_resource(entry["schema_ref"], Resource.from_contents(schema))
         return registry
 
+    def resolve_mechanism(self, binding: Mapping[str, Any]) -> Mapping[str, Any]:
+        return MappingProxyType(deepcopy(self._resolve_binding(kind="mechanism", binding=binding, capability="mutation_mechanism")))
+
     def resolve_contract(self, identifier: str, version: str, package_digest: str, *, core_version: str) -> ResolvedContract:
         matches = self._exact_entries(kind="contract", identifier=identifier, version=version, package_digest=package_digest)
         if not matches:

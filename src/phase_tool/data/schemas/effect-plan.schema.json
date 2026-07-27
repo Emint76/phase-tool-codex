@@ -97,7 +97,7 @@
       "allOf": [
         {
           "if": {"properties": {"kind": {"const": "exclusive_create"}}},
-          "then": {"properties": {"input_binding": {"type": "null"}, "lock_scope": {"type": "null"}, "preconditions": {"properties": {"existence": {"const": "absent"}, "expected_digest": {"type": "null"}, "expected_head": {"type": "null"}}}}}
+          "then": {"properties": {"lock_scope": {"type": "null"}, "preconditions": {"properties": {"existence": {"const": "absent"}, "expected_digest": {"type": "null"}, "expected_head": {"type": "null"}}}}}
         },
         {
           "if": {"required": ["kind"], "properties": {"kind": {"const": "append_record"}}},

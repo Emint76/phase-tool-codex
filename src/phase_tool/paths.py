@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path, PurePosixPath
+from typing import Callable
 
 from .errors import PhaseError
 
@@ -82,16 +83,22 @@ def inspect_target_path(root: Path, locator: str) -> tuple[Path, bool]:
     return current, False
 
 
-def contained_target_path(root: Path, locator: str) -> Path:
+def contained_target_path(
+    root: Path,
+    locator: str,
+    *,
+    reparse_detector: Callable[[Path], bool] | None = None,
+) -> Path:
     normalized = safe_relative_locator(locator)
     root = root.resolve(strict=True)
+    detector = reparse_detector or _is_reparse_point
     current = root
     parts = normalized.split("/")
     for index, part in enumerate(parts):
         current = current / part
         if current.is_symlink():
             raise PhaseError("path.link_forbidden", normalized)
-        if current.exists() and _is_reparse_point(current):
+        if current.exists() and detector(current):
             raise PhaseError("path.reparse_forbidden", normalized)
         if index < len(parts) - 1 and not current.is_dir():
             raise PhaseError("path.parent_missing", normalized)

@@ -9,6 +9,7 @@
   "effects": [
     {
       "content_digest": "sha256:333251268b4fc0311342db7ef1c99edb4df455d8090c7e571e3943e98cc9e514",
+      "content_blob_digest": "sha256:333251268b4fc0311342db7ef1c99edb4df455d8090c7e571e3943e98cc9e514",
       "content_length": 24,
       "content_source": {
         "binding_id": null,

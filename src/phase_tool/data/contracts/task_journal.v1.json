@@ -3,17 +3,17 @@
     "canonicalization": "canonical_json_v1",
     "input_mode": "structured_json",
     "privacy_policy_id": "privacy.no_secrets_v1",
-    "schema_digest": "sha256:16293656528fb1b5732d0b67911f0335026e90bdfb086abafb495267a62f9f17",
-    "schema_ref": "fixture://schemas/fixture-append-candidate.v1"
+    "schema_digest": "sha256:a9dce3a9903b391f49b8701d41ef0797e7f5202960b7233d87689491f27be388",
+    "schema_ref": "task://schemas/task-journal-candidate.v1"
   },
   "canonical_result": {
     "authority_rule": "authority.append_head_v1",
-    "locator_template": "streams/{stream_id}.jsonl",
-    "owner_id": "fixture.append.owner",
+    "locator_template": "tasks/{task_id}.jsonl",
+    "owner_id": "task_journal.owner",
     "result_reference_schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
-    "result_schema_digest": "sha256:33587c74cca0e78e8a5e56a7f139297fdca572f500c8e292c169a66951e4d4ee",
-    "result_schema_ref": "fixture://schemas/fixture-append-result.v1",
-    "root_binding": "fixture_result_root"
+    "result_schema_digest": "sha256:0e3779ed27b526fedf96536d299890329798606be76692d1afd484ff6c2d90cf",
+    "result_schema_ref": "task://schemas/task-journal-result.v1",
+    "root_binding": "task_journal_root"
   },
   "evidence": {
     "receipt_schema_digest": "sha256:b68327ee676e8a51fabbd231e66ed5b3195171c9a169207a03782700892834bf",
@@ -23,7 +23,7 @@
       "effect_receipts",
       "validator_results"
     ],
-    "retention_policy_id": "retention.fixture_v1"
+    "retention_policy_id": "retention.task_journal_v1"
   },
   "idempotency": {
     "incomplete_previous_execution": "inspect_before_retry",
@@ -43,7 +43,7 @@
       "maximum_exclusive": "2.0.0",
       "minimum": "1.0.0"
     },
-    "id": "fixture_append.v1",
+    "id": "task_journal.v1",
     "version": "1.0.0"
   },
   "input_bindings": [
@@ -65,7 +65,7 @@
     "atomicity_claim": "per_effect",
     "effect_order": "static_predeclared",
     "intent": "append",
-    "maximum_effects": 2,
+    "maximum_effects": 1,
     "mechanism": {
       "availability": "bundled_v1",
       "capability": "mutation_mechanism",
@@ -85,7 +85,7 @@
   "phase_contract_version": "1.0",
   "recovery": {
     "automatic": false,
-    "policy": "none",
+    "policy": "append_correction",
     "requires_exact_before_state": false
   },
   "validators": [
@@ -103,8 +103,8 @@
     {
       "binding": {
         "capability": "validator",
-        "id": "fixture.append.candidate_v1",
-        "package_digest": "sha256:d6dbd3dff45443b8083a324d3231988f703916bff0ed76e757041ffbde1605fb",
+        "id": "task_journal.candidate_v1",
+        "package_digest": "sha256:3ef995c8a55014de27d76a9c63e3f982c9dabc66fb1c239bbe3115991a99f16e",
         "version": "1.0.0"
       },
       "blocking": true,
@@ -114,19 +114,8 @@
     {
       "binding": {
         "capability": "validator",
-        "id": "validator.expected_head_v1",
-        "package_digest": "sha256:0235f53aac0f4581a44d5d3e8b985780a994439d35985c3c4159fefca2e0ccd0",
-        "version": "1.0.0"
-      },
-      "blocking": true,
-      "config": {},
-      "phase": "pre_operation"
-    },
-    {
-      "binding": {
-        "capability": "validator",
-        "id": "validator.valid_tail_v1",
-        "package_digest": "sha256:2c41a18f0daf88a0b70d9cbf137fd02f7614a6158edf0e07df1b2c4f2e81e05d",
+        "id": "task_journal.state_v1",
+        "package_digest": "sha256:8a02978de67c44b909d9220ccad1852a54cbe42be54ebf28a53b2e6a4f877cbf",
         "version": "1.0.0"
       },
       "blocking": true,
@@ -155,8 +144,8 @@
     "validators": [
       {
         "capability": "validator",
-        "id": "validator.valid_tail_v1",
-        "package_digest": "sha256:2c41a18f0daf88a0b70d9cbf137fd02f7614a6158edf0e07df1b2c4f2e81e05d",
+        "id": "task_journal.state_v1",
+        "package_digest": "sha256:8a02978de67c44b909d9220ccad1852a54cbe42be54ebf28a53b2e6a4f877cbf",
         "version": "1.0.0"
       },
       {
@@ -180,7 +169,7 @@
     "roots": [
       {
         "access": "write",
-        "binding_id": "fixture_result_root",
+        "binding_id": "task_journal_root",
         "path_policy": {
           "capability": "path_policy",
           "id": "path.strict_local_v1",

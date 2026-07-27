@@ -21,9 +21,10 @@ fixtures/
 ## Synthetic contracts
 
 - `contracts/fixtures/fixture_append.v1.json` — neutral exclusive-create/expected-head append model;
-- `contracts/fixtures/fixture_copy.v1.json` — neutral content-addressed copy/create model.
+- `contracts/fixtures/fixture_copy.v1.json` — neutral content-addressed copy/create model;
+- `contracts/fixtures/task_journal.v1.json` — executable task-journal contract over the same append mechanism.
 
-They contain no task/source/knowledge/admission vocabulary.
+The neutral fixture contracts contain no task/source/knowledge/admission vocabulary; `task_journal.v1` contains task vocabulary only in the contract-owned bundle.
 
 ## Case classes
 

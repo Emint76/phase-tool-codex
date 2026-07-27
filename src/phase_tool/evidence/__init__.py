@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,8 @@ class EvidenceStore:
         self.attachment_root = self.run_root / "attachments"
         self.blob_root.mkdir()
         self.attachment_root.mkdir()
+        self.operational_lock_root = phase_root / "locks"
+        self.operational_lock_root.mkdir(parents=True, exist_ok=True)
 
     def write_canonical(self, relative: str, value: Any) -> tuple[Path, str]:
         if "/" in relative:
@@ -71,6 +74,47 @@ class EvidenceStore:
             stream.flush()
             os.fsync(stream.fileno())
         return path, digest_bytes(data)
+
+    def write_blob_exact(self, digest: str, data: bytes) -> Path:
+        if not digest.startswith("sha256:") or len(digest) != 71:
+            raise PhaseError("evidence.invalid_blob_digest", digest)
+        actual = digest_bytes(data)
+        if actual != digest:
+            raise PhaseError("evidence.blob_digest_mismatch", digest)
+        path = self.blob_root / digest.split(":", 1)[1]
+        with path.open("xb", buffering=0) as stream:
+            view = memoryview(data)
+            written = 0
+            while written < len(view):
+                count = stream.write(view[written:])
+                if count is None or count <= 0:
+                    raise PhaseError("evidence.short_write", path.name)
+                written += count
+            stream.flush()
+            os.fsync(stream.fileno())
+        return path
+
+
+def operational_lock_path(lock_root: Path, key_digest: str) -> Path:
+    if not key_digest.startswith("sha256:") or len(key_digest) != 71:
+        raise PhaseError("lock.invalid_digest", key_digest)
+    root = Path(lock_root).absolute()
+    _reject_existing_links(root)
+    root.mkdir(parents=True, exist_ok=True)
+    _reject_existing_links(root)
+    root = root.resolve(strict=True)
+    if root.is_symlink() or _is_reparse_point(root):
+        raise PhaseError("path.link_forbidden" if root.is_symlink() else "path.reparse_forbidden", str(root))
+    path = root / (key_digest.removeprefix("sha256:") + ".lock")
+    if os.path.lexists(path):
+        info = path.lstat()
+        if path.is_symlink():
+            raise PhaseError("path.link_forbidden", str(path))
+        if _is_reparse_point(path):
+            raise PhaseError("path.reparse_forbidden", str(path))
+        if not stat.S_ISREG(info.st_mode):
+            raise PhaseError("path.special_forbidden", str(path))
+    return path
 
 
 def validate_intent(intent: dict[str, Any], registry: RegistrySnapshot) -> None:

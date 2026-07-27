@@ -72,6 +72,7 @@ def _envelope(
     blockers: list[str],
     error: str | None,
     exit_code: int,
+    target_verified: bool | None = None,
 ) -> dict[str, object]:
     return {
         "stage3_command_result_version": "1.0",
@@ -84,6 +85,7 @@ def _envelope(
         "effect_plan_digest": effect_plan_digest,
         "intent_digest": intent_digest,
         "receipt_digest": receipt_digest,
+        "target_verified": target_verified,
         "blockers": blockers,
         "error": error,
         "exit_code": exit_code,
@@ -120,6 +122,7 @@ def _pipeline(args: argparse.Namespace, *, execute: bool) -> int:
         intent_digest=profile_digest("intent", outcome.intent) if outcome.intent is not None else None,
         receipt_digest=outcome.receipt_digest,
         blockers=blockers,
+        target_verified=None,
         error=None if outcome.exit_code == 0 else blockers[0],
         exit_code=outcome.exit_code,
     )
@@ -141,6 +144,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             intent_digest=None,
             receipt_digest=None,
             blockers=["mutation_execution_unavailable_in_stage_2"],
+            target_verified=None,
             error="mutation_execution_unavailable_in_stage_2",
             exit_code=64,
         )
@@ -165,6 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 intent_digest=inspected["intent_digest"],
                 receipt_digest=inspected["receipt_digest"],
                 blockers=[],
+                target_verified=inspected["target_verified"],
                 error=None,
                 exit_code=0,
             ))
@@ -182,6 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             intent_digest=None,
             receipt_digest=None,
             blockers=[code],
+            target_verified=None,
             error=code,
             exit_code=10,
         ))

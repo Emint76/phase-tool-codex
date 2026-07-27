@@ -1,5 +1,5 @@
 {
-  "case_count": 22,
+  "case_count": 23,
   "cases": [
     {
       "case_id": "append_exclusive_create_success",
@@ -183,6 +183,18 @@
       ],
       "expected_terminal_status": "rejected",
       "path": "fixtures/adversarial/symlink_component.json"
+    },
+    {
+      "case_id": "task_journal_lifecycle_success",
+      "class": "positive",
+      "contract_id": "task_journal.v1",
+      "covers": [
+        "task_projection",
+        "append_correction",
+        "post_verification"
+      ],
+      "expected_terminal_status": "succeeded_verified",
+      "path": "fixtures/positive/task_journal_lifecycle_success.json"
     },
     {
       "case_id": "untrusted_mechanism",

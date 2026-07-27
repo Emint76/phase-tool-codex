@@ -120,6 +120,16 @@
           ]
         }
       ]
+    },
+    "target_verified": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
     }
   },
   "required": [

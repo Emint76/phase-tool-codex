@@ -15,6 +15,13 @@
     "before": {"$ref": "#/$defs/observedState"},
     "after": {"$ref": "#/$defs/observedState"},
     "bytes_written": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
+    "operation_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
+    "request_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+    "record_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
+    "record_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+    "record_length": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
+    "append_offset": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
+    "resulting_head": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]},
     "verification_refs": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 2048}, "uniqueItems": true},
     "error": {
       "oneOf": [

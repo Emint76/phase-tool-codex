@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,10 +9,11 @@ from typing import Any, Mapping
 
 from . import __version__
 from .candidate import CapturedCandidate, capture_structured
-from .canonical import parse_json_bytes, profile_digest
+from .canonical import digest_bytes, parse_json_bytes, profile_digest
 from .errors import PhaseError
-from .evidence import EvidenceStore, validate_intent, validate_receipt
+from .evidence import EvidenceStore, operational_lock_path, validate_intent, validate_receipt
 from .freeze import FrozenInput, freeze_declared_inputs
+from .inspection import inspect_run
 from .mutation import BrokerFaults, EffectBroker
 from .planning import build_idempotency_digests, build_static_plan, validate_static_plan
 from .registry import BundledRegistry, RegistrySnapshot, ResolvedContract
@@ -21,6 +24,39 @@ CORE_BINDING = {
     "version": __version__,
     "package_digest": profile_digest("core-package", {"id": "phase.core", "version": __version__, "capability": "effect_broker_v1"}),
 }
+
+
+class _OperationalFileLock:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._stream = None
+
+    def __enter__(self) -> "_OperationalFileLock":
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._stream = self.path.open("a+b")
+        if os.name == "nt":
+            import msvcrt
+
+            self._stream.seek(0)
+            msvcrt.locking(self._stream.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(self._stream.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        assert self._stream is not None
+        if os.name == "nt":
+            import msvcrt
+
+            self._stream.seek(0)
+            msvcrt.locking(self._stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(self._stream.fileno(), fcntl.LOCK_UN)
+        self._stream.close()
 
 
 @dataclass(frozen=True)
@@ -89,9 +125,17 @@ class PhaseCore:
         return {"id": request.contract_id, "version": request.contract_version, "package_digest": request.contract_digest}
 
     @staticmethod
-    def _check_idempotency(store: EvidenceStore, key: str | None, scope_digest: str, request_digest: str) -> None:
+    def _check_idempotency(
+        store: EvidenceStore,
+        key: str | None,
+        scope_digest: str,
+        request_digest: str,
+        root_bindings: Mapping[str, Path],
+        *,
+        execute: bool,
+    ) -> tuple[dict[str, Any], str] | None:
         if key is None:
-            return
+            return None
         runs_root = store.evidence_root / ".phase" / "runs"
         for path in sorted(runs_root.glob("*/intent.json")):
             if path.parent == store.run_root:
@@ -100,6 +144,29 @@ class PhaseCore:
             prior = intent.get("idempotency", {})
             if prior.get("key") == key and prior.get("scope_digest") == scope_digest and prior.get("request_digest") != request_digest:
                 raise PhaseError("idempotency.same_key_conflict", key)
+            if prior.get("key") == key and prior.get("scope_digest") == scope_digest and prior.get("request_digest") == request_digest:
+                if not execute:
+                    continue
+                receipt_path = path.parent / "receipt.json"
+                if not receipt_path.is_file():
+                    if intent.get("execution_requested") is False:
+                        continue
+                    raise PhaseError("idempotency.prior_inspection_required", path.parent.name)
+                receipt = parse_json_bytes(receipt_path.read_bytes())
+                if receipt.get("terminal_status") == "validated_planned":
+                    continue
+                if receipt.get("terminal_status") != "succeeded_verified":
+                    raise PhaseError("idempotency.prior_inspection_required", path.parent.name)
+                if receipt.get("evidence", {}).get("finalization_status") != "finalized":
+                    raise PhaseError("idempotency.prior_inspection_required", path.parent.name)
+                try:
+                    inspected = inspect_run(store.evidence_root, path.parent.name, root_bindings=root_bindings)
+                except PhaseError as exc:
+                    raise PhaseError("idempotency.prior_result_changed", str(exc)) from exc
+                if inspected.get("target_verified") is not True:
+                    raise PhaseError("idempotency.prior_result_changed", path.parent.name)
+                return receipt, profile_digest("receipt", receipt)
+        return None
 
     def _intent(
         self,
@@ -112,6 +179,10 @@ class PhaseCore:
         scope_digest: str,
         request_digest: str,
         key: str | None,
+        root_identity_digest: str,
+        effect_plan_attachment_digest: str,
+        content_blob_digests: list[str],
+        execution_requested: bool,
     ) -> dict[str, Any]:
         return {
             "phase_intent_version": "1.0",
@@ -129,10 +200,42 @@ class PhaseCore:
             "inputs": [item.intent_record() for _, item in sorted(frozen.items())],
             "write_scope_digest": plan["write_scope_digest"],
             "operation": {"intent": contract.document["operation"]["intent"], "mechanism": plan["mechanism"]},
-            "idempotency": {"key": key, "scope_digest": scope_digest, "request_digest": request_digest},
+            "idempotency": {
+                "key": key,
+                "scope_digest": scope_digest,
+                "request_digest": request_digest,
+                "root_identity_digest": root_identity_digest,
+            },
             "effect_plan_digest": profile_digest("effect-plan", plan),
+            "execution_requested": execution_requested,
+            "evidence": {
+                "effect_plan_attachment_digest": effect_plan_attachment_digest,
+                "content_blob_digests": sorted(content_blob_digests),
+            },
             "status": "intent_recorded",
         }
+
+    @staticmethod
+    def _publish_append_blobs(store: EvidenceStore, plan: dict[str, Any]) -> list[str]:
+        blob_digests: list[str] = []
+        for effect in plan["effects"]:
+            if "content_blob_digest" not in effect:
+                continue
+            encoded = effect.get("content_bytes_b64")
+            if not isinstance(encoded, str):
+                raise PhaseError("plan.content_inline_missing", str(effect["effect_id"]))
+            try:
+                content = base64.b64decode(encoded.encode("ascii"), validate=True)
+            except ValueError as exc:
+                raise PhaseError("plan.content_inline_invalid", str(effect["effect_id"])) from exc
+            digest = digest_bytes(content)
+            if digest != effect["content_digest"] or len(content) != effect["content_length"]:
+                raise PhaseError("plan.content_binding_mismatch", str(effect["effect_id"]))
+            if effect.get("content_blob_digest") != digest:
+                raise PhaseError("plan.content_blob_digest_mismatch", str(effect["effect_id"]))
+            store.write_blob_exact(digest, content)
+            blob_digests.append(digest)
+        return blob_digests
 
     def _base_receipt(
         self,
@@ -179,6 +282,39 @@ class PhaseCore:
             "exit_code": 0,
         }
 
+    def _reused_receipt(
+        self,
+        request: PhaseRequest,
+        validator_results: list[dict[str, Any]],
+        timestamp: str,
+        prior_receipt: Mapping[str, Any],
+        prior_receipt_digest: str,
+    ) -> dict[str, Any]:
+        reused_validators = validator_results or [
+            dict(item) | {"run_id": request.run_id, "started_at": timestamp, "finished_at": timestamp}
+            for item in prior_receipt["validator_results"]
+        ]
+        return self._base_receipt(request, reused_validators, timestamp) | {
+            "terminal_status": "succeeded_verified",
+            "execution_disposition": "reused_existing",
+            "mutation_attempted": False,
+            "result_state": "verified_result",
+            "canonical_result": prior_receipt["canonical_result"],
+            "effect_receipts": [],
+            "evidence": {
+                "finalization_status": "finalized",
+                "intent_digest": None,
+                "receipt_digest_policy_id": "digest.phase_canonical_json_v1",
+                "required_attachments_present": True,
+                "attachment_digests": [],
+            },
+            "retry_disposition": "noop_existing",
+            "recovery_required": False,
+            "blockers": [],
+            "exit_code": 0,
+            "prior_verified_receipt_digest": prior_receipt_digest,
+        }
+
     def _rejection_receipt(
         self,
         request: PhaseRequest,
@@ -191,7 +327,7 @@ class PhaseCore:
     ) -> dict[str, Any]:
         blockers = sorted({item for result in validator_results for item in result.get("blockers", [])}) or [blocker]
         return self._base_receipt(request, validator_results, timestamp) | {
-            "terminal_status": "aborted" if intent_digest else "rejected",
+            "terminal_status": "rejected",
             "execution_disposition": "not_executed",
             "mutation_attempted": False,
             "result_state": "none",
@@ -214,7 +350,7 @@ class PhaseCore:
     def _canonical_result(contract: ResolvedContract, effect: Mapping[str, Any], observation: Mapping[str, Any], timestamp: str) -> dict[str, Any] | None:
         if observation.get("known") is not True or observation.get("exists") is not True:
             return None
-        return {
+        result = {
             "reference_version": "1.0",
             "owner_id": contract.document["canonical_result"]["owner_id"],
             "root_binding": effect["target"]["root_binding"],
@@ -233,6 +369,18 @@ class PhaseCore:
             },
             "observed_at": timestamp,
         }
+        appended = {
+            "operation_identity": observation.get("operation_identity"),
+            "request_digest": observation.get("request_digest"),
+            "record_identity": observation.get("record_identity"),
+            "append_offset": observation.get("append_offset"),
+            "record_digest": observation.get("record_digest"),
+            "record_length": observation.get("record_length"),
+            "resulting_head": observation.get("resulting_head"),
+        }
+        if all(value is not None for value in appended.values()):
+            result["appended_record"] = appended
+        return result
 
     def _executed_receipt(
         self,
@@ -278,7 +426,20 @@ class PhaseCore:
             "mutation_attempted": bool(effect_receipt["attempted"]),
             "result_state": result_state,
             "canonical_result": (
-                self._canonical_result(contract, effect, effect_receipt["after"], timestamp)
+                self._canonical_result(
+                    contract,
+                    effect,
+                    dict(effect_receipt["after"]) | {
+                        "operation_identity": effect_receipt.get("operation_identity"),
+                        "request_digest": effect_receipt.get("request_digest"),
+                        "record_identity": effect_receipt.get("record_identity"),
+                        "append_offset": effect_receipt.get("append_offset"),
+                        "record_digest": effect_receipt.get("record_digest"),
+                        "record_length": effect_receipt.get("record_length"),
+                        "resulting_head": effect_receipt.get("resulting_head"),
+                    },
+                    timestamp,
+                )
                 if terminal in {"succeeded_verified", "committed_unverified"}
                 else None
             ),
@@ -330,8 +491,121 @@ class PhaseCore:
                 frozen_at=timestamp,
                 maximum_structured_bytes=request.maximum_candidate_bytes,
             )
+            scope_digest, request_digest, key, root_identity_digest = build_idempotency_digests(contract, candidate, frozen, request.root_bindings)
+            idempotency_lock = None
+            if key is not None:
+                lock_digest = profile_digest("idempotency-lock", {"key": key, "scope_digest": scope_digest})
+                idempotency_lock = _OperationalFileLock(operational_lock_path(store.operational_lock_root / "idempotency", lock_digest))
+            if idempotency_lock is None:
+                return self._run_after_idempotency_binding(
+                    request,
+                    store,
+                    contract,
+                    candidate,
+                    frozen,
+                    validator_results,
+                    lifecycle,
+                    timestamp,
+                    scope_digest,
+                    request_digest,
+                    key,
+                    root_identity_digest,
+                    execute,
+                    active_faults,
+                )
+            with idempotency_lock:
+                return self._run_after_idempotency_binding(
+                    request,
+                    store,
+                    contract,
+                    candidate,
+                    frozen,
+                    validator_results,
+                    lifecycle,
+                    timestamp,
+                    scope_digest,
+                    request_digest,
+                    key,
+                    root_identity_digest,
+                    execute,
+                    active_faults,
+                )
+        except (PhaseError, OSError) as exc:
+            intent_digest = profile_digest("intent", intent) if intent is not None else None
+            if effect_receipts and intent_digest is not None and contract is not None and plan is not None:
+                receipt = self._executed_receipt(
+                    request,
+                    contract,
+                    plan,
+                    validator_results,
+                    effect_receipts,
+                    timestamp,
+                    intent_digest,
+                    attachment_digests,
+                    finalization_failed=True,
+                    required_attachments_present=final_validators_published,
+                )
+                validate_receipt(receipt, self.registry)
+                if not lifecycle or lifecycle[-1] != "receipt":
+                    lifecycle.append("receipt")
+                return PhaseOutcome(
+                    request.run_id,
+                    receipt["exit_code"],
+                    receipt,
+                    intent,
+                    plan,
+                    tuple(lifecycle),
+                    None,
+                    plan_digest,
+                )
+            if isinstance(exc, OSError):
+                raise
+            receipt = self._rejection_receipt(
+                request,
+                validator_results,
+                timestamp,
+                exc.code,
+                intent_digest=intent_digest,
+                attachment_digests=attachment_digests,
+            )
+            validate_receipt(receipt, self.registry)
+            store.write_canonical("receipt.json", receipt)
+            receipt_digest = profile_digest("receipt", receipt)
+            return PhaseOutcome(request.run_id, receipt["exit_code"], receipt, intent, plan, tuple(lifecycle + ["receipt"]), receipt_digest, plan_digest)
+
+    def _run_after_idempotency_binding(
+        self,
+        request: PhaseRequest,
+        store: EvidenceStore,
+        contract: ResolvedContract,
+        candidate: CapturedCandidate,
+        frozen: Mapping[str, FrozenInput],
+        validator_results: list[dict[str, Any]],
+        lifecycle: list[str],
+        timestamp: str,
+        scope_digest: str,
+        request_digest: str,
+        key: str | None,
+        root_identity_digest: str,
+        execute: bool,
+        active_faults: CoreFaults,
+    ) -> PhaseOutcome:
+        plan: dict[str, Any] | None = None
+        intent: dict[str, Any] | None = None
+        effect_receipts: list[dict[str, Any]] = []
+        final_validators_published = False
+        plan_digest: str | None = None
+        attachment_digests: list[str] = []
+        runner = ValidatorRunner(self.registry)
+        try:
+            reused = self._check_idempotency(store, key, scope_digest, request_digest, request.root_bindings, execute=execute)
+            if execute and reused is not None:
+                receipt = self._reused_receipt(request, [], timestamp, reused[0], reused[1])
+                validate_receipt(receipt, self.registry)
+                lifecycle.append("receipt")
+                store.write_canonical("receipt.json", receipt)
+                return PhaseOutcome(request.run_id, receipt["exit_code"], receipt, None, None, tuple(lifecycle), profile_digest("receipt", receipt), None)
             lifecycle.append("validate")
-            runner = ValidatorRunner(self.registry)
             validator_results = runner.run(
                 contract,
                 candidate,
@@ -349,17 +623,31 @@ class PhaseCore:
                 root_bindings=request.root_bindings,
                 run_id=request.run_id,
                 generated_at=timestamp,
+                request_digest=request_digest,
             )
             validate_static_plan(plan, contract, request.root_bindings, self.registry)
-            scope_digest, request_digest, key = build_idempotency_digests(contract, candidate, frozen)
-            self._check_idempotency(store, key, scope_digest, request_digest)
+            content_blob_digests = self._publish_append_blobs(store, plan)
             _, plan_attachment_digest = store.write_canonical("attachments/effect-plan.json", plan)
             attachment_digests.append(plan_attachment_digest)
             plan_digest = profile_digest("effect-plan", plan)
             validator_name = "attachments/pre-validator-results.json" if execute else "attachments/validator-results.json"
             _, validators_digest = store.write_canonical(validator_name, validator_results)
             attachment_digests.append(validators_digest)
-            intent = self._intent(request, contract, candidate, frozen, plan, timestamp, scope_digest, request_digest, key)
+            intent = self._intent(
+                request,
+                contract,
+                candidate,
+                frozen,
+                plan,
+                timestamp,
+                scope_digest,
+                request_digest,
+                key,
+                root_identity_digest,
+                plan_attachment_digest,
+                content_blob_digests,
+                execute,
+            )
             validate_intent(intent, self.registry)
             lifecycle.append("intent")
             intent_path, _ = store.write_canonical("intent.json", intent)
@@ -374,6 +662,7 @@ class PhaseCore:
                     frozen,
                     request.root_bindings,
                     intent_path,
+                    store.operational_lock_root,
                     timestamp=timestamp,
                     faults=active_faults.broker,
                 )

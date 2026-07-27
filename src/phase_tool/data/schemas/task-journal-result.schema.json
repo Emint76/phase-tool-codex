@@ -1,0 +1,13 @@
+{
+  "$id": "task://schemas/task-journal-result.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "head": {"type": "string", "minLength": 1},
+    "relative_locator": {"type": "string", "minLength": 1},
+    "sequence": {"type": "integer", "minimum": 1},
+    "task_id": {"type": "string", "minLength": 1}
+  },
+  "required": ["task_id", "sequence", "head", "relative_locator"],
+  "type": "object"
+}

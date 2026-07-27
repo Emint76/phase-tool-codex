@@ -360,6 +360,7 @@ def _stage2_execute_request(tmp_path: Path, contract_id: str) -> tuple[PhaseRequ
     candidate = tmp_path / f"{contract_id}.json"
     inputs: dict[str, Path] = {}
     if contract_id == "fixture_append.v1":
+        (target / "streams").mkdir()
         candidate.write_text(json.dumps({
             "stream_id": "alpha",
             "target_locator": "streams/alpha.jsonl",
@@ -393,15 +394,25 @@ def _stage2_execute_request(tmp_path: Path, contract_id: str) -> tuple[PhaseRequ
     ), target
 
 
-@pytest.mark.parametrize("contract_id", ["fixture_append.v1", "fixture_copy.v1"])
-def test_append_and_copy_execute_remain_fail_closed(tmp_path: Path, contract_id: str) -> None:
-    request, target = _stage2_execute_request(tmp_path, contract_id)
+def test_fixture_append_execute_is_active_in_stage4(tmp_path: Path) -> None:
+    request, target = _stage2_execute_request(tmp_path, "fixture_append.v1")
+
+    outcome = PhaseCore().run(request, execute=True)
+
+    assert outcome.exit_code == 0
+    assert outcome.receipt["terminal_status"] == "succeeded_verified"
+    assert outcome.receipt["mutation_attempted"] is True
+    assert (target / "streams" / "alpha.jsonl").read_bytes() == b'{"value":1}\n'
+
+
+def test_copy_execute_remains_fail_closed(tmp_path: Path) -> None:
+    request, target = _stage2_execute_request(tmp_path, "fixture_copy.v1")
     before = snapshot_tree(target)
 
     outcome = PhaseCore().run(request, execute=True)
 
     assert outcome.exit_code != 0
-    assert outcome.receipt["terminal_status"] == "aborted"
+    assert outcome.receipt["terminal_status"] == "rejected"
     assert outcome.receipt["mutation_attempted"] is False
     assert outcome.receipt["blockers"] == ["broker.mechanism_execution_unavailable"]
     assert snapshot_tree(target) == before
@@ -632,7 +643,7 @@ def test_plan_cannot_expand_after_durable_intent(tmp_path: Path) -> None:
         faults=CoreFaults(broker=BrokerFaults(mutate_plan_after_intent=True)),
     )
 
-    assert outcome.receipt["terminal_status"] == "aborted"
+    assert outcome.receipt["terminal_status"] == "rejected"
     assert outcome.receipt["mutation_attempted"] is False
     assert outcome.receipt["blockers"] == ["broker.plan_changed_after_intent"]
     assert (evidence / ".phase" / "runs" / "plan-expansion" / "intent.json").is_file()
@@ -655,7 +666,7 @@ def test_reparse_policy_seam_rejects_before_open(tmp_path: Path) -> None:
         ),
     )
 
-    assert outcome.receipt["terminal_status"] == "aborted"
+    assert outcome.receipt["terminal_status"] == "rejected"
     assert outcome.receipt["mutation_attempted"] is False
     assert outcome.receipt["blockers"] == ["path.reparse_forbidden"]
     assert snapshot_tree(target) == before

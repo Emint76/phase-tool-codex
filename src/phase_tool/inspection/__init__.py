@@ -9,6 +9,7 @@ from ..errors import PhaseError
 from ..evidence import validate_intent, validate_receipt, validate_run_id
 from ..paths import contained_read_path
 from ..registry import BundledRegistry, RegistrySnapshot
+from ..append_codec import stream_head_token
 
 
 def _read_canonical(path: Path) -> tuple[Any, str]:
@@ -23,6 +24,21 @@ def _read_canonical(path: Path) -> tuple[Any, str]:
     if canonical_bytes(value) != data:
         raise PhaseError("inspection.digest_mismatch", str(path.name))
     return value, digest_bytes(data)
+
+
+def _verify_intent_blobs(run_root: Path, intent: Mapping[str, Any]) -> None:
+    for item in intent["inputs"]:
+        digest = item["blob_digest"]
+        if digest is None:
+            continue
+        blob = run_root / "blobs" / digest.split(":", 1)[1]
+        if not blob.is_file() or digest_bytes(blob.read_bytes()) != digest:
+            raise PhaseError("inspection.digest_mismatch", blob.name)
+    evidence = intent.get("evidence", {})
+    for digest in evidence.get("content_blob_digests", []):
+        blob = run_root / "blobs" / digest.split(":", 1)[1]
+        if not blob.is_file() or digest_bytes(blob.read_bytes()) != digest:
+            raise PhaseError("inspection.digest_mismatch", blob.name)
 
 
 def inspect_run(
@@ -51,13 +67,7 @@ def inspect_run(
         plan_digest = profile_digest("effect-plan", plan)
         if plan_digest != intent["effect_plan_digest"]:
             raise PhaseError("inspection.digest_mismatch", "effect-plan.json")
-        for item in intent["inputs"]:
-            digest = item["blob_digest"]
-            if digest is None:
-                continue
-            blob = run_root / "blobs" / digest.split(":", 1)[1]
-            if not blob.is_file() or digest_bytes(blob.read_bytes()) != digest:
-                raise PhaseError("inspection.digest_mismatch", blob.name)
+        _verify_intent_blobs(run_root, intent)
         return {
             "run_id": run_id,
             "terminal_status": None,
@@ -109,13 +119,7 @@ def inspect_run(
         claimed = set(receipt["evidence"]["attachment_digests"])
         if attachment_digests != claimed:
             raise PhaseError("inspection.attachment_set_mismatch")
-        for item in intent["inputs"]:
-            digest = item["blob_digest"]
-            if digest is None:
-                continue
-            blob = run_root / "blobs" / digest.split(":", 1)[1]
-            if not blob.is_file() or digest_bytes(blob.read_bytes()) != digest:
-                raise PhaseError("inspection.digest_mismatch", blob.name)
+        _verify_intent_blobs(run_root, intent)
     canonical_result = receipt["canonical_result"]
     if canonical_result is not None:
         roots = root_bindings or {}
@@ -130,7 +134,25 @@ def inspect_run(
         except (OSError, PhaseError) as exc:
             raise PhaseError("inspection.target_mismatch", canonical_result["locator"]) from exc
         state = canonical_result["state"]
-        if state["exists"] is not True or digest_bytes(data) != state["digest"] or len(data) != state["length"]:
+        appended = canonical_result.get("appended_record")
+        if appended is not None:
+            if not receipt["effect_receipts"] or receipt["effect_receipts"][0].get("kind") != "append_record":
+                raise PhaseError("inspection.append_evidence_missing")
+            effect_receipt = receipt["effect_receipts"][0]
+            for key in ("operation_identity", "request_digest", "record_identity", "append_offset", "record_digest", "record_length", "resulting_head"):
+                if effect_receipt.get(key) != appended.get(key):
+                    raise PhaseError("inspection.append_evidence_mismatch", key)
+            offset = appended["append_offset"]
+            length = appended["record_length"]
+            end = offset + length
+            if len(data) < end or digest_bytes(data[offset:end]) != appended["record_digest"]:
+                raise PhaseError("inspection.target_mismatch", canonical_result["locator"])
+            if stream_head_token(data[:end]) != appended["resulting_head"]:
+                raise PhaseError("inspection.target_mismatch", canonical_result["locator"])
+            stream_head_token(data)
+        elif receipt["effect_receipts"] and receipt["effect_receipts"][0].get("kind") == "append_record":
+            raise PhaseError("inspection.append_evidence_missing")
+        elif state["exists"] is not True or digest_bytes(data) != state["digest"] or len(data) != state["length"]:
             raise PhaseError("inspection.target_mismatch", canonical_result["locator"])
         target_verified = True
     return {

@@ -70,7 +70,7 @@
       "availability": "bundled_v1",
       "capability": "mutation_mechanism",
       "id": "mechanism.expected_head_append_v1",
-      "package_digest": "sha256:9d69f2b6f68866c35e78bfa1a6ddce912f21a55c42d34d2ebc689d3bf0f4d0c1",
+      "package_digest": "sha256:ee49db0f5f2f67c7ec8d5b252a2ebab6384c3032364e449dc4df588ab8880d4a",
       "version": "1.0.0"
     }
   },

@@ -1,1 +1,52 @@
-"""Contract-facing data is declarative and resolved by phase_tool.registry."""
+from __future__ import annotations
+
+from typing import Any
+
+from ..canonical import canonical_bytes, digest_bytes, parse_json_bytes
+from ..errors import PhaseError
+from ..paths import safe_relative_locator
+from . import task_journal_v1
+
+
+def append_locator(contract_document: dict[str, Any], candidate: dict[str, Any]) -> str:
+    if "record" in candidate:
+        return safe_relative_locator(candidate["target_locator"])
+    if "task_id" in candidate:
+        return task_journal_v1.locator_for(candidate)
+    raise PhaseError("contract.append_codec_unavailable")
+
+
+def expected_append_locator(contract_document: dict[str, Any], candidate: dict[str, Any]) -> str:
+    if "record" in candidate:
+        return contract_document["canonical_result"]["locator_template"].replace("{stream_id}", candidate["stream_id"])
+    if "task_id" in candidate:
+        return task_journal_v1.locator_for(candidate)
+    raise PhaseError("contract.append_codec_unavailable")
+
+
+def append_record_bytes(candidate: dict[str, Any], *, existing_bytes: bytes, expected_head: str | None, request_digest: str | None = None) -> bytes:
+    if "record" in candidate:
+        return canonical_bytes(candidate["record"]) + b"\n"
+    if "task_id" in candidate:
+        record = task_journal_v1.build_record(candidate, existing_bytes=existing_bytes, expected_head=expected_head, request_digest=request_digest)
+        return task_journal_v1.finalize_record(record, previous_head=expected_head, previous_length=len(existing_bytes))
+    raise PhaseError("contract.append_codec_unavailable")
+
+
+def append_record_identity(finalized_record_bytes: bytes) -> str:
+    if not finalized_record_bytes.endswith(b"\n"):
+        raise PhaseError("contract.append_identity_invalid_record")
+    record = parse_json_bytes(finalized_record_bytes.rstrip(b"\n"))
+    if all(key in record for key in ("task_id", "sequence", "event_hash")):
+        return f"{record['task_id']}:{record['sequence']}:{record['event_hash']}"
+    if "record_id" in record:
+        return str(record["record_id"])
+    return digest_bytes(finalized_record_bytes)
+
+
+def append_lock_scope(candidate: dict[str, Any]) -> str:
+    if "record" in candidate:
+        return "stream." + candidate["stream_id"]
+    if "task_id" in candidate:
+        return "stream." + candidate["task_id"]
+    raise PhaseError("contract.append_codec_unavailable")

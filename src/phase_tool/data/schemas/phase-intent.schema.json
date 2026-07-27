@@ -4,7 +4,7 @@
   "title": "Phase Intent v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["phase_intent_version", "run_id", "created_at", "core", "registry_snapshot_digest", "contract", "candidate", "inputs", "write_scope_digest", "operation", "idempotency", "effect_plan_digest", "status"],
+  "required": ["phase_intent_version", "run_id", "created_at", "core", "registry_snapshot_digest", "contract", "candidate", "inputs", "write_scope_digest", "operation", "idempotency", "effect_plan_digest", "execution_requested", "evidence", "status"],
   "properties": {
     "phase_intent_version": {"const": "1.0"},
     "run_id": {"$ref": "#/$defs/runId"},
@@ -67,14 +67,25 @@
     "idempotency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "scope_digest", "request_digest"],
+      "required": ["key", "scope_digest", "request_digest", "root_identity_digest"],
       "properties": {
         "key": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]},
         "scope_digest": {"$ref": "#/$defs/digest"},
-        "request_digest": {"$ref": "#/$defs/digest"}
+        "request_digest": {"$ref": "#/$defs/digest"},
+        "root_identity_digest": {"$ref": "#/$defs/digest"}
       }
     },
     "effect_plan_digest": {"$ref": "#/$defs/digest"},
+    "execution_requested": {"type": "boolean"},
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect_plan_attachment_digest", "content_blob_digests"],
+      "properties": {
+        "effect_plan_attachment_digest": {"$ref": "#/$defs/digest"},
+        "content_blob_digests": {"type": "array", "items": {"$ref": "#/$defs/digest"}, "uniqueItems": true}
+      }
+    },
     "status": {"const": "intent_recorded"}
   },
   "$defs": {

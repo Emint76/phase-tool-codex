@@ -72,6 +72,9 @@
         "effect_id": {"$ref": "#/$defs/identifier"},
         "kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]},
         "target": {"$ref": "#/$defs/target"},
+        "operation_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
+        "request_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "record_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
         "input_binding": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identifier"}]},
         "content_source": {
           "type": "object",
@@ -88,7 +91,9 @@
           ]
         },
         "content_digest": {"$ref": "#/$defs/digest"},
+        "content_blob_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
         "content_length": {"type": "integer", "minimum": 0},
+        "content_bytes_b64": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$", "maxLength": 1398104}]},
         "preconditions": {"$ref": "#/$defs/preconditions"},
         "lock_scope": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identifier"}]},
         "durability_policy_id": {"enum": ["best_effort_local", "file_data_synced", "file_and_directory_synced"]},
@@ -101,7 +106,7 @@
         },
         {
           "if": {"required": ["kind"], "properties": {"kind": {"const": "append_record"}}},
-          "then": {"properties": {"input_binding": {"type": "null"}, "lock_scope": {"type": "string"}, "preconditions": {"properties": {"existence": {"const": "present"}, "expected_digest": {"type": "null"}, "expected_head": {"type": "string"}, "concurrency_token": {"type": "string"}}}}}
+          "then": {"required": ["content_blob_digest"], "properties": {"input_binding": {"type": "null"}, "lock_scope": {"type": "string"}, "content_blob_digest": {"type": "string"}, "preconditions": {"properties": {"existence": {"enum": ["absent", "present"]}, "expected_digest": {"type": "null"}}}}}
         },
         {
           "if": {"properties": {"kind": {"const": "copy_blob"}}},

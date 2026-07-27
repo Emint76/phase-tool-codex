@@ -32,6 +32,25 @@
         "head_token": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]}
       }
     },
+    "appended_record": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operation_identity", "request_digest", "record_identity", "append_offset", "record_digest", "record_length", "resulting_head"],
+          "properties": {
+            "operation_identity": {"type": "string", "minLength": 1, "maxLength": 256},
+            "request_digest": {"$ref": "#/$defs/digest"},
+            "record_identity": {"type": "string", "minLength": 1, "maxLength": 256},
+            "append_offset": {"type": "integer", "minimum": 0},
+            "record_digest": {"$ref": "#/$defs/digest"},
+            "record_length": {"type": "integer", "minimum": 1},
+            "resulting_head": {"type": "string", "minLength": 1, "maxLength": 512}
+          }
+        }
+      ]
+    },
     "observed_at": {"type": "string", "format": "date-time"}
   },
   "$defs": {

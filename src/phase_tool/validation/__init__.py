@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,9 @@ from ..errors import PhaseError
 from ..freeze import FrozenInput, revalidate_frozen, revalidate_snapshot
 from ..paths import contained_read_path, inspect_target_path
 from ..registry import RegistrySnapshot, ResolvedContract
+from ..contracts import append_locator
+from ..contracts import task_journal_v1
+from ..append_codec import stream_head_token, validate_stream_bytes
 
 
 class ValidatorRunner:
@@ -81,6 +85,14 @@ class ValidatorRunner:
             return "pass", "validation.pass", "exact_registry_binding", "exact_registry_binding", []
         if identifier in {"fixture.append.candidate_v1", "fixture.copy.candidate_v1", "fixture.create.candidate_v1"}:
             return self._candidate_validation(contract, candidate)
+        if identifier == "task_journal.candidate_v1":
+            schema = self.registry.schema_document(contract.document["candidate"]["schema_ref"], contract.document["candidate"]["schema_digest"])
+            return task_journal_v1.validate_candidate(value, schema)
+        if identifier == "task_journal.state_v1":
+            root = self._target_root(contract, root_bindings)
+            locator = append_locator(contract.document, value)
+            path, _exists = inspect_target_path(root, locator)
+            return task_journal_v1.validate_state(value, path)
         if identifier == "validator.frozen_blob_v1":
             frozen = frozen_inputs.get("payload")
             if frozen is None:
@@ -98,7 +110,8 @@ class ValidatorRunner:
             return "pass", "validation.pass", "absent", "absent", []
         if identifier == "validator.expected_head_v1":
             root = self._target_root(contract, root_bindings)
-            target, exists = inspect_target_path(root, value["target_locator"])
+            locator = append_locator(contract.document, value) if contract.document["operation"]["intent"] == "append" else value["target_locator"]
+            target, exists = inspect_target_path(root, locator)
             expected = value["expected_head"]
             if expected is None:
                 if exists:
@@ -107,21 +120,33 @@ class ValidatorRunner:
             frozen = frozen_inputs.get("current_state")
             if not exists or frozen is None:
                 return "fail", "freeze.stale_snapshot", expected, None, ["freeze.stale_snapshot"]
-            try:
-                revalidate_snapshot(frozen, root)
-            except PhaseError as exc:
-                return "fail", exc.code, expected, "stale", [exc.code]
-            if expected not in {frozen.digest, frozen.revalidation_token}:
-                return "fail", "freeze.stale_snapshot", expected, frozen.revalidation_token, ["freeze.stale_snapshot"]
+            if contract.document["operation"]["intent"] == "append":
+                try:
+                    current_head = stream_head_token(target.read_bytes())
+                except PhaseError as exc:
+                    return "fail", exc.code, expected, "invalid_stream", [exc.code]
+                if expected != current_head:
+                    return "fail", "freeze.stale_snapshot", expected, current_head, ["freeze.stale_snapshot"]
+            else:
+                try:
+                    revalidate_snapshot(frozen, root)
+                except PhaseError as exc:
+                    return "fail", exc.code, expected, "stale", [exc.code]
+                if expected not in {frozen.digest, frozen.revalidation_token}:
+                    return "fail", "freeze.stale_snapshot", expected, frozen.revalidation_token, ["freeze.stale_snapshot"]
             return "pass", "validation.pass", expected, expected, []
         if identifier == "validator.valid_tail_v1":
             if value["expected_head"] is None:
                 return "pass", "validation.pass", "not_applicable", "not_applicable", []
             root = self._target_root(contract, root_bindings)
-            target, exists = inspect_target_path(root, value["target_locator"])
-            valid = exists and target.is_file() and target.read_bytes().endswith(b"\n")
-            if not valid:
-                return "fail", "input.invalid_tail", True, valid, ["input.invalid_tail"]
+            locator = append_locator(contract.document, value)
+            target, exists = inspect_target_path(root, locator)
+            if not exists or not target.is_file():
+                return "fail", "input.invalid_tail", True, False, ["input.invalid_tail"]
+            try:
+                validate_stream_bytes(target.read_bytes())
+            except PhaseError as exc:
+                return "fail", exc.code, True, False, [exc.code]
             return "pass", "validation.pass", True, True, []
         if identifier == "validator.destination_preconditions_v1":
             frozen = frozen_inputs.get("payload")
@@ -216,7 +241,12 @@ class ValidatorRunner:
                     data = path.read_bytes()
                     observation = {"locator": locator, "digest": digest_bytes(data), "length": len(data)}
                     actual.append(observation)
-                    if observation["digest"] != effect["content_digest"] or observation["length"] != effect["content_length"]:
+                    if effect["kind"] == "append_record":
+                        encoded = effect.get("content_bytes_b64")
+                        record = base64.b64decode(encoded.encode("ascii"), validate=True) if isinstance(encoded, str) else b""
+                        if not record or not data.endswith(record):
+                            blockers.append("verification.result_mismatch")
+                    elif observation["digest"] != effect["content_digest"] or observation["length"] != effect["content_length"]:
                         blockers.append("verification.result_mismatch")
                 except (OSError, PhaseError):
                     actual.append({"locator": locator, "digest": None, "length": None})

@@ -1,0 +1,41 @@
+{
+  "$id": "task://schemas/task-journal-candidate.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {"enum": ["open", "event", "close", "correction"]},
+    "event_kind": {"type": "string", "minLength": 1},
+    "event_payload": {"type": "object"},
+    "expected_head": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1}]},
+    "idempotency_key": {"type": "string", "minLength": 1},
+    "normalized_goal": {"type": "string"},
+    "original_instruction": {"type": "string"},
+    "outcome": {"enum": ["completed", "failed", "partial", "cancelled"]},
+    "operation_id": {"type": "string", "minLength": 1},
+    "reason": {"type": "string", "minLength": 1},
+    "replacement": {"type": "object"},
+    "target_event_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "target_sequence": {"type": "integer", "minimum": 1},
+    "task_id": {"type": "string", "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$"}
+  },
+  "required": ["task_id", "action", "expected_head", "idempotency_key", "operation_id"],
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"const": "open"}}},
+      "then": {"required": ["original_instruction"], "properties": {"expected_head": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "event"}}},
+      "then": {"required": ["event_kind", "event_payload"], "properties": {"expected_head": {"type": "string"}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "close"}}},
+      "then": {"required": ["outcome"], "properties": {"expected_head": {"type": "string"}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "correction"}}},
+      "then": {"required": ["target_sequence", "target_event_hash", "reason", "replacement"], "properties": {"expected_head": {"type": "string"}}}
+    }
+  ],
+  "type": "object"
+}

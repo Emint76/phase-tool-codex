@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,7 @@ from ..errors import PhaseError
 from ..freeze import FrozenInput, revalidate_frozen
 from ..paths import safe_relative_locator
 from ..registry import RegistrySnapshot, ResolvedContract
+from ..contracts import append_locator, append_lock_scope, append_record_bytes, append_record_identity, expected_append_locator
 
 
 def _exact(binding: Mapping[str, Any]) -> dict[str, str]:
@@ -22,9 +25,27 @@ def build_idempotency_digests(
     contract: ResolvedContract,
     candidate: CapturedCandidate,
     frozen_inputs: Mapping[str, FrozenInput],
-) -> tuple[str, str, str | None]:
+    root_bindings: Mapping[str, Path],
+) -> tuple[str, str, str | None, str]:
     value = parse_json_bytes(candidate.canonical_bytes)
     locator: Any = value.get("target_locator", sorted(value.get("destinations", [])))
+    if contract.document["operation"]["intent"] == "append":
+        locator = append_locator(contract.document, value)
+    root_identities = []
+    for declaration in sorted(contract.document["write_scope"]["roots"], key=lambda item: item["binding_id"]):
+        binding_id = declaration["binding_id"]
+        try:
+            resolved = Path(root_bindings[binding_id]).resolve(strict=True)
+        except KeyError as exc:
+            raise PhaseError("plan.root_binding_missing", binding_id) from exc
+        info = resolved.stat()
+        root_identities.append({
+            "binding_id": binding_id,
+            "resolved_path": os.path.normcase(str(resolved)),
+            "device": int(info.st_dev),
+            "inode": int(info.st_ino),
+        })
+    root_identity_digest = profile_digest("resolved-root-identity", root_identities)
     scope = {
         "contract": {
             "id": contract.document["identity"]["id"],
@@ -32,6 +53,7 @@ def build_idempotency_digests(
             "package_digest": contract.package_digest,
         },
         "result_locator": locator,
+        "root_identity_digest": root_identity_digest,
         "operation_intent": contract.document["operation"]["intent"],
     }
     scope_digest = profile_digest("idempotency-scope", scope)
@@ -43,7 +65,7 @@ def build_idempotency_digests(
             "inputs": [item.intent_record() for _, item in sorted(frozen_inputs.items())],
         },
     )
-    return scope_digest, request_digest, value.get("idempotency_key")
+    return scope_digest, request_digest, value.get("idempotency_key"), root_identity_digest
 
 
 def _require_roots(contract: ResolvedContract, root_bindings: Mapping[str, Path]) -> None:
@@ -74,6 +96,7 @@ def build_static_plan(
     root_bindings: Mapping[str, Path],
     run_id: str,
     generated_at: str,
+    request_digest: str | None = None,
 ) -> dict[str, Any]:
     _require_roots(contract, root_bindings)
     _ensure_validation_allows_plan(validator_results)
@@ -112,28 +135,39 @@ def build_static_plan(
             "on_failure": "stop_and_classify",
         })
     elif operation["intent"] == "append":
-        expected_locator = contract.document["canonical_result"]["locator_template"].replace("{stream_id}", value["stream_id"])
-        locator = safe_relative_locator(value["target_locator"])
+        locator = append_locator(contract.document, value)
+        expected_locator = expected_append_locator(contract.document, value)
         if locator != expected_locator:
             raise PhaseError("plan.locator_template_mismatch", locator)
-        content = canonical_bytes(value["record"]) + b"\n"
         expected_head = value["expected_head"]
-        kind = "exclusive_create" if expected_head is None else "append_record"
+        current_bytes = b""
+        if expected_head is not None:
+            root = Path(root_bindings[contract.document["canonical_result"]["root_binding"]])
+            current_bytes = (root / locator).read_bytes()
+        content = append_record_bytes(value, existing_bytes=current_bytes, expected_head=expected_head, request_digest=request_digest)
+        operation_identity = value.get("operation_id", value.get("idempotency_key"))
+        record_identity = str(value["record_id"]) if "record" in value else append_record_identity(content)
+        content_digest = digest_bytes(content)
         effects.append({
             "effect_id": "effect.append.001",
-            "kind": kind,
+            "kind": "append_record",
             "target": {"root_binding": contract.document["canonical_result"]["root_binding"], "relative_locator": locator},
+            "operation_identity": operation_identity,
+            "request_digest": request_digest,
+            "record_identity": record_identity,
             "input_binding": None,
             "content_source": {"kind": "captured_candidate", "binding_id": None, "source_digest": candidate.digest},
-            "content_digest": digest_bytes(content),
+            "content_digest": content_digest,
+            "content_blob_digest": content_digest,
             "content_length": len(content),
+            "content_bytes_b64": base64.b64encode(content).decode("ascii"),
             "preconditions": {
                 "existence": "absent" if expected_head is None else "present",
                 "expected_digest": None,
                 "expected_head": expected_head,
                 "concurrency_token": expected_head,
             },
-            "lock_scope": None if expected_head is None else "stream." + value["stream_id"],
+            "lock_scope": append_lock_scope(value),
             "durability_policy_id": "file_data_synced",
             "on_failure": "stop_and_classify",
         })

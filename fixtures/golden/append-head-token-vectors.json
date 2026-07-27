@@ -1,0 +1,19 @@
+{
+  "profile": "append_head_v1",
+  "vectors": [
+    {
+      "contract_id": "fixture_append.v1",
+      "previous_head": null,
+      "previous_length": 0,
+      "record_hex": "7b2276616c7565223a317d0a",
+      "token": "sha256:c2159397127aa5b2b1fa87583081874dc30f51324653a10697dd42b75b713402"
+    },
+    {
+      "contract_id": "fixture_append.v1",
+      "previous_head": "sha256:c2159397127aa5b2b1fa87583081874dc30f51324653a10697dd42b75b713402",
+      "previous_length": 12,
+      "record_hex": "7b2276616c7565223a327d0a",
+      "token": "sha256:38336999dda305caafe7e24b6d7fa7baa3e10ffb21a505cd6a50c873158f2bc0"
+    }
+  ]
+}

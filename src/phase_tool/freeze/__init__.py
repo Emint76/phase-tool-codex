@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from ..candidate import capture_structured
 from ..canonical import canonical_bytes, canonical_digest, digest_bytes, parse_json_bytes
+from ..contracts import append_locator
 from ..errors import PhaseError
 from ..paths import contained_read_path, safe_relative_locator
 
@@ -65,7 +66,7 @@ def freeze_declared_inputs(
             except KeyError as exc:
                 raise PhaseError("plan.root_binding_missing", root_id) from exc
             frozen[binding_id] = lock_snapshot_revalidate(
-                binding_id, root, str(candidate_value["target_locator"]), frozen_at=frozen_at
+                binding_id, root, append_locator(dict(contract_document), dict(candidate_value)), frozen_at=frozen_at
             )
             continue
         if supplied is None:

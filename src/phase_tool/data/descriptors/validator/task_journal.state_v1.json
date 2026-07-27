@@ -1,0 +1,8 @@
+{
+  "capability": "validator",
+  "descriptor_version": "1.0",
+  "execution_allowed": true,
+  "id": "task_journal.state_v1",
+  "implementation": "contract_owned_builtin",
+  "version": "1.0.0"
+}

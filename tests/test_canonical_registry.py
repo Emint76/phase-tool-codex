@@ -81,7 +81,7 @@ def test_core_compatibility_and_mechanism_capability_are_enforced() -> None:
     assert incompatible.value.code == "contract.core_incompatible"
 
     document = registry.to_document()
-    mechanism = next(x for x in document["entries"] if x["kind"] == "mechanism" and x["id"] == "mechanism.content_addressed_copy_v1")
+    mechanism = next(x for x in document["entries"] if x["kind"] == "mechanism" and x["id"] == "content_addressed_copy")
     mechanism["capability"] = "validator"
     broken = RegistrySnapshot.from_document(document, BundledRegistry.resources())
     with pytest.raises(PhaseError) as capability:
@@ -89,10 +89,30 @@ def test_core_compatibility_and_mechanism_capability_are_enforced() -> None:
     assert capability.value.code == "registry.capability_mismatch"
 
 
+def test_registry_mechanism_descriptor_identity_matches_binding() -> None:
+    registry = BundledRegistry.load()
+    document = registry.to_document()
+    resources = BundledRegistry.resources()
+    for entry in document["entries"]:
+        if entry.get("kind") != "mechanism":
+            continue
+        descriptor = parse_json_bytes(resources[entry["artifact"]])
+        assert descriptor["id"] == entry["id"]
+        assert descriptor["version"] == entry["version"]
+        assert descriptor["capability"] == entry["capability"]
+
+
+def test_fixture_copy_contract_allows_only_copy_blob() -> None:
+    registry = BundledRegistry.load()
+    binding = registry.contract_bindings()["fixture_copy.v1@1.0.0"]
+    contract = registry.resolve_contract("fixture_copy.v1", "1.0.0", binding["package_digest"], core_version="1.0.0")
+    assert contract.document["operation"]["allowed_effects"] == ["copy_blob"]
+
+
 def test_untrusted_mechanism_and_artifact_drift_fail_closed() -> None:
     base = BundledRegistry.load().to_document()
     binding = BundledRegistry.load().contract_bindings()["fixture_copy.v1@1.0.0"]
-    mechanism = next(x for x in base["entries"] if x["kind"] == "mechanism" and x["id"] == "mechanism.content_addressed_copy_v1")
+    mechanism = next(x for x in base["entries"] if x["kind"] == "mechanism" and x["id"] == "content_addressed_copy")
     mechanism["trust_root_id"] = "unknown.root"
     with pytest.raises(PhaseError) as untrusted:
         RegistrySnapshot.from_document(base, BundledRegistry.resources()).resolve_contract(

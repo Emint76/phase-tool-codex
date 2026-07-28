@@ -82,6 +82,7 @@ class EvidenceStore:
         if actual != digest:
             raise PhaseError("evidence.blob_digest_mismatch", digest)
         path = self.blob_root / digest.split(":", 1)[1]
+        path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("xb", buffering=0) as stream:
             view = memoryview(data)
             written = 0

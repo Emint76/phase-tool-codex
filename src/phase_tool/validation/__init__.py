@@ -11,7 +11,7 @@ from ..candidate import CapturedCandidate
 from ..canonical import digest_bytes, parse_json_bytes
 from ..errors import PhaseError
 from ..freeze import FrozenInput, revalidate_frozen, revalidate_snapshot
-from ..paths import contained_read_path, inspect_target_path
+from ..paths import contained_read_path, inspect_target_path, safe_relative_locator
 from ..registry import RegistrySnapshot, ResolvedContract
 from ..contracts import append_locator
 from ..contracts import task_journal_v1
@@ -84,7 +84,15 @@ class ValidatorRunner:
         if identifier == "validator.exact_binding_v1":
             return "pass", "validation.pass", "exact_registry_binding", "exact_registry_binding", []
         if identifier in {"fixture.append.candidate_v1", "fixture.copy.candidate_v1", "fixture.create.candidate_v1"}:
-            return self._candidate_validation(contract, candidate)
+            outcome = self._candidate_validation(contract, candidate)
+            if outcome[0] != "pass" or identifier != "fixture.copy.candidate_v1":
+                return outcome
+            try:
+                for locator in value["destinations"]:
+                    safe_relative_locator(locator)
+            except PhaseError as exc:
+                return "fail", exc.code, "safe_relative_locator", str(locator), [exc.code]
+            return outcome
         if identifier == "task_journal.candidate_v1":
             schema = self.registry.schema_document(contract.document["candidate"]["schema_ref"], contract.document["candidate"]["schema_digest"])
             return task_journal_v1.validate_candidate(value, schema)
@@ -153,8 +161,12 @@ class ValidatorRunner:
             if frozen is None:
                 return "fail", "input.required_missing", "payload", None, ["input.required_missing"]
             root = self._target_root(contract, root_bindings)
+            if contract.document["operation"]["intent"] == "copy":
+                locators = ["objects/" + frozen.digest.removeprefix("sha256:")]
+            else:
+                locators = value["destinations"]
             observed: list[str] = []
-            for locator in value["destinations"]:
+            for locator in locators:
                 target, exists = inspect_target_path(root, locator)
                 if exists:
                     if not target.is_file() or digest_bytes(target.read_bytes()) != frozen.digest:

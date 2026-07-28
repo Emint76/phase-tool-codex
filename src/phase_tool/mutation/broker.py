@@ -13,6 +13,7 @@ from ..errors import PhaseError
 from ..freeze import FrozenInput, revalidate_frozen
 from ..planning import validate_static_plan
 from ..registry import RegistrySnapshot, ResolvedContract
+from .content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy
 from .exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
 from .expected_head_append import AppendRecordFaults, execute_append_record
 
@@ -21,6 +22,7 @@ from .expected_head_append import AppendRecordFaults, execute_append_record
 class BrokerFaults:
     exclusive_create: ExclusiveCreateFaults | None = None
     append_record: AppendRecordFaults | None = None
+    content_addressed_copy: ContentAddressedCopyFaults | None = None
     mutate_plan_after_intent: bool = False
     before_mechanism: Callable[[Path], None] | None = None
 
@@ -57,6 +59,12 @@ class EffectBroker:
             raise PhaseError("broker.plan_attachment_mismatch")
         if attached_plan != plan:
             raise PhaseError("broker.plan_attachment_mismatch")
+        expected_contract = {"id": contract.document["identity"]["id"], "version": contract.document["identity"]["version"], "package_digest": contract.package_digest}
+        if intent.get("contract") != expected_contract:
+            raise PhaseError("broker.intent_contract_mismatch")
+        operation = intent.get("operation")
+        if not isinstance(operation, Mapping) or operation.get("mechanism") != attached_plan.get("mechanism"):
+            raise PhaseError("broker.intent_mechanism_mismatch")
         if intent.get("effect_plan_digest") != profile_digest("effect-plan", attached_plan):
             raise PhaseError("broker.intent_plan_mismatch")
         locked_plan = parse_json_bytes(canonical_bytes(attached_plan))
@@ -83,6 +91,32 @@ class EffectBroker:
             inline = base64.b64decode(encoded.encode("ascii"), validate=True)
             if inline != content:
                 raise PhaseError("broker.inline_blob_mismatch", str(effect.get("effect_id")))
+        return content
+
+    @staticmethod
+    def _frozen_blob_content(effect: Mapping[str, object], intent_path: Path, intent: Mapping[str, object]) -> bytes:
+        source = effect.get("content_source")
+        if not isinstance(source, Mapping) or source.get("kind") != "frozen_input":
+            raise PhaseError("broker.content_source_missing", str(effect.get("effect_id")))
+        binding_id = source.get("binding_id")
+        inputs = intent.get("inputs")
+        if not isinstance(inputs, list):
+            raise PhaseError("broker.content_source_missing", str(effect.get("effect_id")))
+        matches = [item for item in inputs if isinstance(item, Mapping) and item.get("binding_id") == binding_id]
+        if len(matches) != 1:
+            raise PhaseError("broker.content_source_missing", str(binding_id))
+        record = matches[0]
+        blob_digest = record.get("blob_digest")
+        if not isinstance(blob_digest, str):
+            raise PhaseError("broker.content_source_not_frozen", str(binding_id))
+        if blob_digest != effect.get("content_digest") or record.get("digest") != effect.get("content_digest"):
+            raise PhaseError("broker.content_blob_mismatch", blob_digest)
+        blob_path = intent_path.parent / "blobs" / blob_digest.split(":", 1)[1]
+        if not blob_path.is_file():
+            raise PhaseError("broker.content_blob_missing", blob_digest)
+        content = blob_path.read_bytes()
+        if len(content) != effect["content_length"] or digest_bytes(content) != effect["content_digest"]:
+            raise PhaseError("broker.content_blob_mismatch", blob_digest)
         return content
 
     def execute(
@@ -122,11 +156,12 @@ class EffectBroker:
         supported = {
             ("mechanism.exclusive_create_v1", "1.0.0"),
             ("mechanism.expected_head_append_v1", "1.0.0"),
+            ("content_addressed_copy", "1.0.0"),
         }
         if (mechanism["id"], mechanism["version"]) not in supported:
             raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
         effects = locked_plan["effects"]
-        if len(effects) != 1 or effects[0]["kind"] not in {"exclusive_create", "append_record"}:
+        if len(effects) != 1 or effects[0]["kind"] not in {"exclusive_create", "append_record", "copy_blob"}:
             raise PhaseError("broker.plan_not_executable")
         effect = effects[0]
         root_id = effect["target"]["root_binding"]
@@ -136,6 +171,8 @@ class EffectBroker:
             raise PhaseError("plan.root_binding_missing", str(root_id)) from exc
         if effect["kind"] == "append_record":
             content = self._append_blob_content(effect, intent_path, intent)
+        elif effect["kind"] == "copy_blob":
+            content = self._frozen_blob_content(effect, intent_path, intent)
         elif effect["content_source"]["kind"] == "frozen_input":
             binding_id = effect["content_source"]["binding_id"]
             try:
@@ -160,7 +197,7 @@ class EffectBroker:
                 timestamp=timestamp,
                 faults=active.exclusive_create,
             )
-        else:
+        elif effect["kind"] == "append_record":
             receipt = execute_append_record(
                 effect,
                 target_root,
@@ -169,6 +206,15 @@ class EffectBroker:
                 timestamp=timestamp,
                 operational_lock_root=operational_lock_root,
                 faults=active.append_record,
+            )
+        else:
+            receipt = execute_content_addressed_copy(
+                effect,
+                target_root,
+                content,
+                run_id=str(locked_plan["run_id"]),
+                timestamp=timestamp,
+                faults=active.content_addressed_copy,
             )
         self._receipt_validator.validate(receipt)
         return [receipt]

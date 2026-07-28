@@ -59,17 +59,16 @@
   ],
   "operation": {
     "allowed_effects": [
-      "exclusive_create",
       "copy_blob"
     ],
     "atomicity_claim": "per_effect",
     "effect_order": "static_predeclared",
     "intent": "copy",
-    "maximum_effects": 8,
+    "maximum_effects": 1,
     "mechanism": {
       "availability": "bundled_v1",
       "capability": "mutation_mechanism",
-      "id": "mechanism.content_addressed_copy_v1",
+      "id": "content_addressed_copy",
       "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2",
       "version": "1.0.0"
     }

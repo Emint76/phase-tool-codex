@@ -405,17 +405,15 @@ def test_fixture_append_execute_is_active_in_stage4(tmp_path: Path) -> None:
     assert (target / "streams" / "alpha.jsonl").read_bytes() == b'{"value":1}\n'
 
 
-def test_copy_execute_remains_fail_closed(tmp_path: Path) -> None:
+def test_copy_execute_is_active_in_stage5(tmp_path: Path) -> None:
     request, target = _stage2_execute_request(tmp_path, "fixture_copy.v1")
-    before = snapshot_tree(target)
 
     outcome = PhaseCore().run(request, execute=True)
 
-    assert outcome.exit_code != 0
-    assert outcome.receipt["terminal_status"] == "rejected"
-    assert outcome.receipt["mutation_attempted"] is False
-    assert outcome.receipt["blockers"] == ["broker.mechanism_execution_unavailable"]
-    assert snapshot_tree(target) == before
+    assert outcome.exit_code == 0
+    assert outcome.receipt["terminal_status"] == "succeeded_verified"
+    assert outcome.receipt["mutation_attempted"] is True
+    assert outcome.receipt["canonical_result"]["locator"].startswith("objects/")
 
 
 def test_durable_intent_exists_before_mechanism_invocation(tmp_path: Path) -> None:

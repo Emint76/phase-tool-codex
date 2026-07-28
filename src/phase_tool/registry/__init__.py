@@ -85,6 +85,14 @@ class RegistrySnapshot:
         expected = entry.get("artifact_digest")
         if not isinstance(artifact, str) or digest_bytes(self.resource_bytes(artifact)) != expected:
             raise PhaseError("registry.digest_mismatch", entry.get("id", "unknown"))
+        if entry.get("kind") == "mechanism":
+            descriptor = parse_json_bytes(self.resource_bytes(artifact))
+            if (
+                descriptor.get("id") != entry.get("id")
+                or descriptor.get("version") != entry.get("version")
+                or descriptor.get("capability") != entry.get("capability")
+            ):
+                raise PhaseError("registry.identity_mismatch", entry.get("id", "unknown"))
         package_artifacts = entry.get("package_artifacts")
         if package_artifacts is not None:
             verified: list[dict[str, str]] = []

@@ -3,23 +3,23 @@
   "class": "adversarial",
   "contract_id": "fixture_copy.v1",
   "covers": [
-    "multi_effect_partial_failure",
-    "partial_effect"
+    "multi_effect_rejected",
+    "single_effect_limit"
   ],
   "expected": {
-    "mutation_attempted": true,
-    "rationale": "Per-effect execution is not an all-effects transaction; an applied subset remains visible.",
-    "recovery_required": true,
-    "retry_disposition": "inspect_before_retry",
+    "mutation_attempted": false,
+    "rationale": "Stage 5 keeps fixture copy to one content-addressed effect; expanded multi-effect copy plans are rejected before mutation.",
+    "recovery_required": false,
+    "retry_disposition": "forbidden",
     "schema_valid": true,
     "success_exit_allowed": false,
     "target_mutation_permitted_in_stage1": false,
-    "terminal_status": "failed_partial",
+    "terminal_status": "rejected",
     "validator_results": [
       {
-        "code": "subset_applied",
+        "code": "plan.incomplete",
         "status": "fail",
-        "validator_id": "validator.aggregate_effects_v1"
+        "validator_id": "phase.plan_v1"
       }
     ]
   },
@@ -28,8 +28,8 @@
     "effect_2": "absent"
   },
   "stimulus": {
-    "effect_1": "applied_verified",
-    "effect_2": "failed_no_effect"
+    "effect_count": 2,
+    "plan_status": "rejected"
   },
   "vector_version": "1.0"
 }

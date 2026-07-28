@@ -7,13 +7,13 @@
     "idempotency"
   ],
   "expected": {
-    "mutation_attempted": false,
-    "rationale": "Contract-approved same-hash verified result is reused with no write.",
+    "mutation_attempted": true,
+    "rationale": "Contract-approved same-hash existing content is verified with no write.",
     "recovery_required": false,
     "retry_disposition": "noop_existing",
     "schema_valid": true,
     "success_exit_allowed": true,
-    "target_mutation_permitted_in_stage1": false,
+    "target_mutation_permitted_in_stage1": true,
     "terminal_status": "succeeded_verified",
     "validator_results": [
       {

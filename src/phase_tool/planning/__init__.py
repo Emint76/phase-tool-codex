@@ -176,21 +176,20 @@ def build_static_plan(
         if frozen is None:
             raise PhaseError("input.required_missing", value["input_binding"])
         revalidate_frozen(frozen)
-        for index, locator_value in enumerate(sorted(value["destinations"]), 1):
-            locator = safe_relative_locator(locator_value)
-            effects.append({
-                "effect_id": f"effect.copy.{index:03d}",
-                "kind": "copy_blob",
-                "target": {"root_binding": contract.document["canonical_result"]["root_binding"], "relative_locator": locator},
-                "input_binding": value["input_binding"],
-                "content_source": {"kind": "frozen_input", "binding_id": value["input_binding"], "source_digest": frozen.digest},
-                "content_digest": frozen.digest,
-                "content_length": frozen.length,
-                "preconditions": {"existence": "absent_or_same_digest", "expected_digest": frozen.digest, "expected_head": None, "concurrency_token": None},
-                "lock_scope": None,
-                "durability_policy_id": "file_and_directory_synced",
-                "on_failure": "stop_and_classify",
-            })
+        locator = safe_relative_locator("objects/" + frozen.digest.removeprefix("sha256:"))
+        effects.append({
+            "effect_id": "effect.copy.001",
+            "kind": "copy_blob",
+            "target": {"root_binding": contract.document["canonical_result"]["root_binding"], "relative_locator": locator},
+            "input_binding": value["input_binding"],
+            "content_source": {"kind": "frozen_input", "binding_id": value["input_binding"], "source_digest": frozen.digest},
+            "content_digest": frozen.digest,
+            "content_length": frozen.length,
+            "preconditions": {"existence": "absent_or_same_digest", "expected_digest": frozen.digest, "expected_head": None, "concurrency_token": None},
+            "lock_scope": None,
+            "durability_policy_id": "file_data_synced",
+            "on_failure": "stop_and_classify",
+        })
     else:
         raise PhaseError("plan.operation_unsupported", operation["intent"])
     plan = common | {"effects": effects}

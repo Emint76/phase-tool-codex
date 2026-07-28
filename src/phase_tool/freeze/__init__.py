@@ -127,15 +127,26 @@ def copy_and_hash(
         if destination.is_symlink() or destination.read_bytes() != data:
             raise PhaseError("freeze.blob_collision", digest)
     else:
-        temporary = blob_root / (destination.name + ".tmp")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_BINARY"):
+            flags |= os.O_BINARY
+        descriptor: int | None = None
         try:
-            with temporary.open("xb") as stream:
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, destination)
+            descriptor = os.open(destination, flags, 0o600)
+            written = 0
+            view = memoryview(data)
+            while written < len(data):
+                actual = os.write(descriptor, view[written:])
+                if actual <= 0:
+                    raise OSError("blob write made no progress")
+                written += actual
+            os.fsync(descriptor)
+        except FileExistsError:
+            if destination.is_symlink() or destination.read_bytes() != data:
+                raise PhaseError("freeze.blob_collision", digest)
         finally:
-            temporary.unlink(missing_ok=True)
+            if descriptor is not None:
+                os.close(descriptor)
     if destination.read_bytes() != data:
         raise PhaseError("freeze.blob_readback_mismatch", digest)
     return FrozenInput(

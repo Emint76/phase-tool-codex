@@ -70,6 +70,7 @@ def test_only_mechanism_boundary_owns_target_write_primitives() -> None:
     allowed_write_modules = {
         "mutation/expected_head_append.py",
         "mutation/exclusive_create.py",
+        "mutation/content_addressed_copy.py",
         "evidence/__init__.py",
         "freeze/__init__.py",
     }

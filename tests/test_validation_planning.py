@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -137,7 +139,9 @@ def test_append_and_copy_use_same_static_plan_api(tmp_path: Path) -> None:
         "source_digest": append.digest,
     }
     assert {item["content_source"]["source_digest"] for item in copy_plan["effects"]} == {frozen.digest}
-    assert [item["target"]["relative_locator"] for item in copy_plan["effects"]] == ["objects/a", "objects/b"]
+    assert [item["target"]["relative_locator"] for item in copy_plan["effects"]] == [
+        "objects/" + hashlib.sha256(b"payload").hexdigest()
+    ]
     validate_static_plan(append_plan, append_contract, {"fixture_result_root": target_root.parent / "append-target"}, append_registry)
     validate_static_plan(copy_plan, copy_contract, {"fixture_result_root": target_root}, copy_registry)
 
@@ -154,16 +158,20 @@ def test_plan_rejects_duplicate_ids_locator_collisions_and_wrong_mechanism(tmp_p
     (target_root / "objects").mkdir()
     results = ValidatorRunner(registry).run(contract, candidate, {"payload": frozen}, root_bindings={"fixture_result_root": target_root}, run_id="run-copy", timestamp=NOW)
     plan = build_static_plan(contract, candidate, {"payload": frozen}, results, root_bindings={"fixture_result_root": target_root}, run_id="run-copy", generated_at=NOW)
+    multi_effect_contract = replace(contract, document=deepcopy(contract.document))
+    multi_effect_contract.document["operation"]["maximum_effects"] = 2
 
     duplicate = deepcopy(plan)
-    duplicate["effects"][1]["effect_id"] = duplicate["effects"][0]["effect_id"]
+    duplicate["effects"].append(deepcopy(duplicate["effects"][0]))
     with pytest.raises(PhaseError, match="plan.duplicate_effect_id"):
-        validate_static_plan(duplicate, contract, {"fixture_result_root": target_root}, registry)
+        validate_static_plan(duplicate, multi_effect_contract, {"fixture_result_root": target_root}, registry)
 
     collision = deepcopy(plan)
+    collision["effects"].append(deepcopy(collision["effects"][0]))
+    collision["effects"][1]["effect_id"] = "effect.copy.002"
     collision["effects"][1]["target"] = deepcopy(collision["effects"][0]["target"])
     with pytest.raises(PhaseError, match="plan.locator_collision"):
-        validate_static_plan(collision, contract, {"fixture_result_root": target_root}, registry)
+        validate_static_plan(collision, multi_effect_contract, {"fixture_result_root": target_root}, registry)
 
     wrong_mechanism = deepcopy(plan)
     wrong_mechanism["mechanism"]["id"] = "mechanism.other_v1"

@@ -9,12 +9,12 @@
   ],
   "expected": {
     "mutation_attempted": true,
-    "rationale": "A future mechanism publishes one frozen blob without replacement and verifies it.",
+    "rationale": "The bundled content-addressed copy mechanism publishes one frozen blob at its digest-derived locator without replacement and verifies it.",
     "recovery_required": false,
     "retry_disposition": "noop_existing",
     "schema_valid": true,
     "success_exit_allowed": true,
-    "target_mutation_permitted_in_stage1": false,
+    "target_mutation_permitted_in_stage1": true,
     "terminal_status": "succeeded_verified",
     "validator_results": [
       {

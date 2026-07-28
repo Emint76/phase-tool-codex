@@ -31,14 +31,14 @@
     },
     {
       "artifact": "contracts/fixture_copy.v1.json",
-      "artifact_digest": "sha256:0d7e0dc46a5b1b0d8c57dee22d9421fa42feb82f2f92a571217c3c9790c83e08",
+      "artifact_digest": "sha256:15b601f0b73c383594c72a3f08697a025b5423fe6d59986eef2fd676e3c2266d",
       "capability": "operation_contract",
       "id": "fixture_copy.v1",
       "kind": "contract",
       "mutable": false,
       "package_artifacts": [
         {
-          "digest": "sha256:0d7e0dc46a5b1b0d8c57dee22d9421fa42feb82f2f92a571217c3c9790c83e08",
+          "digest": "sha256:15b601f0b73c383594c72a3f08697a025b5423fe6d59986eef2fd676e3c2266d",
           "resource": "contracts/fixture_copy.v1.json"
         },
         {
@@ -54,7 +54,7 @@
           "resource": "schemas/phase-receipt.schema.json"
         }
       ],
-      "package_digest": "sha256:0454e101a287a163fb8008cbdff3e0e196fd0d51c680b354f0c4757d8fc2d889",
+      "package_digest": "sha256:c2e3e89752308ac6aba0febf038f01ef739d72bdd4d6efd555715b5261da48b6",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
     },
@@ -118,9 +118,9 @@
     },
     {
       "artifact": "descriptors/mechanism/mechanism.content_addressed_copy_v1.json",
-      "artifact_digest": "sha256:e560824fb64a8e109a5ddca51d9ad7cc98d7dc45f153f1e48acbd0d415e63f11",
+      "artifact_digest": "sha256:68ebffa52cfb38caad51ae30be02a09723b91bb130d64b33c4a8bf4c012ab4c8",
       "capability": "mutation_mechanism",
-      "id": "mechanism.content_addressed_copy_v1",
+      "id": "content_addressed_copy",
       "kind": "mechanism",
       "mutable": false,
       "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2",

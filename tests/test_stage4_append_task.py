@@ -581,7 +581,7 @@ def test_task_journal_rejects_missing_or_mismatched_operation_and_correction_ide
     assert rejected.receipt["blockers"] == ["task_journal.correction_target_mismatch"]
 
 
-def test_cli_execute_append_task_inspect_and_copy_fail_closed(tmp_path: Path) -> None:
+def test_cli_execute_append_task_inspect_and_copy_active(tmp_path: Path) -> None:
     phase = ROOT / ".venv" / "Scripts" / ("phase.exe" if os.name == "nt" else "phase")
     target = tmp_path / "target"
     (target / "streams").mkdir(parents=True)
@@ -675,8 +675,8 @@ def test_cli_execute_append_task_inspect_and_copy_fail_closed(tmp_path: Path) ->
         env=env,
         check=False,
     )
-    assert copy.returncode != 0
-    assert json.loads(copy.stdout)["error"] == "broker.mechanism_execution_unavailable"
+    assert copy.returncode == 0, copy.stderr
+    assert json.loads(copy.stdout)["terminal_status"] == "succeeded_verified"
 
 
 def _append_race_worker(effect: dict[str, object], root: str, record: bytes, expected_head: str, barrier: object, queue: object) -> None:
@@ -1002,7 +1002,10 @@ def test_broken_operational_lock_symlink_is_rejected_before_open(tmp_path: Path)
     lock_root.mkdir(parents=True)
     digest = "sha256:" + "a" * 64
     link = lock_root / ("a" * 64 + ".lock")
-    os.symlink(lock_root / "missing-target", link)
+    try:
+        os.symlink(lock_root / "missing-target", link)
+    except OSError:
+        pytest.skip("symlink creation unavailable")
 
     with pytest.raises(PhaseError, match="path.link_forbidden"):
         operational_lock_path(lock_root, digest)

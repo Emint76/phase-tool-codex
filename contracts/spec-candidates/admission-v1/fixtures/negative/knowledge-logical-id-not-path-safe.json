@@ -1,0 +1,58 @@
+{
+  "artifact_format": "application/json",
+  "artifact_input": {
+    "binding_id": "asset",
+    "expected_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "expected_length": 24
+  },
+  "artifact_kind": "document",
+  "candidate_version": "1.0",
+  "contract": {
+    "id": "knowledge_admission.v1",
+    "version": "1.0.0"
+  },
+  "idempotency_key": "op-knowledge-001",
+  "logical_knowledge_id": "knowledge:001",
+  "operation_id": "op-knowledge-001",
+  "placement": {
+    "namespace": "example",
+    "target_root_binding": "admission_result_root"
+  },
+  "provenance": {
+    "producer": {
+      "identifier": "producer.example",
+      "kind": "tool",
+      "version": "1.2.0"
+    },
+    "provenance_version": "1.0",
+    "source_bindings": [
+      {
+        "binding_version": "1.0",
+        "logical_source_id": "source-manual-001",
+        "source_blob_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_contract": {
+          "id": "source_admission.v1",
+          "version": "1.0.0"
+        },
+        "source_descriptor_digest": "sha256:4ddf576bbb0d317218e6a89cd553dcf99164de0628d7f04407cf13f2e4e14449",
+        "source_descriptor_locator": "namespaces/example/source-results/source-manual-001/source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab.json",
+        "source_phase_receipt": {
+          "receipt_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "run_id": "run-source-001"
+        },
+        "source_result_id": "source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab"
+      }
+    ],
+    "transformation": {
+      "identifier": "transform.extract-v1",
+      "parameters_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "version": "1.0.0"
+    }
+  },
+  "request_metadata": {
+    "correlation_id": "corr-002",
+    "submitted_by": "adapter.example"
+  },
+  "supersedes": null
+}

@@ -1,0 +1,43 @@
+{
+  "progress_version": "1.0",
+  "plan_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "maximum_effects": 2,
+  "completed_effect_ids": [
+    "effect.0.blob"
+  ],
+  "verified_effect_ids": [
+    "effect.0.blob"
+  ],
+  "failed_effect_id": null,
+  "not_started_effect_ids": [
+    "effect.1.descriptor"
+  ],
+  "effects": [
+    {
+      "ordinal": 0,
+      "effect_id": "effect.0.blob",
+      "kind": "copy_blob",
+      "mechanism": "content_addressed_copy",
+      "state": "applied_new_verified",
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "blobs/sha256/11/1111111111111111111111111111111111111111111111111111111111111111",
+        "expected_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "observation_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    {
+      "ordinal": 1,
+      "effect_id": "effect.1.descriptor",
+      "kind": "exclusive_create",
+      "mechanism": "mechanism.exclusive_create_v1",
+      "state": "not_started",
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "namespaces/example/knowledge-results/knowledge-manual-summary-001/knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb.json",
+        "expected_digest": "sha256:3f0c396bb5c9fad0fd1e09e55ff6c77d00b2caf7f7d0757bcbc61075ca1ab0db"
+      },
+      "observation_digest": null
+    }
+  ]
+}

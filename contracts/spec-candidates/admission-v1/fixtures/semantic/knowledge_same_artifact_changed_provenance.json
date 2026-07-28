@@ -1,0 +1,20 @@
+{
+  "case_version": "1.0",
+  "case_id": "knowledge_same_artifact_changed_provenance",
+  "contract_id": "knowledge_admission.v1",
+  "prior_state": {
+    "logical_knowledge_id": "knowledge-manual-summary-001",
+    "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "provenance_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "request": {
+    "logical_knowledge_id": "knowledge-manual-summary-001",
+    "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "provenance_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "expected": {
+    "terminal_status": "rejected",
+    "mutation_allowed": false,
+    "reason_code": "provenance_conflict"
+  }
+}

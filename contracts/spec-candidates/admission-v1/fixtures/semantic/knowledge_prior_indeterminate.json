@@ -1,0 +1,16 @@
+{
+  "case_version": "1.0",
+  "case_id": "knowledge_prior_indeterminate",
+  "contract_id": "knowledge_admission.v1",
+  "prior_state": {
+    "receipt": "indeterminate"
+  },
+  "request": {
+    "same_request": true
+  },
+  "expected": {
+    "terminal_status": "indeterminate",
+    "mutation_allowed": false,
+    "reason_code": "inspection_required"
+  }
+}

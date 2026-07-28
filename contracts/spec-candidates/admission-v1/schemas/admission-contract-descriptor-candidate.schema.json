@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/admission-contract-descriptor-candidate.schema.json",
+  "title": "Inert admission contract descriptor candidate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "descriptor_candidate_version",
+    "activation_state",
+    "identity",
+    "result_architecture",
+    "maximum_effects",
+    "effect_sequence",
+    "candidate_schema",
+    "result_schema",
+    "provenance_schema",
+    "placement_policy",
+    "idempotency_policy",
+    "version_policy",
+    "required_future_validator_registrations"
+  ],
+  "properties": {
+    "descriptor_candidate_version": {
+      "const": "1.0"
+    },
+    "activation_state": {
+      "const": "non_executable_unregistered"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "source_admission.v1",
+            "knowledge_admission.v1"
+          ]
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      }
+    },
+    "result_architecture": {
+      "const": "ordered_blob_then_descriptor"
+    },
+    "maximum_effects": {
+      "const": 2
+    },
+    "effect_sequence": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ordinal",
+            "effect_id",
+            "kind",
+            "mechanism_id",
+            "mechanism_version",
+            "mechanism_package_digest"
+          ],
+          "properties": {
+            "ordinal": {
+              "const": 0
+            },
+            "effect_id": {
+              "const": "effect.0.blob"
+            },
+            "kind": {
+              "const": "copy_blob"
+            },
+            "mechanism_id": {
+              "const": "content_addressed_copy"
+            },
+            "mechanism_version": {
+              "const": "1.0.0"
+            },
+            "mechanism_package_digest": {
+              "const": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ordinal",
+            "effect_id",
+            "kind",
+            "mechanism_id",
+            "mechanism_version",
+            "mechanism_package_digest"
+          ],
+          "properties": {
+            "ordinal": {
+              "const": 1
+            },
+            "effect_id": {
+              "const": "effect.1.descriptor"
+            },
+            "kind": {
+              "const": "exclusive_create"
+            },
+            "mechanism_id": {
+              "const": "mechanism.exclusive_create_v1"
+            },
+            "mechanism_version": {
+              "const": "1.0.0"
+            },
+            "mechanism_package_digest": {
+              "const": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b"
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "candidate_schema": {
+      "type": "string",
+      "pattern": "^schemas/[a-z0-9-]+\\.schema\\.json$"
+    },
+    "result_schema": {
+      "type": "string",
+      "pattern": "^schemas/[a-z0-9-]+\\.schema\\.json$"
+    },
+    "provenance_schema": {
+      "type": "string",
+      "pattern": "^schemas/[a-z0-9-]+\\.schema\\.json$"
+    },
+    "placement_policy": {
+      "const": "canonical_admission_placement_v1"
+    },
+    "idempotency_policy": {
+      "const": "canonical_result_then_receipt_verified_v1"
+    },
+    "version_policy": {
+      "const": "new_logical_and_result_id_with_exact_supersedes_v1"
+    },
+    "required_future_validator_registrations": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "maxLength": 128
+      }
+    }
+  }
+}

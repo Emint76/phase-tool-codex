@@ -1,0 +1,38 @@
+{
+  "candidate_version": "1.0",
+  "contract": {
+    "id": "source_admission.v1",
+    "version": "1.0.0"
+  },
+  "operation_id": "op-source-001",
+  "idempotency_key": "op-source-001",
+  "logical_source_id": "source-manual-001",
+  "asset_input": {
+    "binding_id": "asset",
+    "expected_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expected_length": 12
+  },
+  "declared_media_type": "application/pdf",
+  "original_filename": "manual.pdf",
+  "provenance": {
+    "provenance_version": "1.0",
+    "origin": {
+      "kind": "external_uri",
+      "locator": "https://example.invalid/source/manual.pdf",
+      "label": "supplier manual export"
+    },
+    "supplied_by": {
+      "kind": "adapter",
+      "identifier": "adapter.example"
+    }
+  },
+  "placement": {
+    "target_root_binding": "admission_result_root",
+    "namespace": "example"
+  },
+  "supersedes": null,
+  "request_metadata": {
+    "submitted_by": "adapter.example",
+    "correlation_id": "corr-001"
+  }
+}

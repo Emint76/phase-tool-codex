@@ -1,0 +1,16 @@
+{
+  "case_version": "1.0",
+  "case_id": "knowledge_source_tampered_after_plan",
+  "contract_id": "knowledge_admission.v1",
+  "prior_state": {
+    "source_binding": "planned_verified"
+  },
+  "request": {
+    "source_binding": "digest_or_receipt_mismatch"
+  },
+  "expected": {
+    "terminal_status": "rejected",
+    "mutation_allowed": false,
+    "reason_code": "source_binding_revalidation_failed"
+  }
+}

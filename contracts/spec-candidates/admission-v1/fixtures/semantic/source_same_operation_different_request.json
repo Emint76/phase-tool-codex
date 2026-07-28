@@ -1,0 +1,18 @@
+{
+  "case_version": "1.0",
+  "case_id": "source_same_operation_different_request",
+  "contract_id": "source_admission.v1",
+  "prior_state": {
+    "operation_key": "same",
+    "request_digest": "old"
+  },
+  "request": {
+    "operation_key": "same",
+    "request_digest": "new"
+  },
+  "expected": {
+    "terminal_status": "rejected",
+    "mutation_allowed": false,
+    "reason_code": "idempotency_key_conflict"
+  }
+}

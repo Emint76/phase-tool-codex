@@ -1,0 +1,130 @@
+{
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admission_contract": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "source_admission.v1"
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "admission_run": {
+      "additionalProperties": false,
+      "properties": {
+        "receipt_authority": {
+          "const": "phase_evidence_by_run_id"
+        },
+        "run_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "receipt_authority"
+      ],
+      "type": "object"
+    },
+    "blob_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "content_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "content_length": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "descriptor_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "logical_source_id": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "media_type": {
+      "maxLength": 127,
+      "minLength": 3,
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "original_filename": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^(?!\\.{1,2}$)[^/\\\\\\u0000-\\u001f\\u007f]+$",
+          "type": "string"
+        }
+      ]
+    },
+    "provenance": {
+      "$ref": "source-provenance.schema.json"
+    },
+    "provenance_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "result_schema_version": {
+      "const": "1.0"
+    },
+    "source_result_id": {
+      "pattern": "^source-result-[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "supersedes": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "source-result-reference.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "result_schema_version",
+    "source_result_id",
+    "logical_source_id",
+    "content_digest",
+    "content_length",
+    "media_type",
+    "blob_locator",
+    "descriptor_locator",
+    "original_filename",
+    "provenance",
+    "provenance_digest",
+    "admission_contract",
+    "admission_run",
+    "observed_at",
+    "supersedes"
+  ],
+  "title": "Canonical source descriptor v1",
+  "type": "object"
+}

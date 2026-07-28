@@ -1,0 +1,18 @@
+{
+  "case_version": "1.0",
+  "case_id": "source_same_content_different_identity",
+  "contract_id": "source_admission.v1",
+  "prior_state": {
+    "logical_source_id": "source-a",
+    "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "request": {
+    "logical_source_id": "source-b",
+    "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "expected": {
+    "terminal_status": "succeeded_verified",
+    "mutation_allowed": true,
+    "reason_code": "distinct_logical_result"
+  }
+}

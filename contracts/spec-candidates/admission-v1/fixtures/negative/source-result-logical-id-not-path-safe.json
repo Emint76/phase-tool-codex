@@ -1,0 +1,34 @@
+{
+  "admission_contract": {
+    "id": "source_admission.v1",
+    "version": "1.0.0"
+  },
+  "admission_run": {
+    "receipt_authority": "phase_evidence_by_run_id",
+    "run_id": "run-source-001"
+  },
+  "blob_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "content_length": 12,
+  "descriptor_locator": "namespaces/example/source-results/source-manual-001/source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab.json",
+  "logical_source_id": "source:001",
+  "media_type": "application/pdf",
+  "observed_at": "2026-07-28T00:00:00Z",
+  "original_filename": "manual.pdf",
+  "provenance": {
+    "origin": {
+      "kind": "external_uri",
+      "label": "supplier manual export",
+      "locator": "https://example.invalid/source/manual.pdf"
+    },
+    "provenance_version": "1.0",
+    "supplied_by": {
+      "identifier": "adapter.example",
+      "kind": "adapter"
+    }
+  },
+  "provenance_digest": "sha256:4670548096b5a5272407ddb7056587ab720187411c358c9a0fdeea975103bd39",
+  "result_schema_version": "1.0",
+  "source_result_id": "source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab",
+  "supersedes": null
+}

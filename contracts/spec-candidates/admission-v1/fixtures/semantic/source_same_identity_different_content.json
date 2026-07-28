@@ -1,0 +1,18 @@
+{
+  "case_version": "1.0",
+  "case_id": "source_same_identity_different_content",
+  "contract_id": "source_admission.v1",
+  "prior_state": {
+    "logical_source_id": "source-manual-001",
+    "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "request": {
+    "logical_source_id": "source-manual-001",
+    "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "expected": {
+    "terminal_status": "rejected",
+    "mutation_allowed": false,
+    "reason_code": "logical_identity_conflict"
+  }
+}

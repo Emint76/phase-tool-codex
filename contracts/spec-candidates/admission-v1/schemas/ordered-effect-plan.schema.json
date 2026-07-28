@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/ordered-effect-plan.schema.json",
+  "title": "Neutral ordered two-effect plan candidate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ordered_effect_plan_version",
+    "plan_id",
+    "run_id",
+    "contract",
+    "write_scope_digest",
+    "effect_order",
+    "maximum_effects",
+    "effects"
+  ],
+  "properties": {
+    "ordered_effect_plan_version": {
+      "const": "1.0-candidate"
+    },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 128
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      }
+    },
+    "write_scope_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "effect_order": {
+      "const": "static_predeclared"
+    },
+    "maximum_effects": {
+      "const": 2
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ordinal",
+                "effect_id",
+                "kind",
+                "mechanism",
+                "target",
+                "content_source",
+                "content_digest",
+                "content_length",
+                "preconditions",
+                "durability_policy_id",
+                "on_failure"
+              ],
+              "properties": {
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "effect_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                  "maxLength": 128
+                },
+                "kind": {
+                  "enum": [
+                    "copy_blob",
+                    "exclusive_create"
+                  ]
+                },
+                "mechanism": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "version",
+                    "package_digest"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                      "maxLength": 128
+                    },
+                    "version": {
+                      "const": "1.0.0"
+                    },
+                    "package_digest": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "root_binding",
+                    "relative_locator"
+                  ],
+                  "properties": {
+                    "root_binding": {
+                      "const": "admission_result_root"
+                    },
+                    "relative_locator": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024,
+                      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$"
+                    }
+                  }
+                },
+                "content_source": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "binding_id",
+                    "source_digest"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "frozen_input"
+                    },
+                    "binding_id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                      "maxLength": 128
+                    },
+                    "source_digest": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "content_digest": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                "content_length": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "preconditions": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "existence",
+                    "expected_digest"
+                  ],
+                  "properties": {
+                    "existence": {
+                      "enum": [
+                        "absent",
+                        "absent_or_same_digest"
+                      ]
+                    },
+                    "expected_digest": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "durability_policy_id": {
+                  "enum": [
+                    "file_data_synced",
+                    "file_and_directory_synced"
+                  ]
+                },
+                "on_failure": {
+                  "const": "stop_and_classify"
+                }
+              }
+            },
+            {
+              "properties": {
+                "ordinal": {
+                  "const": 0
+                },
+                "effect_id": {
+                  "const": "effect.0.blob"
+                },
+                "kind": {
+                  "const": "copy_blob"
+                },
+                "mechanism": {
+                  "properties": {
+                    "id": {
+                      "const": "content_addressed_copy"
+                    },
+                    "package_digest": {
+                      "const": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2"
+                    }
+                  }
+                },
+                "preconditions": {
+                  "properties": {
+                    "existence": {
+                      "const": "absent_or_same_digest"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ordinal",
+                "effect_id",
+                "kind",
+                "mechanism",
+                "target",
+                "content_source",
+                "content_digest",
+                "content_length",
+                "preconditions",
+                "durability_policy_id",
+                "on_failure"
+              ],
+              "properties": {
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "effect_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                  "maxLength": 128
+                },
+                "kind": {
+                  "enum": [
+                    "copy_blob",
+                    "exclusive_create"
+                  ]
+                },
+                "mechanism": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "version",
+                    "package_digest"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                      "maxLength": 128
+                    },
+                    "version": {
+                      "const": "1.0.0"
+                    },
+                    "package_digest": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "root_binding",
+                    "relative_locator"
+                  ],
+                  "properties": {
+                    "root_binding": {
+                      "const": "admission_result_root"
+                    },
+                    "relative_locator": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024,
+                      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$"
+                    }
+                  }
+                },
+                "content_source": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "binding_id",
+                    "source_digest"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "frozen_input"
+                    },
+                    "binding_id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                      "maxLength": 128
+                    },
+                    "source_digest": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "content_digest": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                "content_length": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "preconditions": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "existence",
+                    "expected_digest"
+                  ],
+                  "properties": {
+                    "existence": {
+                      "enum": [
+                        "absent",
+                        "absent_or_same_digest"
+                      ]
+                    },
+                    "expected_digest": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "durability_policy_id": {
+                  "enum": [
+                    "file_data_synced",
+                    "file_and_directory_synced"
+                  ]
+                },
+                "on_failure": {
+                  "const": "stop_and_classify"
+                }
+              }
+            },
+            {
+              "properties": {
+                "ordinal": {
+                  "const": 1
+                },
+                "effect_id": {
+                  "const": "effect.1.descriptor"
+                },
+                "kind": {
+                  "const": "exclusive_create"
+                },
+                "mechanism": {
+                  "properties": {
+                    "id": {
+                      "const": "mechanism.exclusive_create_v1"
+                    },
+                    "package_digest": {
+                      "const": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b"
+                    }
+                  }
+                },
+                "preconditions": {
+                  "properties": {
+                    "existence": {
+                      "const": "absent"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "items": false
+    }
+  }
+}

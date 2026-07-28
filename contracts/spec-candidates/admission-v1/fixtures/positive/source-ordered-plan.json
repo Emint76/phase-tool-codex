@@ -1,0 +1,68 @@
+{
+  "ordered_effect_plan_version": "1.0-candidate",
+  "plan_id": "plan-source-001",
+  "run_id": "run-source-001",
+  "contract": {
+    "id": "source_admission.v1",
+    "version": "1.0.0"
+  },
+  "write_scope_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "effect_order": "static_predeclared",
+  "maximum_effects": 2,
+  "effects": [
+    {
+      "ordinal": 0,
+      "effect_id": "effect.0.blob",
+      "kind": "copy_blob",
+      "mechanism": {
+        "id": "content_addressed_copy",
+        "version": "1.0.0",
+        "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2"
+      },
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "content_source": {
+        "kind": "frozen_input",
+        "binding_id": "asset",
+        "source_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "content_length": 12,
+      "preconditions": {
+        "existence": "absent_or_same_digest",
+        "expected_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "durability_policy_id": "file_data_synced",
+      "on_failure": "stop_and_classify"
+    },
+    {
+      "ordinal": 1,
+      "effect_id": "effect.1.descriptor",
+      "kind": "exclusive_create",
+      "mechanism": {
+        "id": "mechanism.exclusive_create_v1",
+        "version": "1.0.0",
+        "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b"
+      },
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "namespaces/example/source-results/source-manual-001/source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab.json"
+      },
+      "content_source": {
+        "kind": "frozen_input",
+        "binding_id": "descriptor_bytes",
+        "source_digest": "sha256:4ddf576bbb0d317218e6a89cd553dcf99164de0628d7f04407cf13f2e4e14449"
+      },
+      "content_digest": "sha256:4ddf576bbb0d317218e6a89cd553dcf99164de0628d7f04407cf13f2e4e14449",
+      "content_length": 1138,
+      "preconditions": {
+        "existence": "absent",
+        "expected_digest": null
+      },
+      "durability_policy_id": "file_data_synced",
+      "on_failure": "stop_and_classify"
+    }
+  ]
+}

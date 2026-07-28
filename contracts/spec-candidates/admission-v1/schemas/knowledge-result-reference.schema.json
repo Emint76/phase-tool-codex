@@ -1,0 +1,86 @@
+{
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/knowledge-result-reference.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "blob_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "contract": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "knowledge_admission.v1"
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "descriptor_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "descriptor_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "knowledge_result_id": {
+      "pattern": "^knowledge-result-[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "logical_knowledge_id": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "phase_receipt": {
+      "additionalProperties": false,
+      "properties": {
+        "receipt_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "run_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "receipt_digest"
+      ],
+      "type": "object"
+    },
+    "reference_version": {
+      "const": "1.0"
+    }
+  },
+  "required": [
+    "reference_version",
+    "knowledge_result_id",
+    "logical_knowledge_id",
+    "artifact_digest",
+    "blob_locator",
+    "descriptor_digest",
+    "descriptor_locator",
+    "contract",
+    "phase_receipt"
+  ],
+  "title": "Exact knowledge result reference v1",
+  "type": "object"
+}

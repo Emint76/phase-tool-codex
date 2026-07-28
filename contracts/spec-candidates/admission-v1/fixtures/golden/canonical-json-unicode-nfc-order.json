@@ -1,0 +1,11 @@
+{
+  "canonical_utf8_hex": "7b2261223a22736c6173682f222c22c3a9223a22636166c3a9222c22f09f9880223a22736e6f776d616e20e29883227d0a",
+  "profile_id": "admission_canonical_json_v1",
+  "sha256_digest": "sha256:831f1983f12de951e3ca010577466da36d3087cbd4964b1b2e0e4f3ed1510b2b",
+  "value": {
+    "a": "slash/",
+    "é": "café",
+    "😀": "snowman ☃"
+  },
+  "vector_id": "unicode-nfc-order"
+}

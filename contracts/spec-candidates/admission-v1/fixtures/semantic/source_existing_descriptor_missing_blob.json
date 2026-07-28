@@ -1,0 +1,17 @@
+{
+  "case_version": "1.0",
+  "case_id": "source_existing_descriptor_missing_blob",
+  "contract_id": "source_admission.v1",
+  "prior_state": {
+    "blob": "absent",
+    "descriptor": "verified_present"
+  },
+  "request": {
+    "same_request": true
+  },
+  "expected": {
+    "terminal_status": "rejected",
+    "mutation_allowed": false,
+    "reason_code": "canonical_result_incomplete"
+  }
+}

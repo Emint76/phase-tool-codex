@@ -1,0 +1,42 @@
+{
+  "progress_version": "1.0",
+  "plan_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "maximum_effects": 2,
+  "completed_effect_ids": [
+    "effect.0.blob",
+    "effect.1.descriptor"
+  ],
+  "verified_effect_ids": [
+    "effect.0.blob"
+  ],
+  "failed_effect_id": "effect.1.descriptor",
+  "not_started_effect_ids": [],
+  "effects": [
+    {
+      "ordinal": 0,
+      "effect_id": "effect.0.blob",
+      "kind": "copy_blob",
+      "mechanism": "content_addressed_copy",
+      "state": "verified_existing",
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "observation_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    {
+      "ordinal": 1,
+      "effect_id": "effect.1.descriptor",
+      "kind": "exclusive_create",
+      "mechanism": "mechanism.exclusive_create_v1",
+      "state": "failed_no_effect",
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "namespaces/example/source-results/source-manual-001/source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab.json",
+        "expected_digest": "sha256:4ddf576bbb0d317218e6a89cd553dcf99164de0628d7f04407cf13f2e4e14449"
+      },
+      "observation_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    }
+  ]
+}

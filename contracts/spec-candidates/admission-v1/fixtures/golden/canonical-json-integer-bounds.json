@@ -1,0 +1,11 @@
+{
+  "canonical_utf8_hex": "7b226d6178223a393030373139393235343734303939312c226d696e223a2d393030373139393235343734303939312c227a65726f223a307d0a",
+  "profile_id": "admission_canonical_json_v1",
+  "sha256_digest": "sha256:97096f6a06748924fd6a957747091fedf274bf0049e387fe1470e35da7a262c4",
+  "value": {
+    "max": 9007199254740991,
+    "min": -9007199254740991,
+    "zero": 0
+  },
+  "vector_id": "integer-bounds"
+}

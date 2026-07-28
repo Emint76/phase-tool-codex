@@ -1,0 +1,54 @@
+{
+  "admission_contract": {
+    "id": "knowledge_admission.v1",
+    "version": "1.0.0"
+  },
+  "admission_run": {
+    "receipt_authority": "phase_evidence_by_run_id",
+    "run_id": "run-knowledge-001"
+  },
+  "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "artifact_format": "application/json",
+  "artifact_kind": "document",
+  "artifact_length": 24,
+  "blob_locator": "blobs/sha256/11/1111111111111111111111111111111111111111111111111111111111111111",
+  "descriptor_locator": "namespaces/example/knowledge-results/knowledge-manual-summary-001/knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb.json",
+  "knowledge_result_id": "knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb",
+  "logical_knowledge_id": "knowledge:001",
+  "observed_at": "2026-07-28T00:05:00Z",
+  "provenance": {
+    "producer": {
+      "identifier": "producer.example",
+      "kind": "tool",
+      "version": "1.2.0"
+    },
+    "provenance_version": "1.0",
+    "source_bindings": [
+      {
+        "binding_version": "1.0",
+        "logical_source_id": "source-manual-001",
+        "source_blob_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_contract": {
+          "id": "source_admission.v1",
+          "version": "1.0.0"
+        },
+        "source_descriptor_digest": "sha256:4ddf576bbb0d317218e6a89cd553dcf99164de0628d7f04407cf13f2e4e14449",
+        "source_descriptor_locator": "namespaces/example/source-results/source-manual-001/source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab.json",
+        "source_phase_receipt": {
+          "receipt_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "run_id": "run-source-001"
+        },
+        "source_result_id": "source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab"
+      }
+    ],
+    "transformation": {
+      "identifier": "transform.extract-v1",
+      "parameters_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "version": "1.0.0"
+    }
+  },
+  "provenance_digest": "sha256:246c0b865e751f7e68c7a838a39135a7212e7b466b2bcadf8482a353c1318064",
+  "result_schema_version": "1.0",
+  "supersedes": null
+}

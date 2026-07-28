@@ -1,0 +1,194 @@
+{
+  "activation_state": "non_executable_unregistered",
+  "catalog_version": "1.0",
+  "invalid": [
+    {
+      "path": "fixtures/negative/source-arbitrary-absolute-destination.json",
+      "schema": "schemas/source-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/source-filename-path.json",
+      "schema": "schemas/source-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/source-malformed-digest.json",
+      "schema": "schemas/source-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/knowledge-no-source-binding.json",
+      "schema": "schemas/knowledge-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/knowledge-untrusted-source-id-only.json",
+      "schema": "schemas/knowledge-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/knowledge-domain-taxonomy.json",
+      "schema": "schemas/knowledge-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/source-logical-id-not-path-safe.json",
+      "schema": "schemas/source-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/knowledge-logical-id-not-path-safe.json",
+      "schema": "schemas/knowledge-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/negative/source-result-logical-id-not-path-safe.json",
+      "schema": "schemas/source-result.schema.json"
+    },
+    {
+      "path": "fixtures/negative/knowledge-result-logical-id-not-path-safe.json",
+      "schema": "schemas/knowledge-result.schema.json"
+    }
+  ],
+  "semantic_invalid": [
+    {
+      "path": "fixtures/semantic-invalid/progress-verified-not-completed.json",
+      "reason_code": "progress.set_mismatch",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    },
+    {
+      "path": "fixtures/semantic-invalid/progress-non-prefix.json",
+      "reason_code": "progress.non_prefix",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    },
+    {
+      "path": "fixtures/semantic-invalid/progress-failed-id-mismatch.json",
+      "reason_code": "progress.failed_effect_mismatch",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    },
+    {
+      "path": "fixtures/semantic-invalid/progress-started-missing-observation.json",
+      "reason_code": "progress.observation_mismatch",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    }
+  ],
+  "valid": [
+    {
+      "path": "contracts/source_admission.v1.candidate.json",
+      "schema": "schemas/admission-contract-descriptor-candidate.schema.json"
+    },
+    {
+      "path": "contracts/knowledge_admission.v1.candidate.json",
+      "schema": "schemas/admission-contract-descriptor-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/positive/source-candidate.json",
+      "schema": "schemas/source-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/positive/source-provenance.json",
+      "schema": "schemas/source-provenance.schema.json"
+    },
+    {
+      "path": "fixtures/positive/source-result.json",
+      "schema": "schemas/source-result.schema.json"
+    },
+    {
+      "path": "fixtures/positive/source-result-reference.json",
+      "schema": "schemas/source-result-reference.schema.json"
+    },
+    {
+      "path": "fixtures/positive/knowledge-candidate.json",
+      "schema": "schemas/knowledge-admission-candidate.schema.json"
+    },
+    {
+      "path": "fixtures/positive/knowledge-provenance.json",
+      "schema": "schemas/knowledge-provenance.schema.json"
+    },
+    {
+      "path": "fixtures/positive/source-result-binding.json",
+      "schema": "schemas/source-result-binding.schema.json"
+    },
+    {
+      "path": "fixtures/positive/knowledge-result.json",
+      "schema": "schemas/knowledge-result.schema.json"
+    },
+    {
+      "path": "fixtures/partial/blob-created-descriptor-not-started.json",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    },
+    {
+      "path": "fixtures/partial/all-effects-complete-receipt-pending.json",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    },
+    {
+      "path": "fixtures/partial/existing-blob-descriptor-conflict.json",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/source_same_operation_same_request.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/source_same_operation_different_request.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/source_same_identity_different_content.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/source_same_content_different_identity.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/source_existing_blob_missing_descriptor.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/source_existing_descriptor_missing_blob.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/knowledge_same_identity_different_artifact.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/knowledge_same_artifact_changed_provenance.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/knowledge_source_tampered_after_plan.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/semantic/knowledge_prior_indeterminate.json",
+      "schema": "schemas/admission-semantic-case.schema.json"
+    },
+    {
+      "path": "fixtures/positive/source-ordered-plan.json",
+      "schema": "schemas/ordered-effect-plan.schema.json"
+    },
+    {
+      "path": "fixtures/positive/knowledge-ordered-plan.json",
+      "schema": "schemas/ordered-effect-plan.schema.json"
+    },
+    {
+      "path": "fixtures/positive/knowledge-result-reference.json",
+      "schema": "schemas/knowledge-result-reference.schema.json"
+    },
+    {
+      "path": "fixtures/partial/knowledge-blob-created-descriptor-not-started.json",
+      "schema": "schemas/ordered-effect-progress.schema.json"
+    },
+    {
+      "path": "fixtures/golden/canonical-json-ascii-structure.json",
+      "schema": "schemas/admission-canonical-json-vector.schema.json"
+    },
+    {
+      "path": "fixtures/golden/canonical-json-unicode-nfc-order.json",
+      "schema": "schemas/admission-canonical-json-vector.schema.json"
+    },
+    {
+      "path": "fixtures/golden/canonical-json-string-escapes.json",
+      "schema": "schemas/admission-canonical-json-vector.schema.json"
+    },
+    {
+      "path": "fixtures/golden/canonical-json-integer-bounds.json",
+      "schema": "schemas/admission-canonical-json-vector.schema.json"
+    }
+  ]
+}

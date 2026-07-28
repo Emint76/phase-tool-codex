@@ -1,0 +1,54 @@
+{
+  "result_schema_version": "1.0",
+  "knowledge_result_id": "knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb",
+  "logical_knowledge_id": "knowledge-manual-summary-001",
+  "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "artifact_length": 24,
+  "artifact_kind": "document",
+  "artifact_format": "application/json",
+  "blob_locator": "blobs/sha256/11/1111111111111111111111111111111111111111111111111111111111111111",
+  "descriptor_locator": "namespaces/example/knowledge-results/knowledge-manual-summary-001/knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb.json",
+  "provenance": {
+    "provenance_version": "1.0",
+    "source_bindings": [
+      {
+        "binding_version": "1.0",
+        "source_result_id": "source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab",
+        "logical_source_id": "source-manual-001",
+        "source_content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_blob_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_descriptor_digest": "sha256:4ddf576bbb0d317218e6a89cd553dcf99164de0628d7f04407cf13f2e4e14449",
+        "source_descriptor_locator": "namespaces/example/source-results/source-manual-001/source-result-7a1629eeed909c10fb0c638c51359437c97f2aa03a48af12e5d690f1db3a13ab.json",
+        "source_contract": {
+          "id": "source_admission.v1",
+          "version": "1.0.0"
+        },
+        "source_phase_receipt": {
+          "run_id": "run-source-001",
+          "receipt_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      }
+    ],
+    "producer": {
+      "kind": "tool",
+      "identifier": "producer.example",
+      "version": "1.2.0"
+    },
+    "transformation": {
+      "identifier": "transform.extract-v1",
+      "version": "1.0.0",
+      "parameters_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  },
+  "provenance_digest": "sha256:246c0b865e751f7e68c7a838a39135a7212e7b466b2bcadf8482a353c1318064",
+  "admission_contract": {
+    "id": "knowledge_admission.v1",
+    "version": "1.0.0"
+  },
+  "admission_run": {
+    "run_id": "run-knowledge-001",
+    "receipt_authority": "phase_evidence_by_run_id"
+  },
+  "observed_at": "2026-07-28T00:05:00Z",
+  "supersedes": null
+}

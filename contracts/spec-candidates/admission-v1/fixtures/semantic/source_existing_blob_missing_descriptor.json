@@ -1,0 +1,31 @@
+{
+  "case_id": "source_existing_blob_missing_descriptor",
+  "case_version": "1.0",
+  "contract_id": "source_admission.v1",
+  "expected": {
+    "mutation_allowed": true,
+    "reason_code": "complete_missing_descriptor",
+    "terminal_status": "succeeded_verified"
+  },
+  "prior_state": {
+    "blob_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "blob_state": "verified_exact",
+    "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "content_length": 12,
+    "descriptor_state": "absent",
+    "frozen_input_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "intent_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "plan_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "root_binding": "admission_result_root"
+  },
+  "request": {
+    "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "content_length": 12,
+    "expected_blob_locator": "blobs/sha256/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "frozen_input_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "intent_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "plan_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "root_binding": "admission_result_root",
+    "same_request": true
+  }
+}

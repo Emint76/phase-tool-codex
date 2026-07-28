@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-provenance.schema.json",
+  "title": "Source provenance candidate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "provenance_version",
+    "origin",
+    "supplied_by"
+  ],
+  "properties": {
+    "provenance_version": {
+      "const": "1.0"
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "locator",
+        "label"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "external_uri",
+            "local_file",
+            "api_export",
+            "manual_submission",
+            "generated_export"
+          ]
+        },
+        "locator": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          ]
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          ]
+        }
+      }
+    },
+    "supplied_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "identifier"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "adapter",
+            "operator",
+            "system"
+          ]
+        },
+        "identifier": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    }
+  }
+}

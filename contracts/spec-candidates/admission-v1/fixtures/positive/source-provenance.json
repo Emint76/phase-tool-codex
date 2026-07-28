@@ -1,0 +1,12 @@
+{
+  "provenance_version": "1.0",
+  "origin": {
+    "kind": "external_uri",
+    "locator": "https://example.invalid/source/manual.pdf",
+    "label": "supplier manual export"
+  },
+  "supplied_by": {
+    "kind": "adapter",
+    "identifier": "adapter.example"
+  }
+}

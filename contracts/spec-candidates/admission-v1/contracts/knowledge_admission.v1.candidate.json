@@ -1,0 +1,44 @@
+{
+  "activation_state": "non_executable_unregistered",
+  "candidate_schema": "schemas/knowledge-admission-candidate.schema.json",
+  "descriptor_candidate_version": "1.0",
+  "effect_sequence": [
+    {
+      "effect_id": "effect.0.blob",
+      "kind": "copy_blob",
+      "mechanism_id": "content_addressed_copy",
+      "mechanism_package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2",
+      "mechanism_version": "1.0.0",
+      "ordinal": 0
+    },
+    {
+      "effect_id": "effect.1.descriptor",
+      "kind": "exclusive_create",
+      "mechanism_id": "mechanism.exclusive_create_v1",
+      "mechanism_package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b",
+      "mechanism_version": "1.0.0",
+      "ordinal": 1
+    }
+  ],
+  "idempotency_policy": "canonical_result_then_receipt_verified_v1",
+  "identity": {
+    "id": "knowledge_admission.v1",
+    "version": "1.0.0"
+  },
+  "maximum_effects": 2,
+  "placement_policy": "canonical_admission_placement_v1",
+  "provenance_schema": "schemas/knowledge-provenance.schema.json",
+  "required_future_validator_registrations": [
+    "admission.canonical_json_v1",
+    "knowledge_admission.candidate_v1",
+    "knowledge_admission.identity_v1",
+    "knowledge_admission.placement_v1",
+    "knowledge_admission.provenance_v1",
+    "knowledge_admission.result_v1",
+    "knowledge_admission.source_binding_v1",
+    "phase.ordered_effect_plan_progress_v1"
+  ],
+  "result_architecture": "ordered_blob_then_descriptor",
+  "result_schema": "schemas/knowledge-result.schema.json",
+  "version_policy": "new_logical_and_result_id_with_exact_supersedes_v1"
+}

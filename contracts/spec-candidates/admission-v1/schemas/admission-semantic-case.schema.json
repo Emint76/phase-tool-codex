@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/admission-semantic-case.schema.json",
+  "title": "Admission semantic conformance vector v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_version",
+    "case_id",
+    "contract_id",
+    "prior_state",
+    "request",
+    "expected"
+  ],
+  "properties": {
+    "case_version": {
+      "const": "1.0"
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "contract_id": {
+      "enum": [
+        "source_admission.v1",
+        "knowledge_admission.v1"
+      ]
+    },
+    "prior_state": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "terminal_status",
+        "mutation_allowed",
+        "reason_code"
+      ],
+      "properties": {
+        "terminal_status": {
+          "enum": [
+            "rejected",
+            "failed_no_effect",
+            "failed_partial",
+            "committed_unverified",
+            "indeterminate",
+            "succeeded_verified"
+          ]
+        },
+        "mutation_allowed": {
+          "type": "boolean"
+        },
+        "reason_code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "maxLength": 128
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/admission-canonical-json-vector.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "canonical_utf8_hex": {
+      "pattern": "^(?:[0-9a-f]{2})+$",
+      "type": "string"
+    },
+    "profile_id": {
+      "const": "admission_canonical_json_v1"
+    },
+    "sha256_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "value": {},
+    "vector_id": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile_id",
+    "vector_id",
+    "value",
+    "canonical_utf8_hex",
+    "sha256_digest"
+  ],
+  "title": "Admission canonical JSON v1 golden vector",
+  "type": "object"
+}

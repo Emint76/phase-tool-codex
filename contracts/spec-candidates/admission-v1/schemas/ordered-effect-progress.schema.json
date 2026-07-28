@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/ordered-effect-progress.schema.json",
+  "title": "Ordered two-effect progress attachment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "progress_version",
+    "plan_digest",
+    "maximum_effects",
+    "completed_effect_ids",
+    "verified_effect_ids",
+    "failed_effect_id",
+    "not_started_effect_ids",
+    "effects"
+  ],
+  "properties": {
+    "progress_version": {
+      "const": "1.0"
+    },
+    "plan_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "maximum_effects": {
+      "const": 2
+    },
+    "completed_effect_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "effect.0.blob",
+          "effect.1.descriptor"
+        ]
+      }
+    },
+    "verified_effect_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "effect.0.blob",
+          "effect.1.descriptor"
+        ]
+      }
+    },
+    "failed_effect_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "effect.0.blob",
+            "effect.1.descriptor"
+          ]
+        }
+      ]
+    },
+    "not_started_effect_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "effect.0.blob",
+          "effect.1.descriptor"
+        ]
+      }
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ordinal",
+                "effect_id",
+                "kind",
+                "mechanism",
+                "state",
+                "target",
+                "observation_digest"
+              ],
+              "properties": {
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "effect_id": {
+                  "enum": [
+                    "effect.0.blob",
+                    "effect.1.descriptor"
+                  ]
+                },
+                "kind": {
+                  "enum": [
+                    "copy_blob",
+                    "exclusive_create"
+                  ]
+                },
+                "mechanism": {
+                  "enum": [
+                    "content_addressed_copy",
+                    "mechanism.exclusive_create_v1"
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "not_started",
+                    "failed_no_effect",
+                    "applied_new_verified",
+                    "verified_existing",
+                    "applied_unverified",
+                    "indeterminate"
+                  ]
+                },
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "root_binding",
+                    "relative_locator",
+                    "expected_digest"
+                  ],
+                  "properties": {
+                    "root_binding": {
+                      "const": "admission_result_root"
+                    },
+                    "relative_locator": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024,
+                      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$"
+                    },
+                    "expected_digest": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "observation_digest": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "ordinal": {
+                  "const": 0
+                },
+                "effect_id": {
+                  "const": "effect.0.blob"
+                },
+                "kind": {
+                  "const": "copy_blob"
+                },
+                "mechanism": {
+                  "const": "content_addressed_copy"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ordinal",
+                "effect_id",
+                "kind",
+                "mechanism",
+                "state",
+                "target",
+                "observation_digest"
+              ],
+              "properties": {
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "effect_id": {
+                  "enum": [
+                    "effect.0.blob",
+                    "effect.1.descriptor"
+                  ]
+                },
+                "kind": {
+                  "enum": [
+                    "copy_blob",
+                    "exclusive_create"
+                  ]
+                },
+                "mechanism": {
+                  "enum": [
+                    "content_addressed_copy",
+                    "mechanism.exclusive_create_v1"
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "not_started",
+                    "failed_no_effect",
+                    "applied_new_verified",
+                    "verified_existing",
+                    "applied_unverified",
+                    "indeterminate"
+                  ]
+                },
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "root_binding",
+                    "relative_locator",
+                    "expected_digest"
+                  ],
+                  "properties": {
+                    "root_binding": {
+                      "const": "admission_result_root"
+                    },
+                    "relative_locator": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024,
+                      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$"
+                    },
+                    "expected_digest": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "observation_digest": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "ordinal": {
+                  "const": 1
+                },
+                "effect_id": {
+                  "const": "effect.1.descriptor"
+                },
+                "kind": {
+                  "const": "exclusive_create"
+                },
+                "mechanism": {
+                  "const": "mechanism.exclusive_create_v1"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "items": false
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "canonical_utf8_hex": "7b2261223a5b747275652c6e756c6c2c2d31325d2c226e6573746564223a7b2261223a312c2262223a327d2c227a223a307d0a",
+  "profile_id": "admission_canonical_json_v1",
+  "sha256_digest": "sha256:165763541b293ea3943231b593931642416b4c014ddb1aa6f810f46a22454f33",
+  "value": {
+    "a": [
+      true,
+      null,
+      -12
+    ],
+    "nested": {
+      "a": 1,
+      "b": 2
+    },
+    "z": 0
+  },
+  "vector_id": "ascii-structure"
+}

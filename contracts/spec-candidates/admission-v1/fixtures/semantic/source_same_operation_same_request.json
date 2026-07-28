@@ -1,0 +1,18 @@
+{
+  "case_version": "1.0",
+  "case_id": "source_same_operation_same_request",
+  "contract_id": "source_admission.v1",
+  "prior_state": {
+    "receipt": "succeeded_verified",
+    "canonical_result": "verified_exact"
+  },
+  "request": {
+    "operation_key": "same",
+    "request_digest": "same"
+  },
+  "expected": {
+    "terminal_status": "succeeded_verified",
+    "mutation_allowed": false,
+    "reason_code": "reuse_existing_verified"
+  }
+}

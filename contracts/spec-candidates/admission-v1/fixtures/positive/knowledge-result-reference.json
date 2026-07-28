@@ -1,0 +1,17 @@
+{
+  "reference_version": "1.0",
+  "knowledge_result_id": "knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb",
+  "logical_knowledge_id": "knowledge-manual-summary-001",
+  "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "blob_locator": "blobs/sha256/11/1111111111111111111111111111111111111111111111111111111111111111",
+  "descriptor_digest": "sha256:3f0c396bb5c9fad0fd1e09e55ff6c77d00b2caf7f7d0757bcbc61075ca1ab0db",
+  "descriptor_locator": "namespaces/example/knowledge-results/knowledge-manual-summary-001/knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb.json",
+  "contract": {
+    "id": "knowledge_admission.v1",
+    "version": "1.0.0"
+  },
+  "phase_receipt": {
+    "run_id": "run-knowledge-001",
+    "receipt_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  }
+}

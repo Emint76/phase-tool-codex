@@ -1,0 +1,68 @@
+{
+  "ordered_effect_plan_version": "1.0-candidate",
+  "plan_id": "plan-knowledge-001",
+  "run_id": "run-knowledge-001",
+  "contract": {
+    "id": "knowledge_admission.v1",
+    "version": "1.0.0"
+  },
+  "write_scope_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "effect_order": "static_predeclared",
+  "maximum_effects": 2,
+  "effects": [
+    {
+      "ordinal": 0,
+      "effect_id": "effect.0.blob",
+      "kind": "copy_blob",
+      "mechanism": {
+        "id": "content_addressed_copy",
+        "version": "1.0.0",
+        "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2"
+      },
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "blobs/sha256/11/1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "content_source": {
+        "kind": "frozen_input",
+        "binding_id": "asset",
+        "source_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "content_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "content_length": 24,
+      "preconditions": {
+        "existence": "absent_or_same_digest",
+        "expected_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "durability_policy_id": "file_data_synced",
+      "on_failure": "stop_and_classify"
+    },
+    {
+      "ordinal": 1,
+      "effect_id": "effect.1.descriptor",
+      "kind": "exclusive_create",
+      "mechanism": {
+        "id": "mechanism.exclusive_create_v1",
+        "version": "1.0.0",
+        "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b"
+      },
+      "target": {
+        "root_binding": "admission_result_root",
+        "relative_locator": "namespaces/example/knowledge-results/knowledge-manual-summary-001/knowledge-result-a767b680a15053cd3f453248695e432aa0e14605db18d1207f91e52e455ba5bb.json"
+      },
+      "content_source": {
+        "kind": "frozen_input",
+        "binding_id": "descriptor_bytes",
+        "source_digest": "sha256:3f0c396bb5c9fad0fd1e09e55ff6c77d00b2caf7f7d0757bcbc61075ca1ab0db"
+      },
+      "content_digest": "sha256:3f0c396bb5c9fad0fd1e09e55ff6c77d00b2caf7f7d0757bcbc61075ca1ab0db",
+      "content_length": 2106,
+      "preconditions": {
+        "existence": "absent",
+        "expected_digest": null
+      },
+      "durability_policy_id": "file_data_synced",
+      "on_failure": "stop_and_classify"
+    }
+  ]
+}

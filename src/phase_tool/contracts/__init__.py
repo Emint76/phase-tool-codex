@@ -8,6 +8,34 @@ from ..paths import safe_relative_locator
 from . import task_journal_v1
 
 
+def _create_source_admission_hook() -> Any:
+    from .source_admission_v1 import create_contract_hook
+
+    return create_contract_hook()
+
+
+_CONTRACT_HOOK_FACTORIES = {
+    "builtin.source_admission_v1": _create_source_admission_hook,
+}
+
+
+def load_contract_hook(contract: Any) -> Any | None:
+    descriptor = getattr(contract, "contract_hook", None)
+    if descriptor is None:
+        return None
+    if not isinstance(descriptor, dict):
+        raise PhaseError("contract.hook_invalid")
+    if descriptor.get("execution_allowed") is not True or descriptor.get("capability") != "contract_hook":
+        raise PhaseError("contract.hook_unavailable")
+    implementation_id = descriptor.get("implementation_id")
+    if not isinstance(implementation_id, str):
+        raise PhaseError("contract.hook_invalid")
+    factory = _CONTRACT_HOOK_FACTORIES.get(implementation_id)
+    if factory is None:
+        raise PhaseError("contract.hook_unavailable", implementation_id)
+    return factory()
+
+
 def append_locator(contract_document: dict[str, Any], candidate: dict[str, Any]) -> str:
     if "record" in candidate:
         return safe_relative_locator(candidate["target_locator"])

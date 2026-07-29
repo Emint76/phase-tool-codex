@@ -35,6 +35,13 @@ def _is_reparse_point(path: Path) -> bool:
     return bool(attributes & 0x400)
 
 
+def _platform_path(path: Path) -> str:
+    text = str(path)
+    if os.name != "nt" or text.startswith("\\\\?\\"):
+        return text
+    return "\\\\?\\" + str(path.resolve(strict=False))
+
+
 def contained_read_path(root: Path, locator: str) -> Path:
     normalized = safe_relative_locator(locator)
     root = root.resolve(strict=True)
@@ -45,6 +52,10 @@ def contained_read_path(root: Path, locator: str) -> Path:
             raise PhaseError("path.link_forbidden", normalized)
         if current.exists() and _is_reparse_point(current):
             raise PhaseError("path.reparse_forbidden", normalized)
+    if os.name == "nt":
+        if not os.path.exists(_platform_path(current)):
+            raise PhaseError("path.not_found", normalized)
+        return current
     try:
         resolved = current.resolve(strict=True)
     except FileNotFoundError as exc:
@@ -108,3 +119,25 @@ def contained_target_path(
     except ValueError as exc:
         raise PhaseError("path.outside_root", normalized) from exc
     return current
+
+
+def ensure_target_parent(root: Path, locator: str, *, reparse_detector: Callable[[Path], bool] | None = None) -> None:
+    normalized = safe_relative_locator(locator)
+    root = root.resolve(strict=True)
+    detector = reparse_detector or _is_reparse_point
+    current = root
+    for part in normalized.split("/")[:-1]:
+        current = current / part
+        if current.exists():
+            if current.is_symlink():
+                raise PhaseError("path.link_forbidden", normalized)
+            if detector(current):
+                raise PhaseError("path.reparse_forbidden", normalized)
+            if not current.is_dir():
+                raise PhaseError("path.parent_missing", normalized)
+            continue
+        current.mkdir()
+        if current.is_symlink():
+            raise PhaseError("path.link_forbidden", normalized)
+        if detector(current):
+            raise PhaseError("path.reparse_forbidden", normalized)

@@ -8,12 +8,12 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 from ..candidate import CapturedCandidate
-from ..canonical import digest_bytes, parse_json_bytes
+from ..canonical import digest_bytes, parse_json_bytes, profile_digest
 from ..errors import PhaseError
 from ..freeze import FrozenInput, revalidate_frozen, revalidate_snapshot
 from ..paths import contained_read_path, inspect_target_path, safe_relative_locator
 from ..registry import RegistrySnapshot, ResolvedContract
-from ..contracts import append_locator
+from ..contracts import append_locator, load_contract_hook
 from ..contracts import task_journal_v1
 from ..append_codec import stream_head_token, validate_stream_bytes
 
@@ -83,6 +83,13 @@ class ValidatorRunner:
         value = parse_json_bytes(candidate.canonical_bytes)
         if identifier == "validator.exact_binding_v1":
             return "pass", "validation.pass", "exact_registry_binding", "exact_registry_binding", []
+        hook = load_contract_hook(contract)
+        if hook is not None:
+            handled = hook.run_validator(identifier, contract, value, frozen_inputs, root_bindings, self.registry)
+            if handled is not None:
+                return handled
+        if identifier == "phase.ordered_effect_plan_progress_v1":
+            return "not_reached", "validation.not_reached", "post_operation", None, []
         if identifier in {"fixture.append.candidate_v1", "fixture.copy.candidate_v1", "fixture.create.candidate_v1"}:
             outcome = self._candidate_validation(contract, candidate)
             if outcome[0] != "pass" or identifier != "fixture.copy.candidate_v1":
@@ -227,6 +234,8 @@ class ValidatorRunner:
         *,
         run_id: str,
         timestamp: str,
+        effect_receipts: list[dict[str, Any]] | None = None,
+        ordered_progress: Mapping[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Re-run declared post validators against actual target bytes."""
         completed = list(prior_results)
@@ -235,6 +244,100 @@ class ValidatorRunner:
             if declaration["phase"] != "post_operation":
                 continue
             identifier = declaration["binding"]["id"]
+            if identifier == "phase.ordered_effect_plan_progress_v1":
+                receipts = effect_receipts or []
+                receipt_by_id = {receipt["effect_id"]: receipt for receipt in receipts}
+                completed_ids: list[str] = []
+                verified_ids: list[str] = []
+                not_started_ids: list[str] = []
+                failed_id: str | None = None
+                expected_effects: list[dict[str, Any]] = []
+                for ordinal, effect in enumerate(effect_plan["effects"]):
+                    effect_id = effect["effect_id"]
+                    receipt = receipt_by_id.get(effect_id)
+                    if receipt is None:
+                        not_started_ids.append(effect_id)
+                        state = "not_started"
+                        receipt_digest = None
+                        observation_digest = None
+                    else:
+                        completed_ids.append(effect_id)
+                        status = receipt["status"]
+                        receipt_digest = profile_digest("effect-receipt", receipt)
+                        observation_digest = profile_digest(
+                            "effect-observation",
+                            {"effect_id": effect_id, "after": receipt["after"], "status": status},
+                        )
+                        if status == "applied_verified":
+                            verified_ids.append(effect_id)
+                            state = "verified_existing" if receipt.get("bytes_written") == 0 else "applied_new_verified"
+                        else:
+                            state = status
+                            failed_id = failed_id or effect_id
+                    expected_effects.append(
+                        {
+                            "ordinal": effect.get("ordinal", ordinal),
+                            "effect_id": effect_id,
+                            "kind": effect["kind"],
+                            "mechanism": effect.get("mechanism", effect_plan["mechanism"])["id"],
+                            "state": state,
+                            "target": {
+                                "root_binding": effect["target"]["root_binding"],
+                                "relative_locator": effect["target"]["relative_locator"],
+                                "expected_digest": effect["content_digest"],
+                            },
+                            "receipt_digest": receipt_digest,
+                            "observation_digest": observation_digest,
+                        }
+                    )
+                expected_progress = {
+                    "progress_version": "1.0",
+                    "plan_digest": profile_digest("effect-plan", effect_plan),
+                    "maximum_effects": len(effect_plan["effects"]),
+                    "completed_effect_ids": completed_ids,
+                    "verified_effect_ids": verified_ids,
+                    "failed_effect_id": failed_id,
+                    "not_started_effect_ids": not_started_ids,
+                    "effects": expected_effects,
+                }
+                schema = self.registry.schema_document("https://phase-tool.local/schemas/ordered-effect-progress.schema.json")
+                schema_errors = [] if ordered_progress is None else list(
+                    Draft202012Validator(
+                        schema,
+                        registry=self.registry.schema_registry(),
+                        format_checker=FormatChecker(),
+                    ).iter_errors(ordered_progress)
+                )
+                matches = ordered_progress is not None and not schema_errors and dict(ordered_progress) == expected_progress
+                completed[index] = self._result(
+                    declaration,
+                    run_id=run_id,
+                    timestamp=timestamp,
+                    status="pass" if matches else "fail",
+                    code="validation.pass" if matches else "validation.ordered_progress_mismatch",
+                    expected=expected_progress,
+                    actual=ordered_progress,
+                    blockers=[] if matches else ["validation.ordered_progress_mismatch"],
+                )
+                continue
+            hook = load_contract_hook(contract)
+            if hook is not None:
+                handled = hook.run_post_validator(identifier, contract, effect_plan, root_bindings)
+                if handled is None:
+                    pass
+                else:
+                    status, code, expected, actual, blockers = handled
+                    completed[index] = self._result(
+                        declaration,
+                        run_id=run_id,
+                        timestamp=timestamp,
+                        status=status,
+                        code=code,
+                        expected=expected,
+                        actual=actual,
+                        blockers=blockers,
+                    )
+                    continue
             if identifier != "validator.result_digest_v1":
                 raise PhaseError("validator.unavailable", identifier)
             expected: list[dict[str, Any]] = []

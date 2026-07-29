@@ -8,7 +8,8 @@ from typing import Callable
 
 from ..canonical import digest_bytes
 from ..errors import PhaseError
-from ..paths import _is_reparse_point, contained_target_path
+from ..paths import _is_reparse_point
+from .target_authority import TargetAuthority
 
 _MAX_CONTENT_BYTES = 1_048_576
 
@@ -23,6 +24,8 @@ class ExclusiveCreateFaults:
     readback_error: bool = False
     reparse_detector: Callable[[Path], bool] | None = None
     write_primitive: Callable[[int, memoryview], int] | None = None
+    before_exclusive_create: Callable[[Path], None] | None = None
+    before_readback: Callable[[Path], None] | None = None
 
 
 def _unknown() -> dict[str, object]:
@@ -92,19 +95,26 @@ def execute_exclusive_create(
     if len(content) != effect["content_length"] or digest_bytes(content) != effect["content_digest"]:
         raise PhaseError("mechanism.content_binding_mismatch")
     detector = active.reparse_detector or _is_reparse_point
-    target = contained_target_path(
+    authority = TargetAuthority(
         target_root,
         str(effect["target"]["relative_locator"]),  # type: ignore[index]
-        reparse_detector=detector,
+        detector,
     )
-    before = _observe(target, detector)
+    target = authority.target
+    before = authority.observe()
+    if active.before_exclusive_create is not None:
+        try:
+            active.before_exclusive_create(target)
+        except Exception:
+            authority.close()
+            raise
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     if hasattr(os, "O_BINARY"):
         flags |= os.O_BINARY
     descriptor: int | None = None
     written = 0
     try:
-        descriptor = os.open(target, flags, 0o600)
+        descriptor = authority.open_exclusive()
         view = memoryview(content)
         writer = active.write_primitive or os.write
         while written < len(content):
@@ -125,8 +135,10 @@ def execute_exclusive_create(
                 raise OSError("short write made no progress")
             written += actual
         os.fsync(descriptor)
+        authority.fsync_parent()
     except FileExistsError:
-        after = _observe(target, detector)
+        after = authority.observe()
+        authority.close()
         return _receipt(
             effect,
             run_id=run_id,
@@ -144,9 +156,10 @@ def execute_exclusive_create(
             os.close(descriptor)
             descriptor = None
         try:
-            after = _observe(target, detector)
+            after = authority.observe()
         except (OSError, PhaseError):
             after = _unknown()
+        authority.close()
         effect_observed = after.get("exists") is True
         return _receipt(
             effect,
@@ -161,15 +174,17 @@ def execute_exclusive_create(
             error_code="mechanism.write_failed",
             error_message=str(exc),
         )
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
     try:
+        if active.before_readback is not None:
+            active.before_readback(target)
         if active.readback_error:
             raise OSError("injected read-back failure")
-        observed_bytes = target.read_bytes() if active.readback_override is None else active.readback_override
-        after = {"known": True, "exists": True, "digest": digest_bytes(observed_bytes), "length": len(observed_bytes), "head_token": None}
+        after = authority.readback(active.readback_override, descriptor)
     except OSError as exc:
+        if descriptor is not None:
+            os.close(descriptor)
+            descriptor = None
+        authority.close()
         return _receipt(
             effect,
             run_id=run_id,
@@ -183,6 +198,10 @@ def execute_exclusive_create(
             error_code="verification.readback_failed",
             error_message=str(exc),
         )
+    if descriptor is not None:
+        os.close(descriptor)
+        descriptor = None
+    authority.close()
     verified = after["digest"] == effect["content_digest"] and after["length"] == effect["content_length"]
     return _receipt(
         effect,

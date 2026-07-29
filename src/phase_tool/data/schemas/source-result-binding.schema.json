@@ -1,0 +1,86 @@
+{
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-result-binding.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "binding_version": {
+      "const": "1.0"
+    },
+    "logical_source_id": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "source_blob_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "source_content_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_contract": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "source_admission.v1"
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "source_descriptor_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_descriptor_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "source_phase_receipt": {
+      "additionalProperties": false,
+      "properties": {
+        "receipt_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "run_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "receipt_digest"
+      ],
+      "type": "object"
+    },
+    "source_result_id": {
+      "pattern": "^source-result-[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "binding_version",
+    "source_result_id",
+    "logical_source_id",
+    "source_content_digest",
+    "source_blob_locator",
+    "source_descriptor_digest",
+    "source_descriptor_locator",
+    "source_contract",
+    "source_phase_receipt"
+  ],
+  "title": "Verified source result binding for knowledge admission v1",
+  "type": "object"
+}

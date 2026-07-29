@@ -30,6 +30,7 @@ class ResolvedContract:
     package_digest: str
     registry_snapshot_digest: str
     entry: Mapping[str, Any]
+    contract_hook: dict[str, Any] | None = None
 
 
 class RegistrySnapshot:
@@ -85,7 +86,7 @@ class RegistrySnapshot:
         expected = entry.get("artifact_digest")
         if not isinstance(artifact, str) or digest_bytes(self.resource_bytes(artifact)) != expected:
             raise PhaseError("registry.digest_mismatch", entry.get("id", "unknown"))
-        if entry.get("kind") == "mechanism":
+        if entry.get("kind") in {"mechanism", "contract_hook"}:
             descriptor = parse_json_bytes(self.resource_bytes(artifact))
             if (
                 descriptor.get("id") != entry.get("id")
@@ -116,6 +117,8 @@ class RegistrySnapshot:
         ]
 
     def _resolve_binding(self, *, kind: str, binding: Mapping[str, Any], capability: str) -> dict[str, Any]:
+        if "capability" in binding and binding.get("capability") != capability:
+            raise PhaseError("registry.capability_mismatch", str(binding.get("id", "unknown")))
         matches = self._exact_entries(
             kind=kind,
             identifier=str(binding["id"]),
@@ -176,6 +179,13 @@ class RegistrySnapshot:
     def resolve_mechanism(self, binding: Mapping[str, Any]) -> Mapping[str, Any]:
         return MappingProxyType(deepcopy(self._resolve_binding(kind="mechanism", binding=binding, capability="mutation_mechanism")))
 
+    def resolve_contract_hook(self, binding: Mapping[str, Any]) -> dict[str, Any]:
+        entry = self._resolve_binding(kind="contract_hook", binding=binding, capability="contract_hook")
+        descriptor = parse_json_bytes(self.resource_bytes(entry["artifact"]))
+        if descriptor.get("execution_allowed") is not True:
+            raise PhaseError("contract.hook_unavailable", str(binding["id"]))
+        return descriptor
+
     def resolve_contract(self, identifier: str, version: str, package_digest: str, *, core_version: str) -> ResolvedContract:
         matches = self._exact_entries(kind="contract", identifier=identifier, version=version, package_digest=package_digest)
         if not matches:
@@ -208,6 +218,10 @@ class RegistrySnapshot:
         if mechanism.get("availability") != "bundled_v1":
             raise PhaseError("mechanism.unavailable", mechanism["id"])
         self._resolve_binding(kind="mechanism", binding=mechanism, capability="mutation_mechanism")
+        for effect_mechanism in contract["operation"].get("effect_mechanisms", []):
+            if effect_mechanism.get("availability") != "bundled_v1":
+                raise PhaseError("mechanism.unavailable", effect_mechanism["id"])
+            self._resolve_binding(kind="mechanism", binding=effect_mechanism, capability="mutation_mechanism")
         for declaration in contract["validators"]:
             self._resolve_binding(kind="validator", binding=declaration["binding"], capability="validator")
         for binding in contract["verification"]["validators"]:
@@ -216,11 +230,13 @@ class RegistrySnapshot:
         for root in contract["write_scope"]["roots"]:
             self._resolve_binding(kind="path_policy", binding=root["path_policy"], capability="path_policy")
 
+        hook_descriptor = self.resolve_contract_hook(contract["contract_hook"]) if "contract_hook" in contract else None
         return ResolvedContract(
             document=contract,
             package_digest=package_digest,
             registry_snapshot_digest=self.digest,
             entry=MappingProxyType(deepcopy(entry)),
+            contract_hook=hook_descriptor,
         )
 
 

@@ -1,0 +1,50 @@
+{
+  "fixture_group": "stage6.source_admission",
+  "groups": [
+    "positive",
+    "negative",
+    "partial",
+    "semantic",
+    "semantic-invalid",
+    "adversarial",
+    "golden"
+  ],
+  "manifest": "manifest.sha256",
+  "raw_files": [
+    {
+      "length": 6,
+      "path": "raw/binary.bin",
+      "sha256": "3f2d1552cdc7483f40dd720c80b900225dfecfd5cae7cd168d79ab6ee5959885"
+    },
+    {
+      "length": 9,
+      "path": "raw/different-bytes-same-name-a/manual.pdf",
+      "sha256": "465e3da43eb6ff905321c3ad12195d841e4f1d92f9e7263f62bc46dd2cd443ef"
+    },
+    {
+      "length": 9,
+      "path": "raw/different-bytes-same-name-b/manual.pdf",
+      "sha256": "b79355531e4cafac53a5e2ceea05db2ad4acdbc3a2155888c0c7181b341050ce"
+    },
+    {
+      "length": 0,
+      "path": "raw/empty.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "length": 11,
+      "path": "raw/same-bytes-a.txt",
+      "sha256": "abb7f0ae43ba52cc56233a5ecb4dfa11765f26b1282a18346d811b6a85af19c1"
+    },
+    {
+      "length": 11,
+      "path": "raw/same-bytes-b.md",
+      "sha256": "abb7f0ae43ba52cc56233a5ecb4dfa11765f26b1282a18346d811b6a85af19c1"
+    },
+    {
+      "length": 13,
+      "path": "raw/utf8.txt",
+      "sha256": "85f4a03058fbfb2882529f2586604365a2f83a876385e8edc0fb2aa9e67f4b2d"
+    }
+  ]
+}

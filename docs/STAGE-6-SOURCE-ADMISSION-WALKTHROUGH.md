@@ -1,0 +1,134 @@
+# Stage 6 Source Admission Walkthrough
+
+Status: factual pre-commit acceptance evidence for executable `source_admission.v1@1.0.0` on 2026-07-29. Stage 7 and `knowledge_admission.v1` are not active.
+
+## Runtime shape
+
+Stage 6 is an operation contract executed by the existing `PhaseCore.run`; it is not a separate source pipeline. The lifecycle is:
+
+1. capture the candidate and exact input bytes;
+2. resolve the exact registry-bound operation contract and code-owned contract hook;
+3. freeze candidate/input/descriptor bytes;
+4. run contract-owned validation;
+5. produce one deterministic ordered effect plan;
+6. durably write intent and its plan/content bindings;
+7. execute and verify `effect.0.blob`;
+8. execute and verify `effect.1.descriptor` only after the verified prefix;
+9. persist ordered progress and effect receipts;
+10. issue the canonical Phase receipt;
+11. re-read and inspect the canonical source result, reference, and binding.
+
+The ordered broker, Core, planning, and inspection surfaces contain no source-contract identifiers or source metadata vocabulary. Source semantics remain in `phase_tool.contracts.source_admission_v1`.
+
+## Immutable authorities
+
+The two effects are:
+
+1. `effect.0.blob` — `content_addressed_copy@1.0.0`, locator `blobs/sha256/<first-two-hex>/<sha256>`;
+2. `effect.1.descriptor` — `mechanism.exclusive_create_v1@1.0.0`, locator `r/<namespace>/<logical_source_id>/<source_result_id>.json`.
+
+The blob is authoritative for exact bytes. The immutable canonical descriptor is the source result and owns logical identity, content digest/length, media type, original filename, provenance, placement, result ID, and source run reference. The Phase receipt remains execution evidence and does not own canonical source metadata.
+
+Both mechanisms use the same mutation-boundary `TargetAuthority`. It validates and pins the target parent chain and prevents a parent replacement from redirecting create/readback.
+
+## Real CLI acceptance
+
+Command:
+
+```text
+env -u PYTHONPATH .venv/Scripts/python.exe scripts/stage6_cli_acceptance.py
+```
+
+Observed compact output:
+
+```json
+{"scenario_count":29,"success":true,"summary":"C:\\Users\\Gennady\\HermesWorkspace\\Research\\agent-task-journal\\.stage6-tmp\\final-cli\\stage6-cli-acceptance-summary.json"}
+```
+
+Structured summary:
+
+```text
+path: .stage6-tmp/final-cli/stage6-cli-acceptance-summary.json
+sha256: 3e017c28700c29f183f88091b0be4c69c10c1eb07e86cb60283fddb0c3609118
+scenario_count: 29
+success: true
+failures: {}
+target_file_count: 22
+evidence_file_count: 204
+```
+
+All 17 cross-scenario checks are `true`: ordered plan/progress, durable intent presence, source immutability, reuse without overwrite, shared-blob reuse, recovery, truthful partial prefix, effect ordering, descriptor/blob binding, distinct identity result IDs, runtime inspection result/reference/binding, cleaned subprocess `PYTHONPATH`, and absence of registered knowledge admission.
+
+### Scenario inventory
+
+| Group | Real scenarios |
+|---|---|
+| Public source lifecycle | validate, plan, unchanged-target validate/plan, text execute, CLI inspect, read-only contract-result inspection |
+| Reuse and identity | same operation/same request, same operation/different request, same logical identity/different content, same bytes/different filename, same bytes/different logical ID |
+| Recovery and immutable conflict | existing blob/missing descriptor recovery, conflicting descriptor truthful partial |
+| Payload and candidate validation | binary, empty, unsafe logical ID, digest mismatch, malformed provenance |
+| Ordered failure injection | post-intent plan tamper, effect 0 write failure/effect 1 not started, effect 0 verified/effect 1 frozen-content failure |
+| Stage 2–5 regressions | fixture create, fixture append, fixture copy, task journal |
+| Stage boundary | exact `knowledge_admission.v1` registry lookup rejected |
+
+Controlled helpers invoke the real `PhaseCore`, `EvidenceStore`, `EffectBroker`, and `inspect_run`; they inject only deterministic post-intent failures that the public CLI intentionally does not expose.
+
+## Successful source evidence
+
+For run `source-execute`:
+
+```text
+effect_plan_digest: sha256:a92698a224802248df661766ca28280f673407bad33831b6c42527e5d0fe1cb7
+intent_digest:      sha256:1a8894ef519289da720ffcc2213a20b408660d251d14c775d4f722fcec92f1ce
+receipt_digest:     sha256:449002da65ab8a0727b2f1deeb9d4e5183b2f0357766b77ba8ebeb534b005164
+terminal_status:    succeeded_verified
+execution:          executed
+```
+
+Canonical source result:
+
+```text
+source_result_id: source-result-3b280dbec22fb3ae515db55d21e497542959bbda6a04cb7e5440cfa8de077e2d
+content_digest: sha256:faf7433439480c55acb3864b4b5479e5c4d7d8602c0c68ac7176cb045d1128f9
+content_length: 19
+blob_locator: blobs/sha256/fa/faf7433439480c55acb3864b4b5479e5c4d7d8602c0c68ac7176cb045d1128f9
+descriptor_locator: r/acceptance/source-text/source-result-3b280dbec22fb3ae515db55d21e497542959bbda6a04cb7e5440cfa8de077e2d.json
+descriptor_digest: sha256:be254ed39a5c9bcca8cbdf35f1b13793b56ec772d73a3f0d4eae0559b247ea04
+descriptor_length: 1088
+```
+
+`inspect_run` re-read the installed descriptor and blob, returned `target_verified=true`, validated the descriptor as the source result, and produced exact source-result reference and binding documents. Both bind the descriptor digest/locator, blob digest/locator, source result ID, logical source ID, contract ID/version, run ID, and Phase receipt digest.
+
+The descriptor itself contains only `admission_run.run_id` plus `receipt_authority: phase_evidence_by_run_id`; it does not embed the final receipt digest.
+
+## Failure and recovery truthfulness
+
+Observed key outcomes:
+
+| Scenario | Exit | Terminal status | Mutation | Blocker |
+|---|---:|---|---|---|
+| same operation, different request | 10 | `rejected` | false | `idempotency.same_key_conflict` |
+| same logical identity, different content | 10 | `rejected` | false | `source.logical_identity_conflict` |
+| conflicting descriptor after verified blob | 30 | `failed_partial` | true | `target.destination_exists` |
+| post-intent ordered-plan tamper | 10 | `rejected` | false | `broker.plan_changed_after_intent` |
+| effect 0 write failure | 30 | `failed_partial` | true | `mechanism.write_failed` |
+| effect 1 frozen-content failure | 30 | `failed_partial` | true | `broker.content_blob_mismatch` |
+| knowledge admission lookup | 10 | `rejected` | false | `registry.entry_not_found` |
+
+For a later-effect failure, ordered progress preserves `effect.0.blob` as the verified prefix. For an effect-0 failure, `effect.1.descriptor` remains `not_started`. Neither case emits atomic success. Existing exact blob bytes are reused with `bytes_written=0`; a missing descriptor is then created and verified.
+
+## Executable regression evidence
+
+Observed before the independent review:
+
+```text
+Stage 6 + Stage 3/5 targeted: 80 passed in 42.50s
+Stage 2–5 proof suites:       137 passed in 57.91s
+Full suite:                   164 passed in 85.16s
+Shared-authority cleanup:      25 passed in 21.60s
+Architecture scan:             architecture_errors=[]
+Registry/package integrity:    errors=[]
+Protected inventory:           8/8 exact inventories unchanged
+```
+
+The full suite reported no skipped tests. Final committed-HEAD verification is intentionally not claimed here; it is an acceptance action after the Stage 6 commit.

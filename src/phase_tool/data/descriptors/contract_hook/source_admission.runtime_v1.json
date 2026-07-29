@@ -1,0 +1,8 @@
+{
+  "capability": "contract_hook",
+  "descriptor_version": "1.0",
+  "execution_allowed": true,
+  "id": "source_admission.runtime_v1",
+  "implementation_id": "builtin.source_admission_v1",
+  "version": "1.0.0"
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phase-tool.local/schemas/ordered-effect-progress.schema.json",
+  "title": "Ordered effect progress attachment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "progress_version",
+    "plan_digest",
+    "maximum_effects",
+    "completed_effect_ids",
+    "verified_effect_ids",
+    "failed_effect_id",
+    "not_started_effect_ids",
+    "effects"
+  ],
+  "properties": {
+    "progress_version": {"const": "1.0"},
+    "plan_digest": {"$ref": "#/$defs/digest"},
+    "maximum_effects": {"type": "integer", "minimum": 1, "maximum": 1024},
+    "completed_effect_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/effectId"}
+    },
+    "verified_effect_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/effectId"}
+    },
+    "failed_effect_id": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/effectId"}]
+    },
+    "not_started_effect_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/effectId"}
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {"$ref": "#/$defs/effectProgress"}
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "effectId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "effectProgress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "effect_id", "kind", "mechanism", "state", "target", "observation_digest"],
+      "properties": {
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 1023},
+        "effect_id": {"$ref": "#/$defs/effectId"},
+        "kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]},
+        "mechanism": {"type": "string", "minLength": 1, "maxLength": 128},
+        "state": {
+          "enum": [
+            "not_started",
+            "failed_no_effect",
+            "failed_partial",
+            "applied_new_verified",
+            "verified_existing",
+            "applied_unverified",
+            "indeterminate"
+          ]
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["root_binding", "relative_locator", "expected_digest"],
+          "properties": {
+            "root_binding": {"type": "string", "minLength": 1, "maxLength": 128},
+            "relative_locator": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$"
+            },
+            "expected_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "receipt_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "observation_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]}
+      }
+    }
+  }
+}

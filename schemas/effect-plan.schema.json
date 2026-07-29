@@ -70,7 +70,9 @@
       "required": ["effect_id", "kind", "target", "input_binding", "content_source", "content_digest", "content_length", "preconditions", "lock_scope", "durability_policy_id", "on_failure"],
       "properties": {
         "effect_id": {"$ref": "#/$defs/identifier"},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 1023},
         "kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]},
+        "mechanism": {"$ref": "#/$defs/exactBinding"},
         "target": {"$ref": "#/$defs/target"},
         "operation_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
         "request_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
@@ -91,6 +93,7 @@
           ]
         },
         "content_digest": {"$ref": "#/$defs/digest"},
+        "locator_policy_id": {"enum": ["content_addressed_sha256_flat_v1", "content_addressed_sha256_sharded_v1"]},
         "content_blob_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
         "content_length": {"type": "integer", "minimum": 0},
         "content_bytes_b64": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$", "maxLength": 1398104}]},
@@ -102,7 +105,7 @@
       "allOf": [
         {
           "if": {"properties": {"kind": {"const": "exclusive_create"}}},
-          "then": {"properties": {"lock_scope": {"type": "null"}, "preconditions": {"properties": {"existence": {"const": "absent"}, "expected_digest": {"type": "null"}, "expected_head": {"type": "null"}}}}}
+          "then": {"properties": {"preconditions": {"properties": {"existence": {"const": "absent"}, "expected_digest": {"type": "null"}, "expected_head": {"type": "null"}}}}}
         },
         {
           "if": {"required": ["kind"], "properties": {"kind": {"const": "append_record"}}},

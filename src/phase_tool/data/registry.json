@@ -117,6 +117,72 @@
       "version": "1.0.0"
     },
     {
+      "artifact": "contracts/source_admission.v1.json",
+      "artifact_digest": "sha256:a5c5b531c47999393341fe6071b576ab4583d38dcc093aab3e7f55f6bc46c77c",
+      "capability": "operation_contract",
+      "id": "source_admission.v1",
+      "kind": "contract",
+      "mutable": false,
+      "package_artifacts": [
+        {
+          "digest": "sha256:a5c5b531c47999393341fe6071b576ab4583d38dcc093aab3e7f55f6bc46c77c",
+          "resource": "contracts/source_admission.v1.json"
+        },
+        {
+          "digest": "sha256:bdff06b8d9c5a3d38f2720b7d88d35b4cb17a75280973b445596799c4a2ad9ca",
+          "resource": "schemas/source-admission-candidate.schema.json"
+        },
+        {
+          "digest": "sha256:879c932f684ef07dd4b575a1c547b4be23b24786eec4e79898a17dbfcad8e737",
+          "resource": "schemas/source-provenance.schema.json"
+        },
+        {
+          "digest": "sha256:2a76e59b355f741216a84cda175b0f672684d1f9989da6c912b2305ddfeac299",
+          "resource": "schemas/source-result.schema.json"
+        },
+        {
+          "digest": "sha256:24092f6dbea2326293da7f2081949dcebdc68aedcf30d37ec662025b081265dc",
+          "resource": "schemas/source-result-reference.schema.json"
+        },
+        {
+          "digest": "sha256:09b91f47d0d3a0c7be135b00fdb913024ba81317cd6d9064b80e809403efd9b2",
+          "resource": "schemas/source-result-binding.schema.json"
+        },
+        {
+          "digest": "sha256:41b603c7abe12503bc31bd4fca5f59f5dfacea686a4815387d1b62474eda237a",
+          "resource": "schemas/ordered-effect-progress.schema.json"
+        },
+        {
+          "digest": "sha256:b68327ee676e8a51fabbd231e66ed5b3195171c9a169207a03782700892834bf",
+          "resource": "schemas/phase-receipt.schema.json"
+        },
+        {
+          "digest": "sha256:2e87ccca106d396cd3f0a88ffcffa9c77d1f74d591740e411fb6d509ade468a2",
+          "resource": "descriptors/contract_hook/source_admission.runtime_v1.json"
+        }
+      ],
+      "package_digest": "sha256:fa86dd0da4077c648684ad8267bf904b1387c6c09b30f6e689d4516a5493c0f3",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/contract_hook/source_admission.runtime_v1.json",
+      "artifact_digest": "sha256:2e87ccca106d396cd3f0a88ffcffa9c77d1f74d591740e411fb6d509ade468a2",
+      "capability": "contract_hook",
+      "id": "source_admission.runtime_v1",
+      "kind": "contract_hook",
+      "mutable": false,
+      "package_artifacts": [
+        {
+          "digest": "sha256:2e87ccca106d396cd3f0a88ffcffa9c77d1f74d591740e411fb6d509ade468a2",
+          "resource": "descriptors/contract_hook/source_admission.runtime_v1.json"
+        }
+      ],
+      "package_digest": "sha256:49de2f16e351ba84b59fddfd1188c40f410fd6769333d799a8f2f8edf81278dd",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
       "artifact": "descriptors/mechanism/mechanism.content_addressed_copy_v1.json",
       "artifact_digest": "sha256:68ebffa52cfb38caad51ae30be02a09723b91bb130d64b33c4a8bf4c012ab4c8",
       "capability": "mutation_mechanism",
@@ -234,12 +300,12 @@
     },
     {
       "artifact": "schemas/effect-plan.schema.json",
-      "artifact_digest": "sha256:5a3d61dae15b04082d42ee1431f2faa750c4fe30cd3fe80e796a1ddea0d3486d",
+      "artifact_digest": "sha256:a6cb1ca102119abce3dd24f6b7f3ff085db9ff83b84db26b1424ce02a3801a59",
       "capability": "schema",
-      "id": "schema.df0a390cc046ed9c",
+      "id": "schema.ac7c1270aa13be49",
       "kind": "schema",
       "mutable": false,
-      "package_digest": "sha256:5a3d61dae15b04082d42ee1431f2faa750c4fe30cd3fe80e796a1ddea0d3486d",
+      "package_digest": "sha256:ac7c1270aa13be49c80bfcc9c32b27783be7bba8483b3d88499d93e4e63a27bc",
       "schema_ref": "https://phase-tool.local/schemas/effect-plan.schema.json",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
@@ -258,12 +324,12 @@
     },
     {
       "artifact": "schemas/phase-contract.schema.json",
-      "artifact_digest": "sha256:4c6899bf79dd516bf8d959382cc1b9b827d8bbb2f4db52b04934056ff9e5d47b",
+      "artifact_digest": "sha256:3e32e7fae7875fde8adf6b1ff6c34eb488fafbedfb475276cb6a7eb16158aa9c",
       "capability": "schema",
-      "id": "schema.4c6899bf79dd516b",
+      "id": "schema.736efef806b204fa",
       "kind": "schema",
       "mutable": false,
-      "package_digest": "sha256:4c6899bf79dd516bf8d959382cc1b9b827d8bbb2f4db52b04934056ff9e5d47b",
+      "package_digest": "sha256:736efef806b204faa0c6b3693c5b266cb891861df290823fbef1422b845c1090",
       "schema_ref": "https://phase-tool.local/schemas/phase-contract.schema.json",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
@@ -517,6 +583,133 @@
       "kind": "validator",
       "mutable": false,
       "package_digest": "sha256:2c41a18f0daf88a0b70d9cbf137fd02f7614a6158edf0e07df1b2c4f2e81e05d",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/source-admission-candidate.schema.json",
+      "artifact_digest": "sha256:bdff06b8d9c5a3d38f2720b7d88d35b4cb17a75280973b445596799c4a2ad9ca",
+      "capability": "schema",
+      "id": "schema.bdff06b8d9c5a3d3",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:bdff06b8d9c5a3d38f2720b7d88d35b4cb17a75280973b445596799c4a2ad9ca",
+      "schema_ref": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-admission-candidate.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/source-provenance.schema.json",
+      "artifact_digest": "sha256:879c932f684ef07dd4b575a1c547b4be23b24786eec4e79898a17dbfcad8e737",
+      "capability": "schema",
+      "id": "schema.879c932f684ef07d",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:879c932f684ef07dd4b575a1c547b4be23b24786eec4e79898a17dbfcad8e737",
+      "schema_ref": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-provenance.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/source-result.schema.json",
+      "artifact_digest": "sha256:2a76e59b355f741216a84cda175b0f672684d1f9989da6c912b2305ddfeac299",
+      "capability": "schema",
+      "id": "schema.2a76e59b355f7412",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:2a76e59b355f741216a84cda175b0f672684d1f9989da6c912b2305ddfeac299",
+      "schema_ref": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-result.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/source-result-reference.schema.json",
+      "artifact_digest": "sha256:24092f6dbea2326293da7f2081949dcebdc68aedcf30d37ec662025b081265dc",
+      "capability": "schema",
+      "id": "schema.24092f6dbea23262",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:24092f6dbea2326293da7f2081949dcebdc68aedcf30d37ec662025b081265dc",
+      "schema_ref": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-result-reference.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/source-result-binding.schema.json",
+      "artifact_digest": "sha256:09b91f47d0d3a0c7be135b00fdb913024ba81317cd6d9064b80e809403efd9b2",
+      "capability": "schema",
+      "id": "schema.09b91f47d0d3a0c7",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:09b91f47d0d3a0c7be135b00fdb913024ba81317cd6d9064b80e809403efd9b2",
+      "schema_ref": "https://phase-tool.local/spec-candidates/admission-v1/schemas/source-result-binding.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "schemas/ordered-effect-progress.schema.json",
+      "artifact_digest": "sha256:41b603c7abe12503bc31bd4fca5f59f5dfacea686a4815387d1b62474eda237a",
+      "capability": "schema",
+      "id": "schema.50d8e9a800c8e500",
+      "kind": "schema",
+      "mutable": false,
+      "package_digest": "sha256:50d8e9a800c8e5005e430ecc721435df042ea82093f2a1738b957bc6f28854da",
+      "schema_ref": "https://phase-tool.local/schemas/ordered-effect-progress.schema.json",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/source_admission.candidate_v1.json",
+      "artifact_digest": "sha256:b3992ec94d4c5dd02dbd4886c4c0da9d723e4c1408cb7e2e45efc722bf318366",
+      "capability": "validator",
+      "id": "source_admission.candidate_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:b3992ec94d4c5dd02dbd4886c4c0da9d723e4c1408cb7e2e45efc722bf318366",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/source_admission.placement_v1.json",
+      "artifact_digest": "sha256:f207e84499cfdf9541a098d6e1921390805126c0fbb81cac20e83e9e9a6aa80a",
+      "capability": "validator",
+      "id": "source_admission.placement_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:f207e84499cfdf9541a098d6e1921390805126c0fbb81cac20e83e9e9a6aa80a",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/source_admission.result_v1.json",
+      "artifact_digest": "sha256:d408102face3bda91faed7bc77c6ee4d28e6e4536c13e04610b1ab4667f34f04",
+      "capability": "validator",
+      "id": "source_admission.result_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:d408102face3bda91faed7bc77c6ee4d28e6e4536c13e04610b1ab4667f34f04",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/phase.ordered_effect_plan_progress_v1.json",
+      "artifact_digest": "sha256:5026a972413b37f5988aca6e7734ba8afc0fae1ea47190190eb77d301842704a",
+      "capability": "validator",
+      "id": "phase.ordered_effect_plan_progress_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:5026a972413b37f5988aca6e7734ba8afc0fae1ea47190190eb77d301842704a",
+      "trust_root_id": "phase.release.v1",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": "descriptors/validator/admission.canonical_json_v1.json",
+      "artifact_digest": "sha256:91d38f8368d417d3249bd518da84816b8cfe321bcc1c9be5f63f196b60093683",
+      "capability": "validator",
+      "id": "admission.canonical_json_v1",
+      "kind": "validator",
+      "mutable": false,
+      "package_digest": "sha256:91d38f8368d417d3249bd518da84816b8cfe321bcc1c9be5f63f196b60093683",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
     }

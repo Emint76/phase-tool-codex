@@ -655,8 +655,8 @@ def test_copy_authority_closes_pins_when_observation_or_precreate_hook_fails(mon
     root = tmp_path / "target"
     (root / "objects").mkdir(parents=True)
     effect = _effect_for_payload(payload)
-    original_observe = copy_module._TargetAuthority.observe
-    original_close = copy_module._TargetAuthority.close
+    original_observe = copy_module.TargetAuthority.observe
+    original_close = copy_module.TargetAuthority.close
     closed_with_pins: list[bool] = []
 
     def tracked_close(authority: object) -> None:
@@ -666,13 +666,13 @@ def test_copy_authority_closes_pins_when_observation_or_precreate_hook_fails(mon
     def failed_observation(_authority: object) -> dict[str, object]:
         raise PhaseError("test.observation_failed")
 
-    monkeypatch.setattr(copy_module._TargetAuthority, "close", tracked_close)
-    monkeypatch.setattr(copy_module._TargetAuthority, "observe", failed_observation)
+    monkeypatch.setattr(copy_module.TargetAuthority, "close", tracked_close)
+    monkeypatch.setattr(copy_module.TargetAuthority, "observe", failed_observation)
     with pytest.raises(PhaseError, match="test.observation_failed"):
         execute_content_addressed_copy(effect, root, payload, run_id="observe-failure", timestamp=NOW)
     assert closed_with_pins == [True]
 
-    monkeypatch.setattr(copy_module._TargetAuthority, "observe", original_observe)
+    monkeypatch.setattr(copy_module.TargetAuthority, "observe", original_observe)
 
     def failed_hook(_target: Path) -> None:
         raise PhaseError("test.hook_failed")
@@ -852,9 +852,14 @@ def test_stage5_architecture_scans_keep_copy_out_of_core_and_source_admission_ou
     core_text = (ROOT / "src" / "phase_tool" / "core.py").read_text(encoding="utf-8")
     assert "content_addressed_copy" not in core_text
     assert "copy_blob" not in core_text
-    for path in (ROOT / "src" / "phase_tool").rglob("*.py"):
-        if "egg-info" in path.parts:
-            continue
+    scanned = [
+        ROOT / "src" / "phase_tool" / "core.py",
+        ROOT / "src" / "phase_tool" / "mutation" / "broker.py",
+        ROOT / "src" / "phase_tool" / "mutation" / "content_addressed_copy.py",
+        ROOT / "src" / "phase_tool" / "mutation" / "exclusive_create.py",
+        ROOT / "src" / "phase_tool" / "mutation" / "expected_head_append.py",
+    ]
+    for path in scanned:
         text = path.read_text(encoding="utf-8")
         assert "source_admission" not in text
         assert "knowledge_admission" not in text

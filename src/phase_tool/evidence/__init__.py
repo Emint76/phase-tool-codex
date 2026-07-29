@@ -75,6 +75,35 @@ class EvidenceStore:
             os.fsync(stream.fileno())
         return path, digest_bytes(data)
 
+    def replace_attachment_canonical(self, file_name: str, value: Any) -> tuple[Path, str]:
+        if "/" in file_name or not file_name.endswith(".json"):
+            raise PhaseError("evidence.invalid_path", file_name)
+        path = self.attachment_root / file_name
+        data = canonical_bytes(value)
+        tmp = self.attachment_root / (file_name + ".tmp")
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        with tmp.open("xb", buffering=0) as stream:
+            view = memoryview(data)
+            written = 0
+            while written < len(view):
+                count = stream.write(view[written:])
+                if count is None or count <= 0:
+                    raise PhaseError("evidence.short_write", file_name)
+                written += count
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, path)
+        if os.name != "nt":
+            descriptor = os.open(self.attachment_root, os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+        return path, digest_bytes(data)
+
     def write_blob_exact(self, digest: str, data: bytes) -> Path:
         if not digest.startswith("sha256:") or len(digest) != 71:
             raise PhaseError("evidence.invalid_blob_digest", digest)

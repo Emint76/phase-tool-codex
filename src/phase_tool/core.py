@@ -219,7 +219,7 @@ class PhaseCore:
     def _publish_append_blobs(store: EvidenceStore, plan: dict[str, Any]) -> list[str]:
         blob_digests: list[str] = []
         for effect in plan["effects"]:
-            if "content_blob_digest" not in effect:
+            if effect.get("content_blob_digest") is None:
                 continue
             encoded = effect.get("content_bytes_b64")
             if not isinstance(encoded, str):
@@ -236,6 +236,60 @@ class PhaseCore:
             store.write_blob_exact(digest, content)
             blob_digests.append(digest)
         return blob_digests
+
+    @staticmethod
+    def _ordered_progress(plan: Mapping[str, Any], effect_receipts: list[dict[str, Any]]) -> dict[str, Any]:
+        plan_digest = profile_digest("effect-plan", plan)
+        receipt_by_id = {receipt["effect_id"]: receipt for receipt in effect_receipts}
+        completed: list[str] = []
+        verified: list[str] = []
+        not_started: list[str] = []
+        failed: str | None = None
+        effects: list[dict[str, Any]] = []
+        for index, effect in enumerate(plan["effects"]):
+            effect_id = effect["effect_id"]
+            receipt = receipt_by_id.get(effect_id)
+            target = {
+                "root_binding": effect["target"]["root_binding"],
+                "relative_locator": effect["target"]["relative_locator"],
+                "expected_digest": effect["content_digest"],
+            }
+            if receipt is None:
+                not_started.append(effect_id)
+                state = "not_started"
+                observation_digest = None
+                receipt_digest = None
+            else:
+                completed.append(effect_id)
+                status = receipt["status"]
+                observation_digest = profile_digest("effect-observation", {"effect_id": effect_id, "after": receipt["after"], "status": status})
+                receipt_digest = profile_digest("effect-receipt", receipt)
+                if status == "applied_verified":
+                    verified.append(effect_id)
+                    state = "verified_existing" if receipt.get("bytes_written") == 0 else "applied_new_verified"
+                else:
+                    state = status
+                    failed = failed or effect_id
+            effects.append({
+                "ordinal": effect.get("ordinal", index),
+                "effect_id": effect_id,
+                "kind": effect["kind"],
+                "mechanism": effect.get("mechanism", plan["mechanism"])["id"],
+                "state": state,
+                "target": target,
+                "receipt_digest": receipt_digest if receipt is not None else None,
+                "observation_digest": observation_digest,
+            })
+        return {
+            "progress_version": "1.0",
+            "plan_digest": plan_digest,
+            "maximum_effects": len(plan["effects"]),
+            "completed_effect_ids": completed,
+            "verified_effect_ids": verified,
+            "failed_effect_id": failed,
+            "not_started_effect_ids": not_started,
+            "effects": effects,
+        }
 
     def _base_receipt(
         self,
@@ -396,9 +450,9 @@ class PhaseCore:
         finalization_failed: bool,
         required_attachments_present: bool = True,
     ) -> dict[str, Any]:
-        effect = plan["effects"][0]
-        effect_receipt = effect_receipts[0]
-        status = effect_receipt["status"]
+        result_effect = plan["effects"][-1]
+        failed_receipts = [receipt for receipt in effect_receipts if receipt["status"] != "applied_verified"]
+        status = failed_receipts[0]["status"] if failed_receipts else ("applied_verified" if len(effect_receipts) == len(plan["effects"]) else "failed_no_effect")
         post_verified = all(
             result["status"] == "pass"
             for result in validator_results
@@ -410,33 +464,43 @@ class PhaseCore:
             "applied_unverified": ("committed_unverified", "committed_unverified", 40, True),
             "indeterminate": ("indeterminate", "indeterminate", 50, True),
         }
-        if status == "applied_verified" and post_verified and not finalization_failed:
+        all_effects_verified = status == "applied_verified" and len(effect_receipts) == len(plan["effects"])
+        if all_effects_verified and post_verified and not finalization_failed:
             terminal, result_state, exit_code, recovery = "succeeded_verified", "verified_result", 0, False
-        elif status == "applied_verified":
+        elif all_effects_verified:
             terminal, result_state, exit_code, recovery = "committed_unverified", "committed_unverified", 40, True
         else:
-            terminal, result_state, exit_code, recovery = mapping[status]
-        error = effect_receipt.get("error")
+            if any(receipt["status"] == "failed_partial" for receipt in effect_receipts):
+                terminal, result_state, exit_code, recovery = mapping["failed_partial"]
+            elif failed_receipts:
+                terminal, result_state, exit_code, recovery = mapping[status]
+                if len(effect_receipts) > 1 and any(receipt["after"].get("exists") is True for receipt in effect_receipts[:-1]):
+                    terminal, result_state, exit_code, recovery = "failed_partial", "known_partial", 30, True
+            elif effect_receipts and any(receipt["status"] == "applied_verified" for receipt in effect_receipts):
+                terminal, result_state, exit_code, recovery = "failed_partial", "known_partial", 30, True
+            else:
+                terminal, result_state, exit_code, recovery = "failed_no_effect", "verified_no_effect", 20, False
+        error = failed_receipts[0].get("error") if failed_receipts else None
         blockers = [] if terminal == "succeeded_verified" else [
             "evidence.finalization_failed" if finalization_failed else (error["code"] if error else "verification.incomplete")
         ]
         return self._base_receipt(request, validator_results, timestamp) | {
             "terminal_status": terminal,
             "execution_disposition": "executed",
-            "mutation_attempted": bool(effect_receipt["attempted"]),
+            "mutation_attempted": any(bool(receipt["attempted"]) for receipt in effect_receipts),
             "result_state": result_state,
             "canonical_result": (
                 self._canonical_result(
                     contract,
-                    effect,
-                    dict(effect_receipt["after"]) | {
-                        "operation_identity": effect_receipt.get("operation_identity"),
-                        "request_digest": effect_receipt.get("request_digest"),
-                        "record_identity": effect_receipt.get("record_identity"),
-                        "append_offset": effect_receipt.get("append_offset"),
-                        "record_digest": effect_receipt.get("record_digest"),
-                        "record_length": effect_receipt.get("record_length"),
-                        "resulting_head": effect_receipt.get("resulting_head"),
+                    result_effect,
+                    dict(effect_receipts[-1]["after"]) | {
+                        "operation_identity": effect_receipts[-1].get("operation_identity"),
+                        "request_digest": effect_receipts[-1].get("request_digest"),
+                        "record_identity": effect_receipts[-1].get("record_identity"),
+                        "append_offset": effect_receipts[-1].get("append_offset"),
+                        "record_digest": effect_receipts[-1].get("record_digest"),
+                        "record_length": effect_receipts[-1].get("record_length"),
+                        "resulting_head": effect_receipts[-1].get("resulting_head"),
                     },
                     timestamp,
                 )
@@ -470,6 +534,7 @@ class PhaseCore:
         final_validators_published = False
         plan_digest: str | None = None
         attachment_digests: list[str] = []
+        progress_digest: str | None = None
         active_faults = faults or CoreFaults()
         try:
             lifecycle.append("resolve")
@@ -596,6 +661,8 @@ class PhaseCore:
         final_validators_published = False
         plan_digest: str | None = None
         attachment_digests: list[str] = []
+        progress_digest: str | None = None
+        latest_progress: dict[str, Any] | None = None
         runner = ValidatorRunner(self.registry)
         try:
             reused = self._check_idempotency(store, key, scope_digest, request_digest, request.root_bindings, execute=execute)
@@ -655,6 +722,16 @@ class PhaseCore:
             if not execute:
                 receipt = self._planned_receipt(request, validator_results, timestamp, intent_digest, attachment_digests)
             else:
+                def record_progress(receipts: list[dict[str, object]]) -> None:
+                    nonlocal progress_digest, latest_progress
+                    if len(plan["effects"]) <= 1:
+                        return
+                    progress = self._ordered_progress(plan, receipts)  # type: ignore[arg-type]
+                    _, digest = store.replace_attachment_canonical("ordered-effect-progress.json", progress)
+                    progress_digest = digest
+                    latest_progress = progress
+
+                record_progress([])
                 lifecycle.append("broker")
                 effect_receipts = EffectBroker(self.registry).execute(
                     plan,
@@ -665,10 +742,14 @@ class PhaseCore:
                     store.operational_lock_root,
                     timestamp=timestamp,
                     faults=active_faults.broker,
+                    progress_callback=record_progress,
+                    receipt_sink=effect_receipts,
                 )
                 lifecycle.append("effect")
                 _, effects_digest = store.write_canonical("attachments/effect-receipts.json", effect_receipts)
                 attachment_digests.append(effects_digest)
+                if progress_digest is not None:
+                    attachment_digests.append(progress_digest)
                 lifecycle.append("verify")
                 validator_results = runner.run_post_operation(
                     contract,
@@ -677,6 +758,8 @@ class PhaseCore:
                     request.root_bindings,
                     run_id=request.run_id,
                     timestamp=timestamp,
+                    effect_receipts=effect_receipts,
+                    ordered_progress=latest_progress,
                 )
                 _, final_validators_digest = store.write_canonical("attachments/validator-results.json", validator_results)
                 attachment_digests.append(final_validators_digest)
@@ -701,6 +784,20 @@ class PhaseCore:
         except (PhaseError, OSError) as exc:
             intent_digest = profile_digest("intent", intent) if intent is not None else None
             if effect_receipts and intent_digest is not None and contract is not None and plan is not None:
+                incomplete_ordered_prefix = len(effect_receipts) < len(plan["effects"])
+                if incomplete_ordered_prefix:
+                    try:
+                        _, effects_digest = store.write_canonical("attachments/effect-receipts.json", effect_receipts)
+                        attachment_digests.append(effects_digest)
+                    except (PhaseError, OSError):
+                        pass
+                    if len(plan["effects"]) > 1:
+                        latest_progress = self._ordered_progress(plan, effect_receipts)
+                        try:
+                            _, progress_digest = store.replace_attachment_canonical("ordered-effect-progress.json", latest_progress)
+                            attachment_digests.append(progress_digest)
+                        except (PhaseError, OSError):
+                            pass
                 receipt = self._executed_receipt(
                     request,
                     contract,
@@ -711,11 +808,18 @@ class PhaseCore:
                     intent_digest,
                     attachment_digests,
                     finalization_failed=True,
-                    required_attachments_present=final_validators_published,
+                    required_attachments_present=False if incomplete_ordered_prefix else final_validators_published,
                 )
                 validate_receipt(receipt, self.registry)
                 if not lifecycle or lifecycle[-1] != "receipt":
                     lifecycle.append("receipt")
+                receipt_digest = None
+                if incomplete_ordered_prefix:
+                    try:
+                        store.write_canonical("receipt.json", receipt)
+                        receipt_digest = profile_digest("receipt", receipt)
+                    except (PhaseError, OSError):
+                        pass
                 return PhaseOutcome(
                     request.run_id,
                     receipt["exit_code"],
@@ -723,7 +827,7 @@ class PhaseCore:
                     intent,
                     plan,
                     tuple(lifecycle),
-                    None,
+                    receipt_digest,
                     plan_digest,
                 )
             if isinstance(exc, OSError):

@@ -14,7 +14,7 @@ from ..errors import PhaseError
 from ..freeze import FrozenInput, revalidate_frozen
 from ..paths import safe_relative_locator
 from ..registry import RegistrySnapshot, ResolvedContract
-from ..contracts import append_locator, append_lock_scope, append_record_bytes, append_record_identity, expected_append_locator
+from ..contracts import append_locator, append_lock_scope, append_record_bytes, append_record_identity, expected_append_locator, load_contract_hook
 
 
 def _exact(binding: Mapping[str, Any]) -> dict[str, str]:
@@ -31,6 +31,9 @@ def build_idempotency_digests(
     locator: Any = value.get("target_locator", sorted(value.get("destinations", [])))
     if contract.document["operation"]["intent"] == "append":
         locator = append_locator(contract.document, value)
+    hook = load_contract_hook(contract)
+    if hook is not None:
+        locator = hook.idempotency_locator(value, frozen_inputs, default=locator)
     root_identities = []
     for declaration in sorted(contract.document["write_scope"]["roots"], key=lambda item: item["binding_id"]):
         binding_id = declaration["binding_id"]
@@ -171,6 +174,8 @@ def build_static_plan(
             "durability_policy_id": "file_data_synced",
             "on_failure": "stop_and_classify",
         })
+    elif (hook := load_contract_hook(contract)) is not None:
+        effects.extend(hook.build_effects(contract, value, frozen_inputs, run_id=run_id, generated_at=generated_at))
     elif operation["intent"] == "copy":
         frozen = frozen_inputs.get(value["input_binding"])
         if frozen is None:
@@ -227,6 +232,11 @@ def validate_static_plan(
     for effect in effects:
         if effect["kind"] not in allowed:
             raise PhaseError("plan.effect_not_allowed", effect["kind"])
+        if "mechanism" in effect:
+            try:
+                registry.resolve_mechanism(effect["mechanism"]) if registry is not None else None
+            except PhaseError:
+                raise
         if effect["target"]["root_binding"] not in required_roots:
             raise PhaseError("plan.root_binding_unknown", effect["target"]["root_binding"])
         safe_relative_locator(effect["target"]["relative_locator"])

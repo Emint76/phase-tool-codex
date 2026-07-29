@@ -9,13 +9,16 @@ from typing import Callable, Mapping
 from jsonschema import Draft202012Validator, FormatChecker
 
 from ..canonical import canonical_bytes, digest_bytes, parse_json_bytes, profile_digest
+from ..contracts import load_contract_hook
 from ..errors import PhaseError
-from ..freeze import FrozenInput, revalidate_frozen
+
+from ..freeze import FrozenInput
 from ..planning import validate_static_plan
 from ..registry import RegistrySnapshot, ResolvedContract
 from .content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy
 from .exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
 from .expected_head_append import AppendRecordFaults, execute_append_record
+from .target_authority import TargetRootLock
 
 
 @dataclass(frozen=True)
@@ -23,8 +26,11 @@ class BrokerFaults:
     exclusive_create: ExclusiveCreateFaults | None = None
     append_record: AppendRecordFaults | None = None
     content_addressed_copy: ContentAddressedCopyFaults | None = None
+    content_addressed_copy_fail_after_bytes: int | None = None
     mutate_plan_after_intent: bool = False
     before_mechanism: Callable[[Path], None] | None = None
+    before_effect: Mapping[int, Callable[[Path], None]] | None = None
+    before_effect_lock: Callable[[int, Path], None] | None = None
 
 
 class EffectBroker:
@@ -72,7 +78,7 @@ class EffectBroker:
         return locked_plan
 
     @staticmethod
-    def _append_blob_content(effect: Mapping[str, object], intent_path: Path, intent: Mapping[str, object]) -> bytes:
+    def _attached_blob_content(effect: Mapping[str, object], intent_path: Path, intent: Mapping[str, object]) -> bytes:
         blob_digest = effect.get("content_blob_digest")
         if not isinstance(blob_digest, str):
             raise PhaseError("broker.content_blob_missing", str(effect.get("effect_id")))
@@ -130,6 +136,8 @@ class EffectBroker:
         *,
         timestamp: str,
         faults: BrokerFaults | None = None,
+        progress_callback: Callable[[list[dict[str, object]]], None] | None = None,
+        receipt_sink: list[dict[str, object]] | None = None,
     ) -> list[dict[str, object]]:
         active = faults or BrokerFaults()
         if not intent_path.is_file():
@@ -148,73 +156,126 @@ class EffectBroker:
         intent = parse_json_bytes(intent_path.read_bytes())
         if intent.get("execution_requested") is not True:
             raise PhaseError("broker.execution_not_requested")
-        mechanism = locked_plan["mechanism"]
-        entry = self.registry.resolve_mechanism(mechanism)
-        descriptor = parse_json_bytes(self.registry.resource_bytes(str(entry["artifact"])))
-        if descriptor.get("execution_allowed") is not True:
-            raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
-        supported = {
-            ("mechanism.exclusive_create_v1", "1.0.0"),
-            ("mechanism.expected_head_append_v1", "1.0.0"),
-            ("content_addressed_copy", "1.0.0"),
-        }
-        if (mechanism["id"], mechanism["version"]) not in supported:
-            raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
         effects = locked_plan["effects"]
-        if len(effects) != 1 or effects[0]["kind"] not in {"exclusive_create", "append_record", "copy_blob"}:
+        if not effects or any(effect["kind"] not in {"exclusive_create", "append_record", "copy_blob"} for effect in effects):
             raise PhaseError("broker.plan_not_executable")
-        effect = effects[0]
-        root_id = effect["target"]["root_binding"]
-        try:
-            target_root = Path(root_bindings[root_id]).resolve(strict=True)
-        except KeyError as exc:
-            raise PhaseError("plan.root_binding_missing", str(root_id)) from exc
-        if effect["kind"] == "append_record":
-            content = self._append_blob_content(effect, intent_path, intent)
-        elif effect["kind"] == "copy_blob":
-            content = self._frozen_blob_content(effect, intent_path, intent)
-        elif effect["content_source"]["kind"] == "frozen_input":
-            binding_id = effect["content_source"]["binding_id"]
+        receipts = receipt_sink if receipt_sink is not None else []
+        hook = load_contract_hook(contract)
+        candidate = intent.get("candidate", {}).get("storage", {}).get("value")
+        for ordinal, effect in enumerate(effects):
+            mechanism = effect.get("mechanism", locked_plan["mechanism"])
+            entry = self.registry.resolve_mechanism(mechanism)
+            descriptor = parse_json_bytes(self.registry.resource_bytes(str(entry["artifact"])))
+            if descriptor.get("execution_allowed") is not True:
+                raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
+            supported = {
+                ("mechanism.exclusive_create_v1", "1.0.0"),
+                ("mechanism.expected_head_append_v1", "1.0.0"),
+                ("content_addressed_copy", "1.0.0"),
+            }
+            if (mechanism["id"], mechanism["version"]) not in supported:
+                raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
+            root_id = effect["target"]["root_binding"]
             try:
-                frozen = frozen_inputs[binding_id]
+                target_root = Path(root_bindings[root_id]).resolve(strict=True)
             except KeyError as exc:
-                raise PhaseError("broker.content_source_missing", str(binding_id)) from exc
-            if frozen.blob_path is None:
-                raise PhaseError("broker.content_source_not_frozen", str(binding_id))
-            revalidate_frozen(frozen)
-            content = frozen.blob_path.read_bytes()
-        else:
-            encoded = effect.get("content_bytes_b64")
-            if not isinstance(encoded, str):
-                raise PhaseError("broker.content_source_missing", "content_bytes_b64")
-            content = base64.b64decode(encoded.encode("ascii"), validate=True)
+                raise PhaseError("plan.root_binding_missing", str(root_id)) from exc
+            if active.before_effect_lock is not None:
+                active.before_effect_lock(ordinal, intent_path)
+            lock_scope = effect.get("lock_scope")
+            if isinstance(lock_scope, str):
+                context = TargetRootLock(target_root, lock_scope)
+            else:
+                context = None
+            if context is None:
+                receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, timestamp)
+            else:
+                with context:
+                    receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, timestamp)
+            self._receipt_validator.validate(receipt)
+            receipts.append(receipt)
+            if progress_callback is not None:
+                progress_callback(list(receipts))
+            if receipt["status"] != "applied_verified":
+                break
+        return receipts
+
+    def _execute_one(
+        self,
+        active: BrokerFaults,
+        candidate: object,
+        contract: ResolvedContract,
+        effect: dict[str, object],
+        frozen_inputs: Mapping[str, FrozenInput],
+        hook: object | None,
+        intent: Mapping[str, object],
+        intent_path: Path,
+        ordinal: int,
+        target_root: Path,
+        timestamp: str,
+    ) -> dict[str, object]:
+        try:
+            if hook is not None and hasattr(hook, "before_effect"):
+                hook.before_effect(candidate, contract, effect, frozen_inputs, target_root)
+            if active.before_effect and ordinal in active.before_effect:
+                active.before_effect[ordinal](intent_path)
+            if effect.get("content_blob_digest") is not None:
+                content = self._attached_blob_content(effect, intent_path, intent)
+            elif effect["kind"] == "copy_blob":
+                content = self._frozen_blob_content(effect, intent_path, intent)
+            elif effect["content_source"]["kind"] == "frozen_input":
+                content = self._frozen_blob_content(effect, intent_path, intent)
+            else:
+                encoded = effect.get("content_bytes_b64")
+                if not isinstance(encoded, str):
+                    raise PhaseError("broker.content_source_missing", "content_bytes_b64")
+                content = base64.b64decode(encoded.encode("ascii"), validate=True)
+        except PhaseError as exc:
+            if ordinal == 0:
+                raise
+            unknown = {"known": False, "exists": None, "digest": None, "length": None, "head_token": None}
+            return {
+                "effect_receipt_version": "1.0",
+                "run_id": str(intent.get("run_id")),
+                "effect_id": effect["effect_id"],
+                "kind": effect["kind"],
+                "status": "failed_no_effect",
+                "attempted": True,
+                "before": unknown,
+                "after": unknown,
+                "bytes_written": 0,
+                "verification_refs": ["broker.preinvocation"],
+                "error": {"code": exc.code, "message": str(exc)},
+                "started_at": timestamp,
+                "finished_at": timestamp,
+            }
         if effect["kind"] == "exclusive_create":
-            receipt = execute_exclusive_create(
+            return execute_exclusive_create(
                 effect,
                 target_root,
                 content,
-                run_id=str(locked_plan["run_id"]),
+                run_id=str(contract.document.get("_run_id", intent.get("run_id"))),
                 timestamp=timestamp,
                 faults=active.exclusive_create,
             )
-        elif effect["kind"] == "append_record":
-            receipt = execute_append_record(
+        if effect["kind"] == "append_record":
+            return execute_append_record(
                 effect,
                 target_root,
                 content,
-                run_id=str(locked_plan["run_id"]),
+                run_id=str(intent.get("run_id")),
                 timestamp=timestamp,
-                operational_lock_root=operational_lock_root,
+                operational_lock_root=intent_path.parent.parent.parent / "locks",
                 faults=active.append_record,
             )
-        else:
-            receipt = execute_content_addressed_copy(
-                effect,
-                target_root,
-                content,
-                run_id=str(locked_plan["run_id"]),
-                timestamp=timestamp,
-                faults=active.content_addressed_copy,
-            )
-        self._receipt_validator.validate(receipt)
-        return [receipt]
+        copy_faults = active.content_addressed_copy
+        if active.content_addressed_copy_fail_after_bytes is not None:
+            copy_faults = ContentAddressedCopyFaults(fail_after_bytes=active.content_addressed_copy_fail_after_bytes)
+        return execute_content_addressed_copy(
+            effect,
+            target_root,
+            content,
+            run_id=str(intent.get("run_id")),
+            timestamp=timestamp,
+            faults=copy_faults,
+        )

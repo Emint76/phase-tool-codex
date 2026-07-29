@@ -57,6 +57,8 @@ target_file_count: 22
 evidence_file_count: 204
 ```
 
+The summary, intent, and receipt digests below are captured root-identity-bound evidence from the preserved acceptance roots used for that run. They are not a cross-root reproducibility invariant: deleting and recreating the resolved target root changes its filesystem identity, which intentionally changes `idempotency.root_identity_digest`, the intent digest, and therefore the receipt's `evidence.intent_digest`. With the resolved root identity preserved, repeated CLI runs produce byte-identical canonical receipts. The effect plan and canonical source result remain stable across equivalent roots.
+
 All 17 cross-scenario checks are `true`: ordered plan/progress, durable intent presence, source immutability, reuse without overwrite, shared-blob reuse, recovery, truthful partial prefix, effect ordering, descriptor/blob binding, distinct identity result IDs, runtime inspection result/reference/binding, cleaned subprocess `PYTHONPATH`, and absence of registered knowledge admission.
 
 ### Scenario inventory
@@ -119,7 +121,7 @@ For a later-effect failure, ordered progress preserves `effect.0.blob` as the ve
 
 ## Executable regression evidence
 
-Observed before the independent review:
+Observed during final pre-commit acceptance after review remediation:
 
 ```text
 Stage 6 + Stage 3/5 targeted: 80 passed in 42.50s
@@ -131,4 +133,4 @@ Registry/package integrity:    errors=[]
 Protected inventory:           8/8 exact inventories unchanged
 ```
 
-The full suite reported no skipped tests. The CLI hashes above were reproduced twice on committed HEAD `2cd84ffc940d3abedd0aeb07b2b7afb75317e286` before this evidence-only refresh.
+The full suite reported no skipped tests. On committed tree `2a83917a4a3a9fde24dbc01f143e5d4075e3add4`, the full suite then passed `164` tests in `83.91s`. The captured receipt bytes above were reproduced while the resolved acceptance-root identity was preserved; after root recreation, only the root-bound intent linkage changes as described above.

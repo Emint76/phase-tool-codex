@@ -507,6 +507,38 @@ def test_source_concurrent_same_identity_different_content_has_one_canonical_des
     assert not (target / "namespaces" / "example" / "source-results" / "source-race-logical").exists()
 
 
+def test_receipt_determinism_is_scoped_to_resolved_target_root_identity(tmp_path: Path) -> None:
+    seed_request, _seed_target, _seed_evidence, _source, _payload = _request(tmp_path / "seed", run_id="root-bound")
+    outcomes = []
+    for name in ("authority-a", "authority-b"):
+        target = tmp_path / name / "target"
+        (target / "blobs" / "sha256").mkdir(parents=True)
+        request = replace(
+            seed_request,
+            evidence_root=tmp_path / name / "evidence",
+            root_bindings={"admission_result_root": target},
+        )
+        outcomes.append(PhaseCore().run(request, execute=True))
+
+    first, second = outcomes
+    assert first.effect_plan == second.effect_plan
+    assert first.receipt["effect_receipts"] == second.receipt["effect_receipts"]
+    assert first.intent is not None and second.intent is not None
+    intent_differences = {
+        key
+        for key in first.intent["idempotency"]
+        if first.intent["idempotency"][key] != second.intent["idempotency"][key]
+    }
+    assert intent_differences == {"request_digest", "root_identity_digest", "scope_digest"}
+    assert first.receipt_digest != second.receipt_digest
+    first_receipt = json.loads(json.dumps(first.receipt))
+    second_receipt = json.loads(json.dumps(second.receipt))
+    assert first_receipt["evidence"]["intent_digest"] != second_receipt["evidence"]["intent_digest"]
+    first_receipt["evidence"]["intent_digest"] = "<root-identity-bound>"
+    second_receipt["evidence"]["intent_digest"] = "<root-identity-bound>"
+    assert first_receipt == second_receipt
+
+
 def test_stage6_hardened_cli_summary_and_walkthrough_values() -> None:
     repo = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
@@ -525,6 +557,20 @@ def test_stage6_hardened_cli_summary_and_walkthrough_values() -> None:
     assert compact["scenario_count"] == 29
     summary_path = repo / ".stage6-tmp" / "final-cli" / "stage6-cli-acceptance-summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    receipt_path = repo / ".stage6-tmp" / "final-cli" / "evidence" / ".phase" / "runs" / "source-execute" / "receipt.json"
+    receipt_bytes = receipt_path.read_bytes()
+    repeated = subprocess.run(
+        [sys.executable, "scripts/stage6_cli_acceptance.py"],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert repeated.returncode == 0, repeated.stderr
+    repeated_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert receipt_path.read_bytes() == receipt_bytes
+    assert repeated_summary["command_matrix"]["05_execute_text"]["envelope"]["receipt_digest"] == summary["command_matrix"]["05_execute_text"]["envelope"]["receipt_digest"]
     assert summary["success"] is True
     assert summary["scenario_count"] == 29
     assert summary["failures"] == {}
@@ -537,7 +583,8 @@ def test_stage6_hardened_cli_summary_and_walkthrough_values() -> None:
         summary["text_result"]["content_digest"],
         summary["inspection"]["descriptor_digest"],
         summary["text_result"]["source_result_id"],
-        summary["command_matrix"]["05_execute_text"]["envelope"]["receipt_digest"],
+        "captured root-identity-bound evidence",
+        "not a cross-root reproducibility invariant",
     ):
         assert value in walkthrough
 

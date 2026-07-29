@@ -1,6 +1,6 @@
 # Stage 6 Source Admission Walkthrough
 
-Status: factual pre-commit acceptance evidence for executable `source_admission.v1@1.0.0` on 2026-07-29. Stage 7 and `knowledge_admission.v1` are not active.
+Status: factual committed-HEAD acceptance evidence for executable `source_admission.v1@1.0.0` on 2026-07-29. Stage 7 and `knowledge_admission.v1` are not active.
 
 ## Runtime shape
 
@@ -49,7 +49,7 @@ Structured summary:
 
 ```text
 path: .stage6-tmp/final-cli/stage6-cli-acceptance-summary.json
-sha256: 3e017c28700c29f183f88091b0be4c69c10c1eb07e86cb60283fddb0c3609118
+sha256: e9c8badc7f9991b907f0b79f3e07246c182a974dd3fb886ca9e6a36d2afc8ec5
 scenario_count: 29
 success: true
 failures: {}
@@ -79,8 +79,8 @@ For run `source-execute`:
 
 ```text
 effect_plan_digest: sha256:a92698a224802248df661766ca28280f673407bad33831b6c42527e5d0fe1cb7
-intent_digest:      sha256:1a8894ef519289da720ffcc2213a20b408660d251d14c775d4f722fcec92f1ce
-receipt_digest:     sha256:449002da65ab8a0727b2f1deeb9d4e5183b2f0357766b77ba8ebeb534b005164
+intent_digest:      sha256:dda8f8d5bb8170d827ca0a6969696bcdd9b413d3df8c1291e5e23e1a7e4da198
+receipt_digest:     sha256:fed8416c31a039ecbca5d91d1b98cba342d1eb9c97074a3682aea0d11713076b
 terminal_status:    succeeded_verified
 execution:          executed
 ```
@@ -131,4 +131,4 @@ Registry/package integrity:    errors=[]
 Protected inventory:           8/8 exact inventories unchanged
 ```
 
-The full suite reported no skipped tests. Final committed-HEAD verification is intentionally not claimed here; it is an acceptance action after the Stage 6 commit.
+The full suite reported no skipped tests. The CLI hashes above were reproduced twice on committed HEAD `2cd84ffc940d3abedd0aeb07b2b7afb75317e286` before this evidence-only refresh.

@@ -845,7 +845,10 @@ def test_stage5_hardened_cli_summary_and_walkthrough_values() -> None:
     assert executed["artifacts"]["canonical_result"]["contract"]["package_digest"] in walkthrough
     for item in executed["artifacts"]["evidence_files"]:
         assert item["path"] in walkthrough
-        assert item["sha256"] in walkthrough
+        if item["path"] not in {"intent.json", "receipt.json"}:
+            assert item["sha256"] in walkthrough
+    assert "captured root-identity-bound evidence" in walkthrough
+    assert "not cross-root reproducibility invariants" in walkthrough
 
 
 def test_stage5_architecture_scans_keep_copy_out_of_core_and_source_admission_out() -> None:

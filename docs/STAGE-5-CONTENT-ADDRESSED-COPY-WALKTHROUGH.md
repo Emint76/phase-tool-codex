@@ -49,6 +49,8 @@ Canonical result reference:
 
 Evidence paths for run `copy-execute`, relative to `.phase/runs/copy-execute/`:
 
+The listed `intent.json` and `receipt.json` hashes are captured root-identity-bound evidence from the preserved acceptance root used for this run, not cross-root reproducibility invariants. Recreating the resolved target root intentionally changes the idempotency root identity and its downstream intent/receipt linkage; the effect plan, copied bytes, canonical result, and root-independent attachments remain stable.
+
 - `attachments/effect-plan.json`, `length=1361`, `sha256=348c77311f962ea80eb852c636dea5b0d208f99c24962b74d66be552bfb0b6fe`
 - `attachments/effect-receipts.json`, `length=532`, `sha256=6175ae761e454460a08857a0ea6419745d6aac0fc9aaa80e56a721cc586aec7a`
 - `attachments/pre-validator-results.json`, `length=2426`, `sha256=573d6c593a76f64863d032ebc3bf6534c0d80578f498f02c9a32dd598db8046b`

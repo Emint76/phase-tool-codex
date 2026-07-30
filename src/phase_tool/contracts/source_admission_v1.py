@@ -347,6 +347,7 @@ class SourceAdmissionHook:
         frozen_inputs: Mapping[str, FrozenInput],
         root_bindings: Mapping[str, Path],
         registry: RegistrySnapshot,
+        evidence_root: Path | None = None,
     ) -> tuple[str, str, Any, Any, list[str]] | None:
         if identifier == "source_admission.candidate_v1":
             schema = registry.schema_document(contract.document["candidate"]["schema_ref"], contract.document["candidate"]["schema_digest"])
@@ -372,6 +373,7 @@ class SourceAdmissionHook:
         effect: Mapping[str, Any],
         frozen_inputs: Mapping[str, FrozenInput],
         target_root: Path,
+        evidence_root: Path | None = None,
     ) -> None:
         if not isinstance(value, Mapping) or effect.get("kind") != "exclusive_create":
             return
@@ -388,6 +390,7 @@ class SourceAdmissionHook:
         contract: ResolvedContract,
         effect_plan: Mapping[str, Any],
         root_bindings: Mapping[str, Path],
+        evidence_root: Path | None = None,
     ) -> tuple[str, str, Any, Any, list[str]] | None:
         if identifier != "source_admission.result_v1":
             return None
@@ -417,7 +420,15 @@ class SourceAdmissionHook:
             blockers,
         )
 
-    def inspect_result(self, data: bytes, descriptor_digest: str, root: Path, receipt_digest: str | None, registry: RegistrySnapshot) -> dict[str, Any]:
+    def inspect_result(
+        self,
+        data: bytes,
+        descriptor_digest: str,
+        root: Path,
+        receipt_digest: str | None,
+        registry: RegistrySnapshot,
+        evidence_root: Path | None = None,
+    ) -> dict[str, Any]:
         descriptor = parse_json_bytes(data)
         verify_result_reference(descriptor, descriptor_digest, root, receipt_digest)
         result_schema = registry.schema_document("https://phase-tool.local/spec-candidates/admission-v1/schemas/source-result.schema.json")

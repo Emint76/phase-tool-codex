@@ -592,7 +592,7 @@ def test_stage6_hardened_cli_summary_and_walkthrough_values() -> None:
 def test_source_active_surfaces_and_architecture_scans() -> None:
     bindings = BundledRegistry.load().contract_bindings()
     assert "source_admission.v1@1.0.0" in bindings
-    assert "knowledge_admission.v1@1.0.0" not in bindings
+    assert "knowledge_admission.v1@1.0.0" in bindings
     source_forbidden = {
         "source_admission.v1",
         "knowledge_admission.v1",

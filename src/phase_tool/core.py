@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from . import __version__
-from .candidate import CapturedCandidate, capture_structured
+from .candidate import CapturedCandidate, capture_structured, normalize_captured_structured
 from .canonical import digest_bytes, parse_json_bytes, profile_digest
+from .contracts import load_contract_hook
 from .errors import PhaseError
-from .evidence import EvidenceStore, operational_lock_path, validate_intent, validate_receipt
+from .evidence import EvidenceStore, evidence_file_exists, iter_run_artifacts, operational_lock_path, read_evidence_bytes, validate_intent, validate_receipt
 from .freeze import FrozenInput, freeze_declared_inputs
 from .inspection import inspect_run
 from .mutation import BrokerFaults, EffectBroker
@@ -137,10 +138,10 @@ class PhaseCore:
         if key is None:
             return None
         runs_root = store.evidence_root / ".phase" / "runs"
-        for path in sorted(runs_root.glob("*/intent.json")):
+        for path in iter_run_artifacts(runs_root, "intent.json"):
             if path.parent == store.run_root:
                 continue
-            intent = parse_json_bytes(path.read_bytes())
+            intent = parse_json_bytes(read_evidence_bytes(path))
             prior = intent.get("idempotency", {})
             if prior.get("key") == key and prior.get("scope_digest") == scope_digest and prior.get("request_digest") != request_digest:
                 raise PhaseError("idempotency.same_key_conflict", key)
@@ -148,11 +149,11 @@ class PhaseCore:
                 if not execute:
                     continue
                 receipt_path = path.parent / "receipt.json"
-                if not receipt_path.is_file():
+                if not evidence_file_exists(receipt_path):
                     if intent.get("execution_requested") is False:
                         continue
                     raise PhaseError("idempotency.prior_inspection_required", path.parent.name)
-                receipt = parse_json_bytes(receipt_path.read_bytes())
+                receipt = parse_json_bytes(read_evidence_bytes(receipt_path))
                 if receipt.get("terminal_status") == "validated_planned":
                     continue
                 if receipt.get("terminal_status") != "succeeded_verified":
@@ -525,6 +526,7 @@ class PhaseCore:
         timestamp = self._timestamp(request)
         evidence_root = self._check_root_separation(request)
         store = EvidenceStore(evidence_root, request.run_id)
+        evidence_root = store.evidence_root
         lifecycle: list[str] = []
         validator_results: list[dict[str, Any]] = []
         plan: dict[str, Any] | None = None
@@ -546,6 +548,10 @@ class PhaseCore:
             )
             lifecycle.append("capture")
             candidate = capture_structured(Path(request.candidate_path), maximum_bytes=request.maximum_candidate_bytes)
+            hook = load_contract_hook(contract)
+            if hook is not None and hasattr(hook, "normalize_candidate"):
+                normalized = hook.normalize_candidate(parse_json_bytes(candidate.canonical_bytes))
+                candidate = normalize_captured_structured(candidate, normalized)
             lifecycle.append("freeze")
             frozen = freeze_declared_inputs(
                 contract.document,
@@ -575,6 +581,7 @@ class PhaseCore:
                     request_digest,
                     key,
                     root_identity_digest,
+                    evidence_root,
                     execute,
                     active_faults,
                 )
@@ -592,6 +599,7 @@ class PhaseCore:
                     request_digest,
                     key,
                     root_identity_digest,
+                    evidence_root,
                     execute,
                     active_faults,
                 )
@@ -652,6 +660,7 @@ class PhaseCore:
         request_digest: str,
         key: str | None,
         root_identity_digest: str,
+        evidence_root: Path,
         execute: bool,
         active_faults: CoreFaults,
     ) -> PhaseOutcome:
@@ -678,9 +687,30 @@ class PhaseCore:
                 candidate,
                 frozen,
                 root_bindings=request.root_bindings,
+                evidence_root=evidence_root,
                 run_id=request.run_id,
                 timestamp=timestamp,
             )
+            blocking_valid = all(
+                result["status"] == "pass"
+                for result in validator_results
+                if result["blocking"] and result["phase"] != "post_operation"
+            )
+            hook = load_contract_hook(contract)
+            if execute and blocking_valid and hook is not None and hasattr(hook, "find_reusable_result"):
+                prior = hook.find_reusable_result(
+                    parse_json_bytes(candidate.canonical_bytes),
+                    frozen,
+                    request.root_bindings,
+                    evidence_root,
+                    self.registry,
+                )
+                if prior is not None:
+                    receipt = self._reused_receipt(request, validator_results, timestamp, prior[0], prior[1])
+                    validate_receipt(receipt, self.registry)
+                    lifecycle.append("receipt")
+                    store.write_canonical("receipt.json", receipt)
+                    return PhaseOutcome(request.run_id, receipt["exit_code"], receipt, None, None, tuple(lifecycle), profile_digest("receipt", receipt), None)
             lifecycle.append("plan")
             plan = build_static_plan(
                 contract,
@@ -740,6 +770,7 @@ class PhaseCore:
                     request.root_bindings,
                     intent_path,
                     store.operational_lock_root,
+                    evidence_root=evidence_root,
                     timestamp=timestamp,
                     faults=active_faults.broker,
                     progress_callback=record_progress,
@@ -756,6 +787,7 @@ class PhaseCore:
                     validator_results,
                     plan,
                     request.root_bindings,
+                    evidence_root=evidence_root,
                     run_id=request.run_id,
                     timestamp=timestamp,
                     effect_receipts=effect_receipts,

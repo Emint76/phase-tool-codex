@@ -1,0 +1,122 @@
+{
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/knowledge-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admission_contract": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "knowledge_admission.v1"
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "admission_run": {
+      "additionalProperties": false,
+      "properties": {
+        "receipt_authority": {
+          "const": "phase_evidence_by_run_id"
+        },
+        "run_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "receipt_authority"
+      ],
+      "type": "object"
+    },
+    "artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "artifact_format": {
+      "maxLength": 127,
+      "minLength": 1,
+      "type": "string"
+    },
+    "artifact_kind": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "artifact_length": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "blob_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "descriptor_locator": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?)*$",
+      "type": "string"
+    },
+    "knowledge_result_id": {
+      "pattern": "^knowledge-result-[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "logical_knowledge_id": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "knowledge-provenance.schema.json"
+    },
+    "provenance_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "result_schema_version": {
+      "const": "1.0"
+    },
+    "supersedes": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "knowledge-result-reference.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "result_schema_version",
+    "knowledge_result_id",
+    "logical_knowledge_id",
+    "artifact_digest",
+    "artifact_length",
+    "artifact_kind",
+    "artifact_format",
+    "blob_locator",
+    "descriptor_locator",
+    "provenance",
+    "provenance_digest",
+    "admission_contract",
+    "admission_run",
+    "observed_at",
+    "supersedes"
+  ],
+  "title": "Canonical knowledge descriptor v1",
+  "type": "object"
+}

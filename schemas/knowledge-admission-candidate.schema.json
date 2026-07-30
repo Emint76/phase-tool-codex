@@ -1,0 +1,157 @@
+{
+  "$id": "https://phase-tool.local/spec-candidates/admission-v1/schemas/knowledge-admission-candidate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_format": {
+      "maxLength": 127,
+      "minLength": 1,
+      "type": "string"
+    },
+    "artifact_input": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "const": "asset"
+        },
+        "expected_digest": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            }
+          ]
+        },
+        "expected_length": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "minimum": 0,
+              "type": "integer"
+            }
+          ]
+        }
+      },
+      "required": [
+        "binding_id",
+        "expected_digest",
+        "expected_length"
+      ],
+      "type": "object"
+    },
+    "artifact_kind": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "candidate_version": {
+      "const": "1.0"
+    },
+    "contract": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "knowledge_admission.v1"
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "idempotency_key": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "type": "string"
+    },
+    "logical_knowledge_id": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "operation_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "type": "string"
+    },
+    "placement": {
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        "target_root_binding": {
+          "const": "admission_result_root"
+        }
+      },
+      "required": [
+        "target_root_binding",
+        "namespace"
+      ],
+      "type": "object"
+    },
+    "provenance": {
+      "$ref": "knowledge-provenance.schema.json"
+    },
+    "request_metadata": {
+      "additionalProperties": false,
+      "properties": {
+        "correlation_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            }
+          ]
+        },
+        "submitted_by": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "submitted_by"
+      ],
+      "type": "object"
+    },
+    "supersedes": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "knowledge-result-reference.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "candidate_version",
+    "contract",
+    "operation_id",
+    "idempotency_key",
+    "logical_knowledge_id",
+    "artifact_input",
+    "artifact_kind",
+    "artifact_format",
+    "provenance",
+    "placement",
+    "supersedes",
+    "request_metadata"
+  ],
+  "title": "Knowledge admission candidate v1",
+  "type": "object"
+}

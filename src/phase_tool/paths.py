@@ -39,7 +39,7 @@ def _platform_path(path: Path) -> str:
     text = str(path)
     if os.name != "nt" or text.startswith("\\\\?\\"):
         return text
-    return "\\\\?\\" + str(path.resolve(strict=False))
+    return "\\\\?\\" + os.path.abspath(text)
 
 
 def contained_read_path(root: Path, locator: str) -> Path:
@@ -48,9 +48,10 @@ def contained_read_path(root: Path, locator: str) -> Path:
     current = root
     for part in normalized.split("/"):
         current = current / part
-        if current.is_symlink():
+        platform_current = Path(_platform_path(current))
+        if platform_current.is_symlink():
             raise PhaseError("path.link_forbidden", normalized)
-        if current.exists() and _is_reparse_point(current):
+        if os.path.exists(platform_current) and _is_reparse_point(platform_current):
             raise PhaseError("path.reparse_forbidden", normalized)
     if os.name == "nt":
         if not os.path.exists(_platform_path(current)):
@@ -77,14 +78,17 @@ def inspect_target_path(root: Path, locator: str) -> tuple[Path, bool]:
         current = current / part
         if missing:
             continue
-        if current.is_symlink():
+        platform_current = Path(_platform_path(current))
+        if platform_current.is_symlink():
             raise PhaseError("path.link_forbidden", normalized)
-        if current.exists():
-            if _is_reparse_point(current):
+        if os.path.exists(platform_current):
+            if _is_reparse_point(platform_current):
                 raise PhaseError("path.reparse_forbidden", normalized)
         else:
             missing = True
     if not missing:
+        if os.name == "nt":
+            return current, True
         resolved = current.resolve(strict=True)
         try:
             resolved.relative_to(root)

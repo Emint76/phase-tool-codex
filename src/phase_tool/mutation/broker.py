@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 import base64
+import os
 from pathlib import Path
 from typing import Callable, Mapping
 
@@ -14,6 +15,7 @@ from ..errors import PhaseError
 
 from ..freeze import FrozenInput
 from ..planning import validate_static_plan
+from ..paths import _platform_path
 from ..registry import RegistrySnapshot, ResolvedContract
 from .content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy
 from .exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
@@ -44,6 +46,14 @@ class EffectBroker:
             registry=registry.schema_registry(),
             format_checker=FormatChecker(),
         )
+
+    @staticmethod
+    def _read_evidence_file(path: Path, missing_code: str, detail: str) -> bytes:
+        platform_path = _platform_path(path)
+        if not os.path.isfile(platform_path):
+            raise PhaseError(missing_code, detail)
+        with open(platform_path, "rb") as stream:
+            return stream.read()
 
     def _locked_plan_from_evidence(
         self,
@@ -87,9 +97,7 @@ class EffectBroker:
         if not isinstance(bound_digests, list) or blob_digest not in bound_digests:
             raise PhaseError("broker.content_blob_unbound", str(effect.get("effect_id")))
         blob_path = intent_path.parent / "blobs" / blob_digest.split(":", 1)[1]
-        if not blob_path.is_file():
-            raise PhaseError("broker.content_blob_missing", blob_digest)
-        content = blob_path.read_bytes()
+        content = EffectBroker._read_evidence_file(blob_path, "broker.content_blob_missing", blob_digest)
         if len(content) != effect["content_length"] or digest_bytes(content) != effect["content_digest"] or digest_bytes(content) != blob_digest:
             raise PhaseError("broker.content_blob_mismatch", blob_digest)
         encoded = effect.get("content_bytes_b64")
@@ -118,9 +126,7 @@ class EffectBroker:
         if blob_digest != effect.get("content_digest") or record.get("digest") != effect.get("content_digest"):
             raise PhaseError("broker.content_blob_mismatch", blob_digest)
         blob_path = intent_path.parent / "blobs" / blob_digest.split(":", 1)[1]
-        if not blob_path.is_file():
-            raise PhaseError("broker.content_blob_missing", blob_digest)
-        content = blob_path.read_bytes()
+        content = EffectBroker._read_evidence_file(blob_path, "broker.content_blob_missing", blob_digest)
         if len(content) != effect["content_length"] or digest_bytes(content) != effect["content_digest"]:
             raise PhaseError("broker.content_blob_mismatch", blob_digest)
         return content
@@ -134,6 +140,7 @@ class EffectBroker:
         intent_path: Path,
         operational_lock_root: Path,
         *,
+        evidence_root: Path | None = None,
         timestamp: str,
         faults: BrokerFaults | None = None,
         progress_callback: Callable[[list[dict[str, object]]], None] | None = None,
@@ -161,6 +168,8 @@ class EffectBroker:
             raise PhaseError("broker.plan_not_executable")
         receipts = receipt_sink if receipt_sink is not None else []
         hook = load_contract_hook(contract)
+        if hook is not None:
+            setattr(hook, "_registry", self.registry)
         candidate = intent.get("candidate", {}).get("storage", {}).get("value")
         for ordinal, effect in enumerate(effects):
             mechanism = effect.get("mechanism", locked_plan["mechanism"])
@@ -188,10 +197,10 @@ class EffectBroker:
             else:
                 context = None
             if context is None:
-                receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, timestamp)
+                receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, evidence_root, timestamp)
             else:
                 with context:
-                    receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, timestamp)
+                    receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, evidence_root, timestamp)
             self._receipt_validator.validate(receipt)
             receipts.append(receipt)
             if progress_callback is not None:
@@ -212,11 +221,12 @@ class EffectBroker:
         intent_path: Path,
         ordinal: int,
         target_root: Path,
+        evidence_root: Path | None,
         timestamp: str,
     ) -> dict[str, object]:
         try:
             if hook is not None and hasattr(hook, "before_effect"):
-                hook.before_effect(candidate, contract, effect, frozen_inputs, target_root)
+                hook.before_effect(candidate, contract, effect, frozen_inputs, target_root, evidence_root=evidence_root)
             if active.before_effect and ordinal in active.before_effect:
                 active.before_effect[ordinal](intent_path)
             if effect.get("content_blob_digest") is not None:

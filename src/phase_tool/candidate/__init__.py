@@ -40,6 +40,19 @@ def capture_structured(path: Path, *, maximum_bytes: int = 1_048_576) -> Capture
     )
 
 
+def normalize_captured_structured(candidate: CapturedCandidate, value: Any) -> CapturedCandidate:
+    """Replace only the contract-canonical value while preserving exact captured bytes."""
+    encoded = canonical_bytes(value)
+    return CapturedCandidate(
+        input_mode=candidate.input_mode,
+        captured_bytes=candidate.captured_bytes,
+        canonical_bytes=encoded,
+        digest=profile_digest_bytes("candidate", encoded),
+        length=len(encoded),
+        value=immutable_value(value),
+    )
+
+
 def capture_raw(path: Path, *, maximum_bytes: int = 1_048_576) -> CapturedCandidate:
     raw = _read_once(path, maximum_bytes)
     return CapturedCandidate(

@@ -79,13 +79,15 @@ class ValidatorRunner:
         candidate: CapturedCandidate,
         frozen_inputs: Mapping[str, FrozenInput],
         root_bindings: Mapping[str, Path],
+        evidence_root: Path | None,
     ) -> tuple[str, str, Any, Any, list[str]]:
         value = parse_json_bytes(candidate.canonical_bytes)
         if identifier == "validator.exact_binding_v1":
             return "pass", "validation.pass", "exact_registry_binding", "exact_registry_binding", []
         hook = load_contract_hook(contract)
         if hook is not None:
-            handled = hook.run_validator(identifier, contract, value, frozen_inputs, root_bindings, self.registry)
+            setattr(hook, "_registry", self.registry)
+            handled = hook.run_validator(identifier, contract, value, frozen_inputs, root_bindings, self.registry, evidence_root=evidence_root)
             if handled is not None:
                 return handled
         if identifier == "phase.ordered_effect_plan_progress_v1":
@@ -193,6 +195,7 @@ class ValidatorRunner:
         frozen_inputs: Mapping[str, FrozenInput],
         *,
         root_bindings: Mapping[str, Path] | None = None,
+        evidence_root: Path | None = None,
         run_id: str,
         timestamp: str,
         forced_unknown: set[str] | None = None,
@@ -209,7 +212,7 @@ class ValidatorRunner:
                 blockers = ["validator.unknown"] if declaration["blocking"] else []
                 outcome = ("unknown", "validator.unknown", "known_result", None, blockers)
             else:
-                outcome = self._run_builtin(identifier, contract, candidate, frozen_inputs, roots)
+                outcome = self._run_builtin(identifier, contract, candidate, frozen_inputs, roots, evidence_root)
             result = self._result(
                 declaration,
                 run_id=run_id,
@@ -232,6 +235,7 @@ class ValidatorRunner:
         effect_plan: Mapping[str, Any],
         root_bindings: Mapping[str, Path],
         *,
+        evidence_root: Path | None = None,
         run_id: str,
         timestamp: str,
         effect_receipts: list[dict[str, Any]] | None = None,
@@ -322,7 +326,8 @@ class ValidatorRunner:
                 continue
             hook = load_contract_hook(contract)
             if hook is not None:
-                handled = hook.run_post_validator(identifier, contract, effect_plan, root_bindings)
+                setattr(hook, "_registry", self.registry)
+                handled = hook.run_post_validator(identifier, contract, effect_plan, root_bindings, evidence_root=evidence_root)
                 if handled is None:
                     pass
                 else:

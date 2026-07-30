@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from ..canonical import canonical_bytes, digest_bytes
 from ..errors import PhaseError
-from ..paths import _is_reparse_point
+from ..paths import _is_reparse_point, _platform_path
 from ..registry import RegistrySnapshot
 
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -26,9 +26,34 @@ def _reject_existing_links(path: Path) -> None:
     current = Path(path.anchor) if path.is_absolute() else Path()
     for part in path.parts[1:] if path.is_absolute() else path.parts:
         current = current / part
-        if current.exists() and (current.is_symlink() or _is_reparse_point(current)):
-            code = "path.link_forbidden" if current.is_symlink() else "path.reparse_forbidden"
+        platform_current = Path(_platform_path(current))
+        if os.path.exists(platform_current) and (platform_current.is_symlink() or _is_reparse_point(platform_current)):
+            code = "path.link_forbidden" if platform_current.is_symlink() else "path.reparse_forbidden"
             raise PhaseError(code, str(current))
+
+
+def read_evidence_bytes(path: Path) -> bytes:
+    with open(_platform_path(path), "rb") as stream:
+        return stream.read()
+
+
+def evidence_file_exists(path: Path) -> bool:
+    return os.path.isfile(_platform_path(path))
+
+
+def iter_run_artifacts(runs_root: Path, file_name: str) -> list[Path]:
+    artifacts: list[Path] = []
+    try:
+        with os.scandir(_platform_path(runs_root)) as entries:
+            for entry in entries:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                artifact = runs_root / entry.name / file_name
+                if evidence_file_exists(artifact):
+                    artifacts.append(artifact)
+    except OSError as exc:
+        raise PhaseError("evidence.enumeration_failed", file_name) from exc
+    return sorted(artifacts, key=lambda path: path.parent.name)
 
 
 class EvidenceStore:
@@ -36,23 +61,23 @@ class EvidenceStore:
         validate_run_id(run_id)
         absolute = evidence_root.absolute()
         _reject_existing_links(absolute)
-        absolute.mkdir(parents=True, exist_ok=True)
+        os.makedirs(_platform_path(absolute), exist_ok=True)
         _reject_existing_links(absolute)
-        self.evidence_root = absolute.resolve(strict=True)
+        self.evidence_root = Path(_platform_path(absolute)).resolve(strict=True)
         phase_root = self.evidence_root / ".phase"
         runs_root = phase_root / "runs"
-        runs_root.mkdir(parents=True, exist_ok=True)
+        os.makedirs(_platform_path(runs_root), exist_ok=True)
         self.run_root = runs_root / run_id
         try:
-            self.run_root.mkdir()
+            os.mkdir(_platform_path(self.run_root))
         except FileExistsError as exc:
             raise PhaseError("evidence.run_exists", run_id) from exc
         self.blob_root = self.run_root / "blobs"
         self.attachment_root = self.run_root / "attachments"
-        self.blob_root.mkdir()
-        self.attachment_root.mkdir()
+        os.mkdir(_platform_path(self.blob_root))
+        os.mkdir(_platform_path(self.attachment_root))
         self.operational_lock_root = phase_root / "locks"
-        self.operational_lock_root.mkdir(parents=True, exist_ok=True)
+        os.makedirs(_platform_path(self.operational_lock_root), exist_ok=True)
 
     def write_canonical(self, relative: str, value: Any) -> tuple[Path, str]:
         if "/" in relative:
@@ -63,7 +88,7 @@ class EvidenceStore:
         else:
             path = self.run_root / relative
         data = canonical_bytes(value)
-        with path.open("xb", buffering=0) as stream:
+        with open(_platform_path(path), "xb", buffering=0) as stream:
             view = memoryview(data)
             written = 0
             while written < len(view):
@@ -82,10 +107,10 @@ class EvidenceStore:
         data = canonical_bytes(value)
         tmp = self.attachment_root / (file_name + ".tmp")
         try:
-            tmp.unlink()
+            os.unlink(_platform_path(tmp))
         except FileNotFoundError:
             pass
-        with tmp.open("xb", buffering=0) as stream:
+        with open(_platform_path(tmp), "xb", buffering=0) as stream:
             view = memoryview(data)
             written = 0
             while written < len(view):
@@ -95,7 +120,7 @@ class EvidenceStore:
                 written += count
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(tmp, path)
+        os.replace(_platform_path(tmp), _platform_path(path))
         if os.name != "nt":
             descriptor = os.open(self.attachment_root, os.O_RDONLY)
             try:
@@ -112,7 +137,7 @@ class EvidenceStore:
             raise PhaseError("evidence.blob_digest_mismatch", digest)
         path = self.blob_root / digest.split(":", 1)[1]
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("xb", buffering=0) as stream:
+        with open(_platform_path(path), "xb", buffering=0) as stream:
             view = memoryview(data)
             written = 0
             while written < len(view):

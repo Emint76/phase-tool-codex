@@ -1,0 +1,7 @@
+{
+  "capability": "validator",
+  "descriptor_version": "1.0",
+  "execution_allowed": true,
+  "id": "knowledge_admission.identity_v1",
+  "version": "1.0.0"
+}

@@ -8,8 +8,8 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from ..canonical import canonical_bytes, digest_bytes, parse_json_bytes, profile_digest
 from ..errors import PhaseError
-from ..evidence import validate_intent, validate_receipt, validate_run_id
-from ..paths import contained_read_path
+from ..evidence import evidence_file_exists, read_evidence_bytes, validate_intent, validate_receipt, validate_run_id
+from ..paths import _platform_path, contained_read_path
 from ..registry import BundledRegistry, RegistrySnapshot
 from ..append_codec import stream_head_token
 from ..contracts import load_contract_hook
@@ -17,7 +17,7 @@ from ..contracts import load_contract_hook
 
 def _read_canonical(path: Path) -> tuple[Any, str]:
     try:
-        data = path.read_bytes()
+        data = read_evidence_bytes(path)
     except OSError as exc:
         raise PhaseError("inspection.missing_artifact", str(path.name)) from exc
     try:
@@ -64,12 +64,12 @@ def _verify_intent_blobs(run_root: Path, intent: Mapping[str, Any]) -> None:
         if digest is None:
             continue
         blob = run_root / "blobs" / digest.split(":", 1)[1]
-        if not blob.is_file() or digest_bytes(blob.read_bytes()) != digest:
+        if not evidence_file_exists(blob) or digest_bytes(read_evidence_bytes(blob)) != digest:
             raise PhaseError("inspection.digest_mismatch", blob.name)
     evidence = intent.get("evidence", {})
     for digest in evidence.get("content_blob_digests", []):
         blob = run_root / "blobs" / digest.split(":", 1)[1]
-        if not blob.is_file() or digest_bytes(blob.read_bytes()) != digest:
+        if not evidence_file_exists(blob) or digest_bytes(read_evidence_bytes(blob)) != digest:
             raise PhaseError("inspection.digest_mismatch", blob.name)
 
 
@@ -83,7 +83,7 @@ def inspect_run(
     """Verify evidence and, for observed results, re-read installation-bound target bytes."""
     validate_run_id(run_id)
     registry = registry or BundledRegistry.load()
-    root = Path(evidence_root).resolve(strict=True)
+    root = Path(_platform_path(Path(evidence_root))).resolve(strict=True)
     run_root = (root / ".phase" / "runs" / run_id).resolve(strict=True)
     expected_parent = (root / ".phase" / "runs").resolve(strict=True)
     try:
@@ -91,7 +91,7 @@ def inspect_run(
     except ValueError as exc:
         raise PhaseError("inspection.outside_evidence_root", run_id) from exc
     receipt_path = run_root / "receipt.json"
-    if not receipt_path.is_file():
+    if not evidence_file_exists(receipt_path):
         intent, _ = _read_canonical(run_root / "intent.json")
         intent_digest = profile_digest("intent", intent)
         validate_intent(intent, registry)
@@ -151,7 +151,7 @@ def inspect_run(
             if not isinstance(pre_validators, list):
                 raise PhaseError("inspection.validator_results_mismatch")
             progress_path = run_root / "attachments" / "ordered-effect-progress.json"
-            if progress_path.is_file():
+            if evidence_file_exists(progress_path):
                 progress, progress_digest = _read_canonical(progress_path)
                 _validate_progress(progress, plan, effect_receipts, registry)
                 attachment_digests.add(progress_digest)
@@ -177,7 +177,8 @@ def inspect_run(
             raise PhaseError("inspection.target_root_missing", root_id) from exc
         try:
             target = contained_read_path(target_root, canonical_result["locator"])
-            data = target.read_bytes()
+            with open(_platform_path(target), "rb") as stream:
+                data = stream.read()
         except (OSError, PhaseError) as exc:
             raise PhaseError("inspection.target_mismatch", canonical_result["locator"]) from exc
         state = canonical_result["state"]
@@ -203,7 +204,8 @@ def inspect_run(
             raise PhaseError("inspection.target_mismatch", canonical_result["locator"])
         hook = load_contract_hook(contract)
         if hook is not None:
-            contract_result = hook.inspect_result(data, state["digest"], target_root, receipt_digest, registry)
+            setattr(hook, "_registry", registry)
+            contract_result = hook.inspect_result(data, state["digest"], target_root, receipt_digest, registry, evidence_root=root)
         target_verified = True
     result = {
         "run_id": run_id,

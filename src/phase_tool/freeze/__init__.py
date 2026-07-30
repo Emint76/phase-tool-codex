@@ -9,7 +9,7 @@ from ..candidate import capture_structured
 from ..canonical import canonical_bytes, canonical_digest, digest_bytes, parse_json_bytes
 from ..contracts import append_locator
 from ..errors import PhaseError
-from ..paths import contained_read_path, safe_relative_locator
+from ..paths import _platform_path, contained_read_path, safe_relative_locator
 
 
 @dataclass(frozen=True)
@@ -92,12 +92,19 @@ def _stat_fingerprint(stat: os.stat_result) -> tuple[int, int, int, int]:
     return int(stat.st_dev), int(stat.st_ino), int(stat.st_size), int(stat.st_mtime_ns)
 
 
+def _io_path(path: Path) -> Path:
+    if os.name == "nt" and len(str(path.resolve(strict=False))) >= 260:
+        return Path(_platform_path(path))
+    return path
+
+
 def _read_file_stable(path: Path, maximum_bytes: int) -> bytes:
-    before = path.stat()
-    with path.open("rb") as stream:
+    io_path = _io_path(path)
+    before = io_path.stat()
+    with io_path.open("rb") as stream:
         opened = os.fstat(stream.fileno())
         data = stream.read(maximum_bytes + 1)
-    after = path.stat()
+    after = io_path.stat()
     if _stat_fingerprint(before) != _stat_fingerprint(opened) or _stat_fingerprint(opened) != _stat_fingerprint(after):
         raise PhaseError("freeze.source_changed_during_capture", path.name)
     return data
@@ -113,7 +120,7 @@ def copy_and_hash(
     maximum_bytes: int = 16 * 1024 * 1024,
 ) -> FrozenInput:
     source = contained_read_path(input_root, relative_locator)
-    if not source.is_file():
+    if not os.path.isfile(_platform_path(source)):
         raise PhaseError("freeze.not_regular_file", relative_locator)
     data = _read_file_stable(source, maximum_bytes)
     if len(data) > maximum_bytes:
@@ -123,8 +130,9 @@ def copy_and_hash(
     if blob_root.is_symlink():
         raise PhaseError("path.link_forbidden", str(blob_root))
     destination = blob_root / digest.removeprefix("sha256:")
-    if destination.exists():
-        if destination.is_symlink() or destination.read_bytes() != data:
+    platform_destination = _platform_path(destination)
+    if os.path.exists(platform_destination):
+        if os.path.islink(platform_destination) or _read_file_stable(destination, maximum_bytes) != data:
             raise PhaseError("freeze.blob_collision", digest)
     else:
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
@@ -132,7 +140,7 @@ def copy_and_hash(
             flags |= os.O_BINARY
         descriptor: int | None = None
         try:
-            descriptor = os.open(destination, flags, 0o600)
+            descriptor = os.open(platform_destination, flags, 0o600)
             written = 0
             view = memoryview(data)
             while written < len(data):
@@ -142,12 +150,12 @@ def copy_and_hash(
                 written += actual
             os.fsync(descriptor)
         except FileExistsError:
-            if destination.is_symlink() or destination.read_bytes() != data:
+            if os.path.islink(platform_destination) or _read_file_stable(destination, maximum_bytes) != data:
                 raise PhaseError("freeze.blob_collision", digest)
         finally:
             if descriptor is not None:
                 os.close(descriptor)
-    if destination.read_bytes() != data:
+    if _read_file_stable(destination, maximum_bytes) != data:
         raise PhaseError("freeze.blob_readback_mismatch", digest)
     return FrozenInput(
         binding_id,
@@ -162,9 +170,9 @@ def copy_and_hash(
 
 
 def revalidate_frozen(frozen: FrozenInput) -> None:
-    if frozen.blob_path is None or not frozen.blob_path.is_file():
+    if frozen.blob_path is None or not os.path.isfile(_platform_path(frozen.blob_path)):
         raise PhaseError("freeze.blob_missing", frozen.binding_id)
-    data = frozen.blob_path.read_bytes()
+    data = _read_file_stable(frozen.blob_path, frozen.length)
     if digest_bytes(data) != frozen.blob_digest or len(data) != frozen.length:
         raise PhaseError("freeze.blob_tampered", frozen.binding_id)
 

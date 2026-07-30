@@ -225,8 +225,12 @@ def test_standalone_cli_validate_plan_inspect_and_execute_refusal(tmp_path: Path
     assert inspect.returncode == 0, inspect.stderr
     assert json.loads(inspect.stdout)["mutation_attempted"] is False
     execute = subprocess.run([str(phase), "execute"], capture_output=True, text=True, env=env, check=False)
-    assert execute.returncode != 0
-    assert json.loads(execute.stdout)["error"] == "mutation_execution_unavailable_in_stage_2"
+    assert execute.returncode == 2
+    assert execute.stdout == ""
+    assert "mutation_execution_unavailable_in_stage_2" not in execute.stderr
+    assert "--candidate" in execute.stderr
+    assert "--evidence-root" in execute.stderr
+    assert "--run-id" in execute.stderr
     failure = subprocess.run(
         [str(phase), "inspect", "--evidence-root", str(tmp_path / "missing"), "--run-id", "missing-run"],
         capture_output=True,

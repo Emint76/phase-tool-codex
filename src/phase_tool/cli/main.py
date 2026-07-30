@@ -66,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
         command = subparsers.add_parser(name)
         _add_pipeline_arguments(command)
     execute = subparsers.add_parser("execute")
-    _add_pipeline_arguments(execute, required=False)
+    _add_pipeline_arguments(execute)
     inspect = subparsers.add_parser("inspect")
     inspect.add_argument("--evidence-root", type=Path, required=True)
     inspect.add_argument("--run-id", required=True)
@@ -158,24 +158,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..mcp_server import main as mcp_main
 
         return mcp_main()
-    if args.command == "execute" and args.contract is None and args.contract_id is None:
-        output = _envelope(
-            "execute",
-            success=False,
-            run_id=None,
-            terminal_status=None,
-            execution_disposition=None,
-            mutation_attempted=False,
-            effect_plan_digest=None,
-            intent_digest=None,
-            receipt_digest=None,
-            blockers=["mutation_execution_unavailable_in_stage_2"],
-            target_verified=None,
-            error="mutation_execution_unavailable_in_stage_2",
-            exit_code=64,
-        )
-        _write(output)
-        return 64
     try:
         if args.command in {"validate", "plan", "execute"}:
             return _pipeline(args, execute=args.command == "execute")

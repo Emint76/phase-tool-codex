@@ -541,3 +541,13 @@ def test_doctor_enforces_full_declared_mcp_version_range(monkeypatch: pytest.Mon
         assert response.payload["mcp_sdk"]["compatible"] is expected
         assert response.payload["success"] is expected
         assert response.exit_code == (0 if expected else 10)
+
+
+def test_execute_without_required_arguments_uses_current_universal_cli_validation() -> None:
+    result = _phase("execute")
+    combined = result.stdout + result.stderr
+    assert result.returncode == 2
+    assert "mutation_execution_unavailable_in_stage_2" not in combined
+    assert "--candidate" in result.stderr
+    assert "--evidence-root" in result.stderr
+    assert "--run-id" in result.stderr

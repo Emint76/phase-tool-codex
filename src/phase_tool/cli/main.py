@@ -7,10 +7,10 @@ from typing import Sequence
 
 from jsonschema import Draft202012Validator, FormatChecker
 
-from ..canonical import canonical_bytes, profile_digest
-from ..core import PhaseCore, PhaseRequest
+from .. import __version__
+from ..application import PhaseApplication
+from ..canonical import canonical_bytes
 from ..errors import PhaseError
-from ..inspection import inspect_run
 from ..registry import BundledRegistry
 
 
@@ -23,17 +23,22 @@ def _binding(value: str) -> tuple[str, Path]:
     return name, Path(raw_path)
 
 
+def _write_json(value: object) -> None:
+    sys.stdout.buffer.write(canonical_bytes(value) + b"\n")
+
+
 def _write(value: object) -> None:
     registry = BundledRegistry.load()
     schema = registry.schema_document("https://phase-tool.local/schemas/stage3-command-result.schema.json")
     Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
-    sys.stdout.buffer.write(canonical_bytes(value) + b"\n")
+    _write_json(value)
 
 
 def _add_pipeline_arguments(parser: argparse.ArgumentParser, *, required: bool = True) -> None:
-    parser.add_argument("--contract-id", required=required)
-    parser.add_argument("--contract-version", required=required)
-    parser.add_argument("--contract-digest", required=required)
+    parser.add_argument("--contract")
+    parser.add_argument("--contract-id")
+    parser.add_argument("--contract-version")
+    parser.add_argument("--contract-digest")
     parser.add_argument("--candidate", type=Path, required=required)
     parser.add_argument("--evidence-root", type=Path, required=required)
     parser.add_argument("--run-id", required=required)
@@ -44,8 +49,19 @@ def _add_pipeline_arguments(parser: argparse.ArgumentParser, *, required: bool =
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phase", description="Phase Tool Stage 3 brokered mutation CLI")
+    parser = argparse.ArgumentParser(prog="phase", description="Universal local Phase Tool")
+    parser.add_argument("--version", action="version", version=f"phase {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("doctor")
+    contracts = subparsers.add_parser("contracts")
+    contracts_commands = contracts.add_subparsers(dest="contracts_command", required=True)
+    contracts_commands.add_parser("list")
+    describe = contracts_commands.add_parser("describe")
+    describe.add_argument("--contract", required=True)
+    mcp = subparsers.add_parser("mcp")
+    mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
+    serve = mcp_commands.add_parser("serve")
+    serve.add_argument("--stdio", action="store_true", required=True)
     for name in ("validate", "plan"):
         command = subparsers.add_parser(name)
         _add_pipeline_arguments(command)
@@ -97,10 +113,20 @@ def _pipeline(args: argparse.Namespace, *, execute: bool) -> int:
     inputs = dict(args.input)
     if len(roots) != len(args.root) or len(inputs) != len(args.input):
         raise PhaseError("cli.duplicate_binding")
-    request = PhaseRequest(
-        contract_id=args.contract_id,
-        contract_version=args.contract_version,
-        contract_digest=args.contract_digest,
+    if args.contract is not None:
+        if any(value is not None for value in (args.contract_id, args.contract_version, args.contract_digest)):
+            raise PhaseError("cli.conflicting_contract_binding")
+        exact_binding = args.contract
+        digest = None
+    else:
+        if not all((args.contract_id, args.contract_version, args.contract_digest)):
+            raise PhaseError("cli.contract_binding_required")
+        exact_binding = f"{args.contract_id}@{args.contract_version}"
+        digest = args.contract_digest
+    response = PhaseApplication().run(
+        args.command,
+        contract_binding=exact_binding,
+        contract_digest=digest,
         candidate_path=args.candidate,
         evidence_root=args.evidence_root,
         run_id=args.run_id,
@@ -109,30 +135,30 @@ def _pipeline(args: argparse.Namespace, *, execute: bool) -> int:
         timestamp=args.timestamp,
         maximum_candidate_bytes=args.maximum_candidate_bytes,
     )
-    outcome = PhaseCore().run(request, execute=execute)
-    blockers = outcome.receipt["blockers"]
-    output = _envelope(
-        args.command,
-        success=outcome.exit_code == 0,
-        run_id=outcome.run_id,
-        terminal_status=outcome.receipt["terminal_status"],
-        execution_disposition=outcome.receipt["execution_disposition"],
-        mutation_attempted=outcome.receipt["mutation_attempted"],
-        effect_plan_digest=outcome.effect_plan_digest,
-        intent_digest=profile_digest("intent", outcome.intent) if outcome.intent is not None else None,
-        receipt_digest=outcome.receipt_digest,
-        blockers=blockers,
-        target_verified=None,
-        error=None if outcome.exit_code == 0 else blockers[0],
-        exit_code=outcome.exit_code,
-    )
-    _write(output)
-    return outcome.exit_code
+    _write(response.payload)
+    return response.exit_code
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.command == "execute" and args.contract_id is None:
+    application = PhaseApplication()
+    if args.command == "doctor":
+        response = application.doctor()
+        _write_json(response.payload)
+        return response.exit_code
+    if args.command == "contracts":
+        response = (
+            application.contracts_list()
+            if args.contracts_command == "list"
+            else application.contract_describe(args.contract)
+        )
+        _write_json(response.payload)
+        return response.exit_code
+    if args.command == "mcp":
+        from ..mcp_server import main as mcp_main
+
+        return mcp_main()
+    if args.command == "execute" and args.contract is None and args.contract_id is None:
         output = _envelope(
             "execute",
             success=False,
@@ -157,23 +183,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             roots = dict(args.root)
             if len(roots) != len(args.root):
                 raise PhaseError("cli.duplicate_binding")
-            inspected = inspect_run(args.evidence_root, args.run_id, root_bindings=roots)
-            _write(_envelope(
-                "inspect",
-                success=True,
-                run_id=inspected["run_id"],
-                terminal_status=inspected["terminal_status"],
-                execution_disposition=inspected["execution_disposition"],
-                mutation_attempted=inspected["mutation_attempted"],
-                effect_plan_digest=inspected["effect_plan_digest"],
-                intent_digest=inspected["intent_digest"],
-                receipt_digest=inspected["receipt_digest"],
-                blockers=[],
-                target_verified=inspected["target_verified"],
-                error=None,
-                exit_code=0,
-            ))
-            return 0
+            response = application.inspect(
+                evidence_root=args.evidence_root,
+                run_id=args.run_id,
+                root_bindings=roots,
+            )
+            _write(response.payload)
+            return response.exit_code
     except (PhaseError, OSError, ValueError) as exc:
         code = exc.code if isinstance(exc, PhaseError) else "cli.failure"
         _write(_envelope(

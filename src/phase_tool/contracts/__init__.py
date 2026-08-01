@@ -20,8 +20,15 @@ def _create_knowledge_admission_hook() -> Any:
     return create_contract_hook()
 
 
+def _create_publish_new_version_hook() -> Any:
+    from .publish_new_version_v1 import create_contract_hook
+
+    return create_contract_hook()
+
+
 _CONTRACT_HOOK_FACTORIES = {
     "builtin.knowledge_admission_v1": _create_knowledge_admission_hook,
+    "builtin.publish_new_version_v1": _create_publish_new_version_hook,
     "builtin.source_admission_v1": _create_source_admission_hook,
 }
 

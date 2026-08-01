@@ -134,15 +134,22 @@ def _read_descriptor(descriptor: int) -> bytes:
         chunks.append(chunk)
 
 
-def _windows_leaf_descriptor(path: Path, *, create_new: bool, locator: str) -> int:
+def _windows_leaf_descriptor(
+    path: Path,
+    *,
+    create_new: bool,
+    locator: str,
+    writable: bool = False,
+    deny_write_sharing: bool = False,
+) -> int:
     if os.name != "nt":
         raise AssertionError("Windows-only leaf authority")
-    access = _GENERIC_READ | (_GENERIC_WRITE if create_new else 0)
+    access = _GENERIC_READ | (_GENERIC_WRITE if create_new or writable else 0)
     creation = _CREATE_NEW if create_new else _OPEN_EXISTING
     handle = _kernel32.CreateFileW(
         _platform_path(path),
         access,
-        _FILE_SHARE_READ | _FILE_SHARE_WRITE,
+        _FILE_SHARE_READ | (0 if deny_write_sharing else _FILE_SHARE_WRITE),
         None,
         creation,
         _FILE_ATTRIBUTE_NORMAL | _FILE_FLAG_OPEN_REPARSE_POINT | (0 if create_new else _FILE_FLAG_BACKUP_SEMANTICS),
@@ -166,7 +173,7 @@ def _windows_leaf_descriptor(path: Path, *, create_new: bool, locator: str) -> i
             raise PhaseError("path.special_forbidden", locator)
         import msvcrt
 
-        flags = os.O_RDWR if create_new else os.O_RDONLY
+        flags = os.O_RDWR if create_new or writable else os.O_RDONLY
         flags |= getattr(os, "O_BINARY", 0)
         descriptor = msvcrt.open_osfhandle(int(handle), flags)
         handle = None
@@ -346,6 +353,19 @@ class TargetAuthority:
             assert self.parent_fd is not None
             return os.open(self.name, flags, 0o600, dir_fd=self.parent_fd)
         raise AssertionError("unreachable")
+
+    def open_existing(self, *, writable: bool = False, deny_write_sharing: bool = False) -> int:
+        if os.name == "nt":
+            return _windows_leaf_descriptor(
+                self.target,
+                create_new=False,
+                locator=self.locator,
+                writable=writable,
+                deny_write_sharing=deny_write_sharing,
+            )
+        flags = (os.O_RDWR if writable else os.O_RDONLY) | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        assert self.parent_fd is not None
+        return os.open(self.name, flags, dir_fd=self.parent_fd)
 
     def readback(self, override: bytes | None, descriptor: int | None = None) -> dict[str, object]:
         if override is not None:

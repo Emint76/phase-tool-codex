@@ -77,7 +77,7 @@
       "additionalProperties": false,
       "required": ["intent", "mechanism", "allowed_effects", "effect_order", "atomicity_claim", "maximum_effects"],
       "properties": {
-        "intent": {"enum": ["create", "append", "copy", "correction"]},
+        "intent": {"enum": ["create", "append", "copy", "correction", "publish_new_version"]},
         "mechanism": {
           "type": "object",
           "additionalProperties": false,
@@ -111,7 +111,7 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"enum": ["exclusive_create", "append_record", "copy_blob"]}
+          "items": {"enum": ["exclusive_create", "append_record", "copy_blob", "publish_new_version"]}
         },
         "effect_order": {"const": "static_predeclared"},
         "atomicity_claim": {"enum": ["none", "single_effect", "per_effect"]},

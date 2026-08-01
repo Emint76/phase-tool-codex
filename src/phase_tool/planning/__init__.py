@@ -175,6 +175,7 @@ def build_static_plan(
             "on_failure": "stop_and_classify",
         })
     elif (hook := load_contract_hook(contract)) is not None:
+        setattr(hook, "_root_bindings", root_bindings)
         effects.extend(hook.build_effects(contract, value, frozen_inputs, run_id=run_id, generated_at=generated_at))
     elif operation["intent"] == "copy":
         frozen = frozen_inputs.get(value["input_binding"])
@@ -245,3 +246,20 @@ def validate_static_plan(
             raise PhaseError("plan.source_binding_mismatch")
         if source["kind"] == "frozen_input" and source["binding_id"] != effect["input_binding"]:
             raise PhaseError("plan.source_binding_mismatch")
+        if effect["kind"] == "publish_new_version":
+            archive_target = effect.get("archive_target")
+            if not isinstance(archive_target, Mapping):
+                raise PhaseError("plan.archive_target_missing", str(effect["effect_id"]))
+            if archive_target["root_binding"] not in required_roots:
+                raise PhaseError("plan.root_binding_unknown", archive_target["root_binding"])
+            archive_locator = safe_relative_locator(str(archive_target["relative_locator"]))
+            if effect.get("archive_digest") != effect["preconditions"]["expected_digest"]:
+                raise PhaseError("plan.archive_binding_mismatch", str(effect["effect_id"]))
+            if effect.get("archive_length") is None:
+                raise PhaseError("plan.archive_binding_mismatch", str(effect["effect_id"]))
+            archive_hex = str(effect["archive_digest"]).removeprefix("sha256:")
+            expected_archive_locator = f"archive/sha256/{archive_hex[:2]}/{archive_hex}"
+            if archive_locator != expected_archive_locator:
+                raise PhaseError("plan.archive_binding_mismatch", str(effect["effect_id"]))
+            if archive_target == effect["target"]:
+                raise PhaseError("publish.target_archive_collision")

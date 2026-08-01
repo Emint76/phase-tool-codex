@@ -1,0 +1,8 @@
+{
+  "capability": "contract_hook",
+  "descriptor_version": "1.0",
+  "execution_allowed": true,
+  "id": "publish_new_version.runtime_v1",
+  "implementation_id": "builtin.publish_new_version_v1",
+  "version": "1.0.0"
+}

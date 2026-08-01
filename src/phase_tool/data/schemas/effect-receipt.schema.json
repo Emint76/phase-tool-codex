@@ -9,11 +9,14 @@
     "effect_receipt_version": {"const": "1.0"},
     "run_id": {"$ref": "#/$defs/runId"},
     "effect_id": {"$ref": "#/$defs/identifier"},
-    "kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]},
+    "kind": {"enum": ["exclusive_create", "append_record", "copy_blob", "publish_new_version"]},
     "status": {"enum": ["not_attempted", "applied_verified", "failed_no_effect", "failed_partial", "applied_unverified", "indeterminate"]},
     "attempted": {"type": "boolean"},
     "before": {"$ref": "#/$defs/observedState"},
     "after": {"$ref": "#/$defs/observedState"},
+    "archive_target": {"$ref": "#/$defs/target"},
+    "archive_before": {"$ref": "#/$defs/observedState"},
+    "archive_after": {"$ref": "#/$defs/observedState"},
     "bytes_written": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
     "operation_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
     "request_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
@@ -64,6 +67,14 @@
     {
       "if": {"required": ["status"], "properties": {"status": {"const": "indeterminate"}}},
       "then": {"properties": {"attempted": {"const": true}, "error": {"type": "object"}}}
+    },
+    {
+      "if": {"required": ["kind"], "properties": {"kind": {"const": "publish_new_version"}}},
+      "then": {"required": ["archive_target", "archive_before", "archive_after"]}
+    },
+    {
+      "if": {"required": ["kind"], "properties": {"kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]}}},
+      "then": {"not": {"anyOf": [{"required": ["archive_target"]}, {"required": ["archive_before"]}, {"required": ["archive_after"]}]}}
     }
   ],
   "$defs": {
@@ -81,6 +92,22 @@
         "length": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
         "head_token": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 512}]}
       }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_binding", "relative_locator"],
+      "properties": {
+        "root_binding": {"$ref": "#/$defs/identifier"},
+        "relative_locator": {"$ref": "#/$defs/relativeLocator"}
+      }
+    },
+    "relativeLocator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?(?:/[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?)*$",
+      "not": {"pattern": "(?:^|/)(?:[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[A-Za-z0-9_{}.-]+)?(?:/|$)"}
     }
   }
 }

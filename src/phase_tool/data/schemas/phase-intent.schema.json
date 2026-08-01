@@ -60,7 +60,7 @@
       "additionalProperties": false,
       "required": ["intent", "mechanism"],
       "properties": {
-        "intent": {"enum": ["create", "append", "copy", "correction"]},
+        "intent": {"enum": ["create", "append", "copy", "correction", "publish_new_version"]},
         "mechanism": {"$ref": "#/$defs/exactBinding"}
       }
     },

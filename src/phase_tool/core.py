@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from jsonschema.exceptions import ValidationError
+
 from . import __version__
 from .candidate import CapturedCandidate, capture_structured, normalize_captured_structured
 from .canonical import digest_bytes, parse_json_bytes, profile_digest
@@ -128,6 +130,8 @@ class PhaseCore:
     @staticmethod
     def _check_idempotency(
         store: EvidenceStore,
+        contract: ResolvedContract,
+        registry: RegistrySnapshot,
         key: str | None,
         scope_digest: str,
         request_digest: str,
@@ -141,7 +145,11 @@ class PhaseCore:
         for path in iter_run_artifacts(runs_root, "intent.json"):
             if path.parent == store.run_root:
                 continue
-            intent = parse_json_bytes(read_evidence_bytes(path))
+            try:
+                intent = parse_json_bytes(read_evidence_bytes(path))
+                validate_intent(intent, registry)
+            except (PhaseError, ValidationError, OSError) as exc:
+                raise PhaseError("idempotency.prior_inspection_required", path.parent.name) from exc
             prior = intent.get("idempotency", {})
             if prior.get("key") == key and prior.get("scope_digest") == scope_digest and prior.get("request_digest") != request_digest:
                 raise PhaseError("idempotency.same_key_conflict", key)
@@ -152,17 +160,29 @@ class PhaseCore:
                 if not evidence_file_exists(receipt_path):
                     if intent.get("execution_requested") is False:
                         continue
+                    try:
+                        inspected = inspect_run(store.evidence_root, path.parent.name, registry, root_bindings=root_bindings)
+                    except (PhaseError, ValidationError) as exc:
+                        raise PhaseError("idempotency.prior_inspection_required", str(exc)) from exc
+                    if inspected.get("state_classification") in {"no_effect_observed", "archived_not_published", "published_not_finalized"}:
+                        continue
                     raise PhaseError("idempotency.prior_inspection_required", path.parent.name)
                 receipt = parse_json_bytes(read_evidence_bytes(receipt_path))
                 if receipt.get("terminal_status") == "validated_planned":
                     continue
                 if receipt.get("terminal_status") != "succeeded_verified":
+                    try:
+                        inspected = inspect_run(store.evidence_root, path.parent.name, registry, root_bindings=root_bindings)
+                    except (PhaseError, ValidationError) as exc:
+                        raise PhaseError("idempotency.prior_inspection_required", str(exc)) from exc
+                    if inspected.get("state_classification") in {"no_effect_observed", "archived_not_published", "published_not_finalized"}:
+                        continue
                     raise PhaseError("idempotency.prior_inspection_required", path.parent.name)
                 if receipt.get("evidence", {}).get("finalization_status") != "finalized":
                     raise PhaseError("idempotency.prior_inspection_required", path.parent.name)
                 try:
                     inspected = inspect_run(store.evidence_root, path.parent.name, root_bindings=root_bindings)
-                except PhaseError as exc:
+                except (PhaseError, ValidationError) as exc:
                     raise PhaseError("idempotency.prior_result_changed", str(exc)) from exc
                 if inspected.get("target_verified") is not True:
                     raise PhaseError("idempotency.prior_result_changed", path.parent.name)
@@ -674,7 +694,7 @@ class PhaseCore:
         latest_progress: dict[str, Any] | None = None
         runner = ValidatorRunner(self.registry)
         try:
-            reused = self._check_idempotency(store, key, scope_digest, request_digest, request.root_bindings, execute=execute)
+            reused = self._check_idempotency(store, contract, self.registry, key, scope_digest, request_digest, request.root_bindings, execute=execute)
             if execute and reused is not None:
                 receipt = self._reused_receipt(request, [], timestamp, reused[0], reused[1])
                 validate_receipt(receipt, self.registry)

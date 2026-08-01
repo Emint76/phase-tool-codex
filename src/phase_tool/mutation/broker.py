@@ -20,6 +20,7 @@ from ..registry import RegistrySnapshot, ResolvedContract
 from .content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy
 from .exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
 from .expected_head_append import AppendRecordFaults, execute_append_record
+from .archive_then_publish import ArchiveThenPublishFaults, execute_archive_then_publish
 from .target_authority import TargetRootLock
 
 
@@ -28,6 +29,7 @@ class BrokerFaults:
     exclusive_create: ExclusiveCreateFaults | None = None
     append_record: AppendRecordFaults | None = None
     content_addressed_copy: ContentAddressedCopyFaults | None = None
+    archive_then_publish: ArchiveThenPublishFaults | None = None
     content_addressed_copy_fail_after_bytes: int | None = None
     mutate_plan_after_intent: bool = False
     before_mechanism: Callable[[Path], None] | None = None
@@ -164,7 +166,7 @@ class EffectBroker:
         if intent.get("execution_requested") is not True:
             raise PhaseError("broker.execution_not_requested")
         effects = locked_plan["effects"]
-        if not effects or any(effect["kind"] not in {"exclusive_create", "append_record", "copy_blob"} for effect in effects):
+        if not effects or any(effect["kind"] not in {"exclusive_create", "append_record", "copy_blob", "publish_new_version"} for effect in effects):
             raise PhaseError("broker.plan_not_executable")
         receipts = receipt_sink if receipt_sink is not None else []
         hook = load_contract_hook(contract)
@@ -181,6 +183,7 @@ class EffectBroker:
                 ("mechanism.exclusive_create_v1", "1.0.0"),
                 ("mechanism.expected_head_append_v1", "1.0.0"),
                 ("content_addressed_copy", "1.0.0"),
+                ("mechanism.archive_then_publish_v1", "1.0.0"),
             }
             if (mechanism["id"], mechanism["version"]) not in supported:
                 raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
@@ -277,6 +280,15 @@ class EffectBroker:
                 timestamp=timestamp,
                 operational_lock_root=intent_path.parent.parent.parent / "locks",
                 faults=active.append_record,
+            )
+        if effect["kind"] == "publish_new_version":
+            return execute_archive_then_publish(
+                effect,
+                target_root,
+                content,
+                run_id=str(intent.get("run_id")),
+                timestamp=timestamp,
+                faults=active.archive_then_publish,
             )
         copy_faults = active.content_addressed_copy
         if active.content_addressed_copy_fail_after_bytes is not None:

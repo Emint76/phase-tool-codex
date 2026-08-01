@@ -1,0 +1,8 @@
+{
+  "capability": "mutation_mechanism",
+  "descriptor_version": "1.0",
+  "execution_allowed": true,
+  "id": "mechanism.archive_then_publish_v1",
+  "implementation": "effect_broker_builtin",
+  "version": "1.0.0"
+}

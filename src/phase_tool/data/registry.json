@@ -89,14 +89,14 @@
     },
     {
       "artifact": "contracts/fixture_append.v1.json",
-      "artifact_digest": "sha256:b4bd5ae7eaa9fec1ee64ac4d579122faa21008f8c14fff0ae5cc4f20cb77aaa0",
+      "artifact_digest": "sha256:8d5bdc7b62c41972e934ee0fd2ab37c4ff8ed7078ca96acf678a5034b1b72796",
       "capability": "operation_contract",
       "id": "fixture_append.v1",
       "kind": "contract",
       "mutable": false,
       "package_artifacts": [
         {
-          "digest": "sha256:b4bd5ae7eaa9fec1ee64ac4d579122faa21008f8c14fff0ae5cc4f20cb77aaa0",
+          "digest": "sha256:8d5bdc7b62c41972e934ee0fd2ab37c4ff8ed7078ca96acf678a5034b1b72796",
           "resource": "contracts/fixture_append.v1.json"
         },
         {
@@ -112,7 +112,7 @@
           "resource": "schemas/phase-receipt.schema.json"
         }
       ],
-      "package_digest": "sha256:869521e1260d2b25cfec1c43cf9f944b86f782449a1afc97f3a502ab71ad388a",
+      "package_digest": "sha256:fb5a979b9d0d2466494ce080e7852397eb5afa6a6bff5e084a7a36b04f80fb55",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
     },
@@ -225,14 +225,14 @@
     },
     {
       "artifact": "contracts/publish_new_version.v1.json",
-      "artifact_digest": "sha256:073b60dfbf0f6191b0ec0492b7bfc036eda3490e785f759cc0d3a8d92759f250",
+      "artifact_digest": "sha256:caa87a384abd07c8ba40c8dc0254d60ef475011c83e51ae038bfe49dd134dcac",
       "capability": "operation_contract",
       "id": "publish_new_version.v1",
       "kind": "contract",
       "mutable": false,
       "package_artifacts": [
         {
-          "digest": "sha256:073b60dfbf0f6191b0ec0492b7bfc036eda3490e785f759cc0d3a8d92759f250",
+          "digest": "sha256:caa87a384abd07c8ba40c8dc0254d60ef475011c83e51ae038bfe49dd134dcac",
           "resource": "contracts/publish_new_version.v1.json"
         },
         {
@@ -268,20 +268,20 @@
           "resource": "descriptors/validator/publish_new_version.result_v1.json"
         }
       ],
-      "package_digest": "sha256:86a79002a91cb0a97be784b60029624f3a6f52fa5c839ba37cd64caa2abbf363",
+      "package_digest": "sha256:fc1faa86559683ad38789dffb72f98ba7e14fc4c27373a91a29bf237ba69d0b4",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
     },
     {
       "artifact": "contracts/source_admission.v1.json",
-      "artifact_digest": "sha256:a5c5b531c47999393341fe6071b576ab4583d38dcc093aab3e7f55f6bc46c77c",
+      "artifact_digest": "sha256:25a3f8e5a2a37d21c2880df89c47a9054b003d54fe6dc54f1c31452ee557b7a5",
       "capability": "operation_contract",
       "id": "source_admission.v1",
       "kind": "contract",
       "mutable": false,
       "package_artifacts": [
         {
-          "digest": "sha256:a5c5b531c47999393341fe6071b576ab4583d38dcc093aab3e7f55f6bc46c77c",
+          "digest": "sha256:25a3f8e5a2a37d21c2880df89c47a9054b003d54fe6dc54f1c31452ee557b7a5",
           "resource": "contracts/source_admission.v1.json"
         },
         {
@@ -317,20 +317,20 @@
           "resource": "descriptors/contract_hook/source_admission.runtime_v1.json"
         }
       ],
-      "package_digest": "sha256:fa86dd0da4077c648684ad8267bf904b1387c6c09b30f6e689d4516a5493c0f3",
+      "package_digest": "sha256:579a0c52074e864dffe38ecdb75be5b4e393bf55246c0259dbf229be379e9b1c",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
     },
     {
       "artifact": "contracts/task_journal.v1.json",
-      "artifact_digest": "sha256:addd3762ac791be39bea320636db96c3dd539a448f6d03ea81523dea28f987db",
+      "artifact_digest": "sha256:222035417611524cedeb92908ce311ae43b2255f7be24f2e82b9af6719f4d96e",
       "capability": "operation_contract",
       "id": "task_journal.v1",
       "kind": "contract",
       "mutable": false,
       "package_artifacts": [
         {
-          "digest": "sha256:addd3762ac791be39bea320636db96c3dd539a448f6d03ea81523dea28f987db",
+          "digest": "sha256:222035417611524cedeb92908ce311ae43b2255f7be24f2e82b9af6719f4d96e",
           "resource": "contracts/task_journal.v1.json"
         },
         {
@@ -346,7 +346,7 @@
           "resource": "schemas/phase-receipt.schema.json"
         }
       ],
-      "package_digest": "sha256:898b509afa603ee45a34bd1055cfd1a0f3ebda860b7546d606b4689a7e5da21b",
+      "package_digest": "sha256:eaed05830916e88076831dc3df39c70ac9807e0ef3d7e627ad2b01d775912fd8",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
     },

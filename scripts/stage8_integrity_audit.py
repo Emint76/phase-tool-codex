@@ -10,6 +10,8 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from phase_tool.canonical import canonical_digest
+
 
 def digest(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
@@ -32,11 +34,20 @@ def main() -> int:
             errors.append(f"duplicate registry entry {key!r}")
         entry_keys.add(key)
 
+    package_artifacts: dict[str, str] = {}
     artifacts: dict[str, str] = {}
     for entry in entries:
+        resource = entry["artifact"]
+        expected = entry["artifact_digest"]
+        prior = artifacts.setdefault(resource, expected)
+        if prior != expected:
+            errors.append(f"conflicting artifact digest {resource}")
         for artifact in entry.get("package_artifacts", []):
             resource = artifact["resource"]
             expected = artifact["digest"]
+            prior = package_artifacts.setdefault(resource, expected)
+            if prior != expected:
+                errors.append(f"conflicting package artifact digest {resource}")
             prior = artifacts.setdefault(resource, expected)
             if prior != expected:
                 errors.append(f"conflicting artifact digest {resource}")
@@ -55,6 +66,20 @@ def main() -> int:
                 schemas_checked += 1
             except Exception as exc:
                 errors.append(f"invalid schema {resource}: {type(exc).__name__}: {exc}")
+
+    for entry in entries:
+        declared = entry.get("package_artifacts")
+        if declared is None:
+            continue
+        actual = [
+            {
+                "resource": item["resource"],
+                "digest": digest(resources.files("phase_tool.data").joinpath(item["resource"]).read_bytes()),
+            }
+            for item in declared
+        ]
+        if canonical_digest({"profile": "phase_contract_package_v1", "artifacts": actual}) != entry["package_digest"]:
+            errors.append(f"package digest mismatch {entry['id']}")
 
     contract_bindings = {
         f"{entry['id']}@{entry['version']}"
@@ -85,6 +110,11 @@ def main() -> int:
 
     with zipfile.ZipFile(args.wheel) as archive:
         wheel_names = set(archive.namelist())
+        wheel_registry = "phase_tool/data/registry.json"
+        if wheel_registry not in wheel_names:
+            errors.append(f"wheel missing {wheel_registry}")
+        elif archive.read(wheel_registry) != registry_path.read_bytes():
+            errors.append(f"wheel registry mismatch {wheel_registry}")
         for resource, expected in artifacts.items():
             name = f"phase_tool/data/{resource}"
             if name not in wheel_names:
@@ -98,7 +128,8 @@ def main() -> int:
         "registry_entries": len(entries),
         "registry_unique_entries": len(entry_keys),
         "contract_bindings": len(contract_bindings),
-        "package_artifacts": len(artifacts),
+        "artifacts": len(artifacts),
+        "package_artifacts": len(package_artifacts),
         "schemas_checked": schemas_checked,
         "manifest_entries": manifest_entries,
         "manifest_unique_entries": len(manifest_seen),

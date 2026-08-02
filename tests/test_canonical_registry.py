@@ -1,13 +1,27 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 
-from phase_tool.canonical import canonical_bytes, canonical_digest, parse_json_bytes
+from phase_tool.canonical import canonical_bytes, canonical_digest, digest_bytes, parse_json_bytes
 from phase_tool.errors import PhaseError
 from phase_tool.registry import BundledRegistry, RegistrySnapshot
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _git_index_bytes(path: str) -> bytes:
+    return subprocess.run(
+        ["git", "show", f":{path}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
 
 
 def test_phase_canonical_json_v1_has_exact_bytes() -> None:
@@ -32,6 +46,55 @@ def test_exact_bundled_contract_resolution_succeeds() -> None:
     assert resolved.document["identity"]["id"] == "fixture_append.v1"
     assert resolved.package_digest == binding["package_digest"]
     assert resolved.registry_snapshot_digest == registry.digest
+
+
+def test_registry_digests_match_git_index_and_package_resources() -> None:
+    registry = BundledRegistry.load()
+    resources = BundledRegistry.resources()
+    for entry in registry.to_document()["entries"]:
+        artifact = entry["artifact"]
+        committed = _git_index_bytes(f"src/phase_tool/data/{artifact}")
+        assert resources[artifact] == committed, artifact
+        assert entry["artifact_digest"] == digest_bytes(committed), artifact
+
+        package_artifacts = entry.get("package_artifacts")
+        if package_artifacts is None:
+            continue
+        verified = []
+        for item in package_artifacts:
+            committed = _git_index_bytes(f"src/phase_tool/data/{item['resource']}")
+            assert resources[item["resource"]] == committed, item["resource"]
+            assert item["digest"] == digest_bytes(committed), item["resource"]
+            verified.append({"resource": item["resource"], "digest": digest_bytes(committed)})
+        assert entry["package_digest"] == canonical_digest(
+            {"profile": "phase_contract_package_v1", "artifacts": verified}
+        ), entry["id"]
+
+
+def test_hash_bound_text_artifacts_are_forced_to_lf() -> None:
+    registry = BundledRegistry.load().to_document()
+    paths = {"src/phase_tool/data/registry.json", "fixtures/manifest.sha256"}
+    paths.update(f"src/phase_tool/data/{entry['artifact']}" for entry in registry["entries"])
+    paths.update(
+        f"src/phase_tool/data/{item['resource']}"
+        for entry in registry["entries"]
+        for item in entry.get("package_artifacts", [])
+    )
+    for line in (ROOT / "fixtures" / "manifest.sha256").read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith("#"):
+            locator = line.split("  ", 1)[1]
+            if Path(locator).suffix in {".json", ".md", ".sha256", ".txt"}:
+                paths.add(locator)
+
+    completed = subprocess.run(
+        ["git", "check-attr", "-z", "eol", "--", *sorted(paths)],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    fields = completed.stdout.decode("utf-8").split("\0")
+    attributes = dict(zip(fields[0::3], fields[2::3]))
+    assert attributes == {path: "lf" for path in sorted(paths)}
 
 
 def test_wrong_contract_digest_and_version_fail_closed() -> None:

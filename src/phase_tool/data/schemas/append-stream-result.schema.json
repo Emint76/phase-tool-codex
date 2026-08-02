@@ -1,0 +1,36 @@
+{
+  "$id": "https://phase-tool.local/schemas/append-stream-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "content_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "head": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "record_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "relative_locator": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "stream_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "stream_id",
+    "record_id",
+    "head",
+    "relative_locator",
+    "content_digest"
+  ],
+  "title": "Append Stream Result v1",
+  "type": "object"
+}

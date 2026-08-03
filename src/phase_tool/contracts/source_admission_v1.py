@@ -332,7 +332,9 @@ class SourceAdmissionHook:
         *,
         run_id: str,
         generated_at: str,
+        root_bindings: Mapping[str, Path] | None = None,
     ) -> list[dict[str, Any]]:
+        del root_bindings
         frozen = frozen_inputs.get(ASSET_BINDING)
         if frozen is None:
             raise PhaseError("input.required_missing", ASSET_BINDING)
@@ -374,7 +376,9 @@ class SourceAdmissionHook:
         frozen_inputs: Mapping[str, FrozenInput],
         target_root: Path,
         evidence_root: Path | None = None,
+        root_bindings: Mapping[str, Path] | None = None,
     ) -> None:
+        del root_bindings
         if not isinstance(value, Mapping) or effect.get("kind") != "exclusive_create":
             return
         frozen = frozen_inputs.get(ASSET_BINDING)

@@ -1,0 +1,8 @@
+{
+  "capability": "validator",
+  "descriptor_version": "1.0",
+  "execution_allowed": true,
+  "id": "publish_new_version.preconditions_v2",
+  "implementation": "contract_hook_builtin",
+  "version": "1.0.0"
+}

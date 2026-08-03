@@ -21,6 +21,7 @@ from .content_addressed_copy import ContentAddressedCopyFaults, execute_content_
 from .exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
 from .expected_head_append import AppendRecordFaults, execute_append_record
 from .archive_then_publish import ArchiveThenPublishFaults, execute_archive_then_publish
+from .object_store_publish import ObjectStorePublishFaults, execute_object_store_publish
 from .target_authority import TargetRootLock
 
 
@@ -30,6 +31,7 @@ class BrokerFaults:
     append_record: AppendRecordFaults | None = None
     content_addressed_copy: ContentAddressedCopyFaults | None = None
     archive_then_publish: ArchiveThenPublishFaults | None = None
+    object_store_publish: ObjectStorePublishFaults | None = None
     content_addressed_copy_fail_after_bytes: int | None = None
     mutate_plan_after_intent: bool = False
     before_mechanism: Callable[[Path], None] | None = None
@@ -184,6 +186,7 @@ class EffectBroker:
                 ("mechanism.expected_head_append_v1", "1.0.0"),
                 ("content_addressed_copy", "1.0.0"),
                 ("mechanism.archive_then_publish_v1", "1.0.0"),
+                ("mechanism.object_store_publish_v2", "1.0.0"),
             }
             if (mechanism["id"], mechanism["version"]) not in supported:
                 raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
@@ -200,10 +203,16 @@ class EffectBroker:
             else:
                 context = None
             if context is None:
-                receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, evidence_root, timestamp)
+                receipt = self._execute_one(
+                    active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path,
+                    ordinal, target_root, root_bindings, evidence_root, timestamp
+                )
             else:
                 with context:
-                    receipt = self._execute_one(active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path, ordinal, target_root, evidence_root, timestamp)
+                    receipt = self._execute_one(
+                        active, candidate, contract, effect, frozen_inputs, hook, intent, intent_path,
+                        ordinal, target_root, root_bindings, evidence_root, timestamp
+                    )
             self._receipt_validator.validate(receipt)
             receipts.append(receipt)
             if progress_callback is not None:
@@ -224,12 +233,21 @@ class EffectBroker:
         intent_path: Path,
         ordinal: int,
         target_root: Path,
+        root_bindings: Mapping[str, Path],
         evidence_root: Path | None,
         timestamp: str,
     ) -> dict[str, object]:
         try:
             if hook is not None and hasattr(hook, "before_effect"):
-                hook.before_effect(candidate, contract, effect, frozen_inputs, target_root, evidence_root=evidence_root)
+                hook.before_effect(
+                    candidate,
+                    contract,
+                    effect,
+                    frozen_inputs,
+                    target_root,
+                    evidence_root=evidence_root,
+                    root_bindings=root_bindings,
+                )
             if active.before_effect and ordinal in active.before_effect:
                 active.before_effect[ordinal](intent_path)
             if effect.get("content_blob_digest") is not None:
@@ -282,6 +300,22 @@ class EffectBroker:
                 faults=active.append_record,
             )
         if effect["kind"] == "publish_new_version":
+            mechanism = effect.get("mechanism", contract.document["operation"]["mechanism"])
+            if mechanism["id"] == "mechanism.object_store_publish_v2":
+                objects_binding = effect["archive_target"]["root_binding"]
+                try:
+                    objects_root = Path(root_bindings[objects_binding]).resolve(strict=True)
+                except KeyError as exc:
+                    raise PhaseError("plan.root_binding_missing", str(objects_binding)) from exc
+                return execute_object_store_publish(
+                    effect,
+                    target_root,
+                    objects_root,
+                    content,
+                    run_id=str(intent.get("run_id")),
+                    timestamp=timestamp,
+                    faults=active.object_store_publish,
+                )
             return execute_archive_then_publish(
                 effect,
                 target_root,

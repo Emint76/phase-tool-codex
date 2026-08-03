@@ -291,7 +291,14 @@ def inspect_run(
                 setattr(hook, "_registry", registry)
                 contract_result = hook.inspect_result(data, state["digest"], target_root, receipt_digest, registry, evidence_root=root)
                 if hasattr(hook, "inspect_receipt_result"):
-                    receipt_result = hook.inspect_receipt_result(receipt, plan, target_root, registry, root)
+                    receipt_result = hook.inspect_receipt_result(
+                        receipt,
+                        plan,
+                        target_root,
+                        registry,
+                        root,
+                        root_bindings=root_bindings,
+                    )
                     if isinstance(contract_result, dict) and isinstance(receipt_result, dict):
                         contract_result = dict(contract_result) | receipt_result
                     else:

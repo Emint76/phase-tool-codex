@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fixture://schemas/publish-new-version-result.v2",
+  "title": "Publish New Version Result v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reference_version", "owner_id", "root_binding", "locator", "contract", "authority_rule", "state", "observed_at"],
+  "properties": {
+    "reference_version": {"const": "1.0"},
+    "owner_id": {"const": "publish_new_version.v2"},
+    "root_binding": {"const": "current_root"},
+    "locator": {"type": "string", "minLength": 1},
+    "contract": {"type": "object"},
+    "authority_rule": {"const": "authority.current_locator_v1"},
+    "state": {
+      "type": "object",
+      "required": ["exists", "digest", "length", "head_token"],
+      "properties": {
+        "exists": {"const": true},
+        "digest": {"$ref": "#/$defs/digest"},
+        "length": {"type": "integer", "minimum": 0},
+        "head_token": {"type": "null"}
+      }
+    },
+    "observed_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

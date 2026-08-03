@@ -75,6 +75,7 @@
         "mechanism": {"$ref": "#/$defs/exactBinding"},
         "target": {"$ref": "#/$defs/target"},
         "archive_target": {"$ref": "#/$defs/target"},
+        "content_object_target": {"$ref": "#/$defs/target"},
         "operation_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
         "request_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
         "record_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
@@ -99,6 +100,7 @@
         "locator_policy_id": {"enum": ["content_addressed_sha256_flat_v1", "content_addressed_sha256_sharded_v1"]},
         "content_blob_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
         "content_length": {"type": "integer", "minimum": 0},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 255},
         "content_bytes_b64": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$", "maxLength": 1398104}]},
         "preconditions": {"$ref": "#/$defs/preconditions"},
         "lock_scope": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identifier"}]},
@@ -120,7 +122,11 @@
         },
         {
           "if": {"properties": {"kind": {"const": "publish_new_version"}}},
-          "then": {"required": ["archive_target", "archive_digest", "archive_length"], "properties": {"input_binding": {"type": "string"}, "lock_scope": {"type": "string"}, "preconditions": {"properties": {"existence": {"const": "present"}, "expected_digest": {"type": "string"}, "expected_head": {"type": "null"}}}}}
+          "then": {"required": ["archive_target", "archive_digest", "archive_length"], "properties": {"lock_scope": {"type": "string"}, "preconditions": {"properties": {"existence": {"const": "present"}, "expected_digest": {"type": "string"}, "expected_head": {"type": "null"}}}}}
+        },
+        {
+          "if": {"required": ["mechanism"], "properties": {"mechanism": {"properties": {"id": {"const": "mechanism.object_store_publish_v2"}}}}},
+          "then": {"required": ["content_object_target", "content_blob_digest", "content_bytes_b64", "media_type"], "properties": {"input_binding": {"type": "null"}, "content_source": {"properties": {"kind": {"const": "captured_candidate"}, "binding_id": {"type": "null"}}}}}
         }
       ]
     }

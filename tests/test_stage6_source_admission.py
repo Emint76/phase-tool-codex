@@ -697,31 +697,83 @@ def test_source_mechanisms_keep_pinned_parent_authority_during_replacement(tmp_p
         swap["succeeded"] = True
 
     if mechanism == "blob":
-        receipt = execute_content_addressed_copy(
-            effect,
-            target_root,
-            content,
-            run_id="run-parent-race",
-            timestamp="2026-01-01T00:00:00Z",
+        execute = lambda: execute_content_addressed_copy(
+            effect, target_root, content, run_id="run-parent-race", timestamp="2026-01-01T00:00:00Z",
             faults=ContentAddressedCopyFaults(before_exclusive_create=replace_parent),
         )
     else:
-        receipt = execute_exclusive_create(
-            effect,
-            target_root,
-            content,
-            run_id="run-parent-race",
-            timestamp="2026-01-01T00:00:00Z",
+        execute = lambda: execute_exclusive_create(
+            effect, target_root, content, run_id="run-parent-race", timestamp="2026-01-01T00:00:00Z",
             faults=ExclusiveCreateFaults(before_exclusive_create=replace_parent),
         )
 
-    assert receipt["status"] == "applied_verified"
+    outcome: dict[str, object] | PhaseError
+    try:
+        outcome = execute()
+    except PhaseError as exc:
+        outcome = exc
     leaf = Path(locator).name
     if swap["succeeded"]:
+        assert isinstance(outcome, PhaseError)
+        assert outcome.code == "path.parent_identity_changed"
         moved_parent = swap["moved_parent"]
         assert isinstance(moved_parent, Path)
-        assert (moved_parent / leaf).read_bytes() == content
+        assert not (moved_parent / leaf).exists()
         assert not target_root.joinpath(*locator.split("/")).exists()
     else:
+        assert isinstance(outcome, dict)
+        assert outcome["status"] == "applied_verified"
         assert swap["blocked"] is True
         assert target_root.joinpath(*locator.split("/")).read_bytes() == content
+
+
+@pytest.mark.parametrize("mechanism", ["blob", "descriptor"])
+def test_source_mechanisms_report_indeterminate_if_parent_binding_changes_after_write(tmp_path: Path, mechanism: str) -> None:
+    if os.name == "nt":
+        pytest.skip("POSIX rename semantics required")
+    target_root = tmp_path / "target"
+    target_root.mkdir()
+    content = b"late-pinned-authority\n"
+    content_digest = digest_bytes(content)
+    if mechanism == "blob":
+        hex_digest = content_digest.split(":", 1)[1]
+        locator = f"blobs/sha256/{hex_digest[:2]}/{hex_digest}"
+        kind = "copy_blob"
+    else:
+        locator = "r/example/source-parent-race/source-result-late.json"
+        kind = "exclusive_create"
+    effect: dict[str, object] = {
+        "effect_id": f"effect.test.late.{mechanism}",
+        "kind": kind,
+        "content_digest": content_digest,
+        "content_length": len(content),
+        "target": {"root_binding": "target", "relative_locator": locator},
+    }
+    if mechanism == "blob":
+        effect["locator_policy_id"] = "content_addressed_sha256_sharded_v1"
+    moved_parent: Path | None = None
+
+    def replace_parent(target: Path) -> None:
+        nonlocal moved_parent
+        moved_parent = target.parent.with_name(target.parent.name + "-moved")
+        target.parent.rename(moved_parent)
+        target.parent.mkdir()
+
+    if mechanism == "blob":
+        receipt = execute_content_addressed_copy(
+            effect, target_root, content, run_id="run-late-parent-race", timestamp="2026-01-01T00:00:00Z",
+            faults=ContentAddressedCopyFaults(before_readback=replace_parent),
+        )
+    else:
+        receipt = execute_exclusive_create(
+            effect, target_root, content, run_id="run-late-parent-race", timestamp="2026-01-01T00:00:00Z",
+            faults=ExclusiveCreateFaults(before_readback=replace_parent),
+        )
+
+    assert receipt["status"] == "indeterminate"
+    assert receipt["error"]["code"] == "path.parent_identity_changed"
+    assert receipt["after"] == {"known": False, "exists": None, "digest": None, "length": None, "head_token": None}
+    assert receipt["bytes_written"] == len(content)
+    assert moved_parent is not None
+    assert (moved_parent / Path(locator).name).read_bytes() == content
+    assert not target_root.joinpath(*locator.split("/")).exists()

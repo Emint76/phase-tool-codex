@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -203,8 +204,8 @@ if __name__ == "__main__": main()
 def main() -> int:
     parser = argparse.ArgumentParser(description="Stage 6 real CLI acceptance harness")
     parser.add_argument("--tmp-root", type=Path, default=Path(".stage6-tmp") / "final-cli")
-    parser.add_argument("--phase", type=Path, default=Path(".venv") / "Scripts" / ("phase.exe" if os.name == "nt" else "phase"))
-    parser.add_argument("--python", type=Path, default=Path(".venv") / "Scripts" / ("python.exe" if os.name == "nt" else "python"))
+    parser.add_argument("--phase", type=Path)
+    parser.add_argument("--python", type=Path)
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
     root = args.tmp_root.resolve()
@@ -232,7 +233,8 @@ def main() -> int:
     for child in ("objects", "streams", "tasks"):
         (target / child).mkdir()
     env = os.environ.copy(); env.pop("PYTHONPATH", None)
-    phase = str(args.phase.resolve()); python = str(args.python.resolve())
+    phase = [str(args.phase.resolve())] if args.phase is not None else [sys.executable, "-m", "phase_tool"]
+    python = str(args.python.resolve()) if args.python is not None else sys.executable
     helper = root / "helpers" / "stage6_helper.py"
     helper.parent.mkdir(); helper.write_text(helper_text(), encoding="utf-8")
     source_binding = binding(repo, CONTRACT)
@@ -274,7 +276,7 @@ def main() -> int:
 
     def cli(name: str, command: str, argv: list[str], run_id: str | None, expect: dict[str, Any], payload: Path | None = None) -> dict[str, Any]:
         before = tree(target); sb = file_snapshot(payload)
-        result = run_process([phase, command, *argv], env)
+        result = run_process([*phase, command, *argv], env)
         record(name, result, run_id, before, tree(target), expect, sb, file_snapshot(payload))
         return result
 

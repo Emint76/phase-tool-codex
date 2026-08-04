@@ -108,6 +108,11 @@ def execute_exclusive_create(
         except Exception:
             authority.close()
             raise
+    try:
+        authority.assert_namespace_binding()
+    except Exception:
+        authority.close()
+        raise
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     if hasattr(os, "O_BINARY"):
         flags |= os.O_BINARY
@@ -180,7 +185,8 @@ def execute_exclusive_create(
         if active.readback_error:
             raise OSError("injected read-back failure")
         after = authority.readback(active.readback_override, descriptor)
-    except OSError as exc:
+        authority.assert_namespace_binding()
+    except (OSError, PhaseError) as exc:
         if descriptor is not None:
             os.close(descriptor)
             descriptor = None
@@ -195,7 +201,7 @@ def execute_exclusive_create(
             after=_unknown(),
             bytes_written=written,
             verification_refs=[],
-            error_code="verification.readback_failed",
+            error_code=exc.code if isinstance(exc, PhaseError) else "verification.readback_failed",
             error_message=str(exc),
         )
     if descriptor is not None:

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -196,7 +197,7 @@ def test_invalid_run_id_and_evidence_target_overlap_are_rejected_before_write(tm
 
 
 def test_standalone_cli_validate_plan_inspect_and_execute_refusal(tmp_path: Path) -> None:
-    phase = ROOT / ".venv" / "Scripts" / ("phase.exe" if os.name == "nt" else "phase")
+    phase = [sys.executable, "-m", "phase_tool"]
     candidate = tmp_path / "candidate.json"
     write_append(candidate)
     target = tmp_path / "target"
@@ -204,7 +205,7 @@ def test_standalone_cli_validate_plan_inspect_and_execute_refusal(tmp_path: Path
     evidence = tmp_path / "evidence"
     contract = exact("fixture_append.v1")
     base = [
-        str(phase),
+        *phase,
         "--contract-id", "fixture_append.v1",
         "--contract-version", "1.0.0",
         "--contract-digest", contract["package_digest"],
@@ -215,16 +216,16 @@ def test_standalone_cli_validate_plan_inspect_and_execute_refusal(tmp_path: Path
     ]
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
-    validate = subprocess.run([base[0], "validate", *base[1:], "--run-id", "cli-validate"], capture_output=True, text=True, env=env, check=False)
+    validate = subprocess.run([*phase, "validate", *base[len(phase):], "--run-id", "cli-validate"], capture_output=True, text=True, env=env, check=False)
     assert validate.returncode == 0, validate.stderr
     assert json.loads(validate.stdout)["terminal_status"] == "validated_planned"
-    plan = subprocess.run([base[0], "plan", *base[1:], "--run-id", "cli-plan"], capture_output=True, text=True, env=env, check=False)
+    plan = subprocess.run([*phase, "plan", *base[len(phase):], "--run-id", "cli-plan"], capture_output=True, text=True, env=env, check=False)
     assert plan.returncode == 0, plan.stderr
     assert json.loads(plan.stdout)["effect_plan_digest"].startswith("sha256:")
-    inspect = subprocess.run([str(phase), "inspect", "--evidence-root", str(evidence), "--run-id", "cli-plan"], capture_output=True, text=True, env=env, check=False)
+    inspect = subprocess.run([*phase, "inspect", "--evidence-root", str(evidence), "--run-id", "cli-plan"], capture_output=True, text=True, env=env, check=False)
     assert inspect.returncode == 0, inspect.stderr
     assert json.loads(inspect.stdout)["mutation_attempted"] is False
-    execute = subprocess.run([str(phase), "execute"], capture_output=True, text=True, env=env, check=False)
+    execute = subprocess.run([*phase, "execute"], capture_output=True, text=True, env=env, check=False)
     assert execute.returncode == 2
     assert execute.stdout == ""
     assert "mutation_execution_unavailable_in_stage_2" not in execute.stderr
@@ -232,7 +233,7 @@ def test_standalone_cli_validate_plan_inspect_and_execute_refusal(tmp_path: Path
     assert "--evidence-root" in execute.stderr
     assert "--run-id" in execute.stderr
     failure = subprocess.run(
-        [str(phase), "inspect", "--evidence-root", str(tmp_path / "missing"), "--run-id", "missing-run"],
+        [*phase, "inspect", "--evidence-root", str(tmp_path / "missing"), "--run-id", "missing-run"],
         capture_output=True,
         text=True,
         env=env,

@@ -72,9 +72,9 @@ def write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
 
 
-def cli(phase: Path, operation: str, *, contract: str | None = None, candidate: Path | None = None,
+def cli(phase: list[str], operation: str, *, contract: str | None = None, candidate: Path | None = None,
         evidence: Path, run_id: str, payload: Path | None = None, target: Path) -> dict[str, Any]:
-    command = [str(phase), operation]
+    command = [*phase, operation]
     if contract is not None:
         command += ["--contract", contract, "--candidate", str(candidate), "--input", f"asset={payload}", "--timestamp", NOW]
     command += ["--evidence-root", str(evidence), "--run-id", run_id, "--root", f"admission_result_root={target}"]
@@ -133,7 +133,7 @@ def main() -> int:
     if root.exists():
         shutil.rmtree(root)
     root.mkdir(parents=True)
-    phase = args.phase or repository / ".venv" / "Scripts" / ("phase.exe" if os.name == "nt" else "phase")
+    phase = [str(args.phase.resolve())] if args.phase is not None else [sys.executable, "-m", "phase_tool"]
 
     target = root / "target"
     target.mkdir()

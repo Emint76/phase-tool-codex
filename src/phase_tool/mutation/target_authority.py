@@ -247,6 +247,7 @@ class TargetAuthority:
         self.name = self.target.name
         self._handles: list[object] = []
         self.parent_fd: int | None = None
+        self._namespace_bindings: list[tuple[Path, tuple[int, int]]] = []
         try:
             self._prepare_and_pin_parent()
         except Exception:
@@ -271,16 +272,28 @@ class TargetAuthority:
                 if not current.is_dir():
                     raise PhaseError("path.parent_missing", self.locator)
                 self._handles.append(_WindowsPinnedDirectory(current, self.locator))
+            if self.target.is_symlink():
+                raise PhaseError("path.link_forbidden", self.locator)
+            if self.reparse_detector(self.target):
+                raise PhaseError("path.reparse_forbidden", self.locator)
             return
         flags = os.O_RDONLY
         if hasattr(os, "O_DIRECTORY"):
             flags |= os.O_DIRECTORY
         if hasattr(os, "O_NOFOLLOW"):
             flags |= os.O_NOFOLLOW
+        if self.reparse_detector(self.root):
+            raise PhaseError("path.reparse_forbidden", self.locator)
         root_fd = os.open(self.root, flags)
         self._handles.append(root_fd)
+        root_info = os.fstat(root_fd)
+        self._namespace_bindings.append((self.root, (int(root_info.st_dev), int(root_info.st_ino))))
         parent_fd = root_fd
+        current = self.root
         for part in parts:
+            current = current / part
+            if self.reparse_detector(current):
+                raise PhaseError("path.reparse_forbidden", self.locator)
             try:
                 child_fd = os.open(part, flags, dir_fd=parent_fd)
             except FileNotFoundError:
@@ -288,10 +301,18 @@ class TargetAuthority:
                     os.mkdir(part, 0o700, dir_fd=parent_fd)
                 except FileExistsError:
                     pass
+                if self.reparse_detector(current):
+                    raise PhaseError("path.reparse_forbidden", self.locator)
                 child_fd = os.open(part, flags, dir_fd=parent_fd)
             self._handles.append(child_fd)
+            child_info = os.fstat(child_fd)
+            self._namespace_bindings.append((current, (int(child_info.st_dev), int(child_info.st_ino))))
             parent_fd = child_fd
         self.parent_fd = parent_fd
+        if self.target.is_symlink():
+            raise PhaseError("path.link_forbidden", self.locator)
+        if self.reparse_detector(self.target):
+            raise PhaseError("path.reparse_forbidden", self.locator)
 
     def close(self) -> None:
         for handle in reversed(self._handles):
@@ -301,6 +322,21 @@ class TargetAuthority:
                 handle.close()
         self._handles = []
         self.parent_fd = None
+        self._namespace_bindings = []
+
+    def assert_namespace_binding(self) -> None:
+        if os.name == "nt":
+            return
+        for path, expected_identity in self._namespace_bindings:
+            try:
+                current = os.lstat(path)
+            except FileNotFoundError as exc:
+                raise PhaseError("path.parent_identity_changed", self.locator) from exc
+            if not stat.S_ISDIR(current.st_mode):
+                raise PhaseError("path.parent_identity_changed", self.locator)
+            current_identity = (int(current.st_dev), int(current.st_ino))
+            if current_identity != expected_identity:
+                raise PhaseError("path.parent_identity_changed", self.locator)
 
     def observe(self) -> dict[str, object]:
         if os.name == "nt":

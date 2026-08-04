@@ -179,7 +179,7 @@ def _copy_loser_after_observation_worker(effect: dict[str, object], root: str, p
     queue.put(receipt)  # type: ignore[attr-defined]
 
 
-def _replace_parent_with_link_worker(root: str, outside: str, ready: object, queue: object) -> None:
+def _replace_parent_with_link_worker(root: str, outside: str, ready: object, complete: object, queue: object) -> None:
     ready.wait(timeout=20)  # type: ignore[attr-defined]
     objects = Path(root) / "objects"
     moved = Path(root) / "objects-moved"
@@ -193,11 +193,14 @@ def _replace_parent_with_link_worker(root: str, outside: str, ready: object, que
             subprocess.run(["cmd", "/c", "mklink", "/J", str(objects), str(outside)], check=True, capture_output=True)
     except OSError as exc:
         queue.put({"replaced": False, "error": type(exc).__name__})  # type: ignore[attr-defined]
+        complete.set()  # type: ignore[attr-defined]
         return
     except subprocess.CalledProcessError as exc:
         queue.put({"replaced": False, "error": type(exc).__name__})  # type: ignore[attr-defined]
+        complete.set()  # type: ignore[attr-defined]
         return
     queue.put({"replaced": True})  # type: ignore[attr-defined]
+    complete.set()  # type: ignore[attr-defined]
 
 
 def test_hard_coded_copy_digest_locator_vectors_are_name_invariant() -> None:
@@ -374,15 +377,16 @@ def test_copy_mechanism_rejects_directory_link_reparse_and_special_targets(tmp_p
         execute_content_addressed_copy(_effect_for_payload(payload), root, payload, run_id="link", timestamp=NOW)
 
     destination.unlink()
-    receipt = execute_content_addressed_copy(
-        _effect_for_payload(payload),
-        root,
-        payload,
-        run_id="reparse",
-        timestamp=NOW,
-        faults=ContentAddressedCopyFaults(reparse_detector=lambda path: path == destination),
-    )
-    assert receipt["status"] == "applied_verified"
+    with pytest.raises(PhaseError, match="path.reparse_forbidden"):
+        execute_content_addressed_copy(
+            _effect_for_payload(payload),
+            root,
+            payload,
+            run_id="reparse",
+            timestamp=NOW,
+            faults=ContentAddressedCopyFaults(reparse_detector=lambda path: path == destination),
+        )
+    assert not destination.exists()
 
 
 def test_copy_short_write_loop_readback_and_no_temp_leftovers(tmp_path: Path) -> None:
@@ -536,8 +540,10 @@ def test_copy_concurrent_create_has_one_writer_and_one_verified_identical_reuse(
         worker.join(timeout=20)
         assert worker.exitcode == 0
 
-    assert sorted(item["status"] for item in receipts) == ["applied_verified", "applied_verified"]
+    assert [item["status"] for item in receipts] == ["applied_verified", "applied_verified"]
     assert sorted(item["bytes_written"] for item in receipts) == [0, len(payload)]
+    assert all(item["after"]["digest"] == _sha(payload) for item in receipts)
+    assert all(item["after"]["length"] == len(payload) for item in receipts)
     assert (target / _copy_locator(payload)).read_bytes() == payload
 
 
@@ -596,34 +602,88 @@ def test_copy_parent_replacement_after_observation_cannot_redirect_write(tmp_pat
     outside_destination = outside / destination.name
     context = multiprocessing.get_context("spawn")
     ready = context.Event()
+    complete = context.Event()
     queue = context.Queue()
-    worker = context.Process(target=_replace_parent_with_link_worker, args=(str(root), str(outside), ready, queue))
+    worker = context.Process(target=_replace_parent_with_link_worker, args=(str(root), str(outside), ready, complete, queue))
 
     def wait_for_replacement(_target: Path) -> None:
         ready.set()  # type: ignore[attr-defined]
-        deadline = time.monotonic() + 20
-        while time.monotonic() < deadline:
-            if not queue.empty():
-                return
-            time.sleep(0.01)
-        raise TimeoutError("parent replacement worker did not finish")
+        if not complete.wait(timeout=20):  # type: ignore[attr-defined]
+            raise TimeoutError("parent replacement worker did not finish")
+
+    worker.start()
+    outcome: dict[str, object] | PhaseError
+    try:
+        outcome = execute_content_addressed_copy(
+            effect,
+            root,
+            payload,
+            run_id="parent-replacement",
+            timestamp=NOW,
+            faults=ContentAddressedCopyFaults(before_exclusive_create=wait_for_replacement),
+        )
+    except PhaseError as exc:
+        outcome = exc
+    replacement = queue.get(timeout=20)
+    worker.join(timeout=20)
+    assert worker.exitcode == 0
+    if replacement["replaced"]:
+        assert isinstance(outcome, PhaseError)
+        assert outcome.code == "path.parent_identity_changed"
+        assert not (root / "objects-moved" / destination.name).exists()
+        assert not destination.exists()
+    else:
+        assert isinstance(outcome, dict)
+        assert outcome["status"] == "applied_verified"
+        assert outcome["after"]["digest"] == _sha(payload)  # type: ignore[index]
+        assert outcome["after"]["length"] == len(payload)  # type: ignore[index]
+        assert destination.read_bytes() == payload
+    assert not outside_destination.exists()
+
+
+def test_copy_parent_replacement_after_write_is_indeterminate_and_cannot_redirect(tmp_path: Path) -> None:
+    if os.name == "nt":
+        pytest.skip("POSIX rename semantics required")
+    payload = b"late parent replacement"
+    root = tmp_path / "target"
+    outside = tmp_path / "outside"
+    (root / "objects").mkdir(parents=True)
+    outside.mkdir()
+    destination = root / _copy_locator(payload)
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    complete = context.Event()
+    queue = context.Queue()
+    worker = context.Process(
+        target=_replace_parent_with_link_worker,
+        args=(str(root), str(outside), ready, complete, queue),
+    )
+
+    def replace_before_readback(_target: Path) -> None:
+        ready.set()  # type: ignore[attr-defined]
+        if not complete.wait(timeout=20):  # type: ignore[attr-defined]
+            raise TimeoutError("parent replacement worker did not finish")
 
     worker.start()
     receipt = execute_content_addressed_copy(
-        effect,
+        _effect_for_payload(payload),
         root,
         payload,
-        run_id="parent-replacement",
+        run_id="late-parent-replacement",
         timestamp=NOW,
-        faults=ContentAddressedCopyFaults(before_exclusive_create=wait_for_replacement),
+        faults=ContentAddressedCopyFaults(before_readback=replace_before_readback),
     )
     replacement = queue.get(timeout=20)
     worker.join(timeout=20)
     assert worker.exitcode == 0
-    assert replacement["replaced"] is False
-    assert receipt["status"] == "applied_verified"
-    assert destination.read_bytes() == payload
-    assert not outside_destination.exists()
+    assert replacement == {"replaced": True}
+    assert receipt["status"] == "indeterminate"
+    assert receipt["after"] == {"known": False, "exists": None, "digest": None, "length": None, "head_token": None}
+    assert receipt["error"]["code"] == "path.parent_identity_changed"
+    assert receipt["bytes_written"] == len(payload)
+    assert (root / "objects-moved" / destination.name).read_bytes() == payload
+    assert not destination.exists()
+    assert not (outside / destination.name).exists()
 
 
 def test_freeze_copy_and_hash_uses_exclusive_blob_publication_without_replace(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -728,7 +788,7 @@ def test_copy_safety_rejects_evidence_overlap_and_invalid_path_components(tmp_pa
 
 
 def test_copy_cli_acceptance_under_stage5_tmp(tmp_path: Path) -> None:
-    phase = ROOT / ".venv" / "Scripts" / ("phase.exe" if os.name == "nt" else "phase")
+    phase = [sys.executable, "-m", "phase_tool"]
     base = ROOT / ".stage5-tmp" / "cli-acceptance"
     if base.exists():
         import shutil
@@ -744,7 +804,7 @@ def test_copy_cli_acceptance_under_stage5_tmp(tmp_path: Path) -> None:
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
     command = [
-        str(phase),
+        *phase,
         "execute",
         "--contract-id",
         "fixture_copy.v1",
@@ -778,7 +838,7 @@ def test_stage5_hardened_cli_summary_and_walkthrough_values() -> None:
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
     process = subprocess.run(
-        [str(ROOT / ".venv" / "Scripts" / ("python.exe" if os.name == "nt" else "python")), "scripts/stage5_cli_acceptance.py"],
+        [sys.executable, "scripts/stage5_cli_acceptance.py"],
         cwd=ROOT,
         capture_output=True,
         text=True,

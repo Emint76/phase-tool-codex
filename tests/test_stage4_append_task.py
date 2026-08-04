@@ -5,6 +5,7 @@ import json
 import multiprocessing
 import os
 import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -582,7 +583,7 @@ def test_task_journal_rejects_missing_or_mismatched_operation_and_correction_ide
 
 
 def test_cli_execute_append_task_inspect_and_copy_active(tmp_path: Path) -> None:
-    phase = ROOT / ".venv" / "Scripts" / ("phase.exe" if os.name == "nt" else "phase")
+    phase = [sys.executable, "-m", "phase_tool"]
     target = tmp_path / "target"
     (target / "streams").mkdir(parents=True)
     (target / "tasks").mkdir(parents=True)
@@ -594,7 +595,7 @@ def test_cli_execute_append_task_inspect_and_copy_active(tmp_path: Path) -> None
     append_contract = _binding("fixture_append.v1")
     append = subprocess.run(
         [
-            str(phase), "execute",
+            *phase, "execute",
             "--contract-id", "fixture_append.v1",
             "--contract-version", "1.0.0",
             "--contract-digest", append_contract["package_digest"],
@@ -617,7 +618,7 @@ def test_cli_execute_append_task_inspect_and_copy_active(tmp_path: Path) -> None
     task_contract = _binding("task_journal.v1")
     task = subprocess.run(
         [
-            str(phase), "execute",
+            *phase, "execute",
             "--contract-id", "task_journal.v1",
             "--contract-version", "1.0.0",
             "--contract-digest", task_contract["package_digest"],
@@ -636,7 +637,7 @@ def test_cli_execute_append_task_inspect_and_copy_active(tmp_path: Path) -> None
     assert json.loads(task.stdout)["terminal_status"] == "succeeded_verified"
 
     inspect = subprocess.run(
-        [str(phase), "inspect", "--evidence-root", str(evidence), "--run-id", "cli-task", "--root", f"task_journal_root={target}"],
+        [*phase, "inspect", "--evidence-root", str(evidence), "--run-id", "cli-task", "--root", f"task_journal_root={target}"],
         capture_output=True,
         text=True,
         env=env,
@@ -659,7 +660,7 @@ def test_cli_execute_append_task_inspect_and_copy_active(tmp_path: Path) -> None
     copy_contract = _binding("fixture_copy.v1")
     copy = subprocess.run(
         [
-            str(phase), "execute",
+            *phase, "execute",
             "--contract-id", "fixture_copy.v1",
             "--contract-version", "1.0.0",
             "--contract-digest", copy_contract["package_digest"],

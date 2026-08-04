@@ -4,22 +4,23 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 
 def main() -> int:
     repository = Path(__file__).resolve().parents[1]
-    phase = repository / ".venv" / "Scripts" / ("phase.exe" if os.name == "nt" else "phase")
+    phase = [sys.executable, "-m", "phase_tool"]
     commands = [
-        [str(phase), "--version"],
-        [str(phase), "doctor"],
-        [str(phase), "contracts", "list"],
-        [str(phase), "contracts", "describe", "--contract", "source_admission.v1@1.0.0"],
-        [str(phase), "contracts", "describe", "--contract", "knowledge_admission.v1@1.0.0"],
-        [str(phase), "validate", "--help"],
-        [str(phase), "plan", "--help"],
-        [str(phase), "execute", "--help"],
-        [str(phase), "inspect", "--help"],
+        [*phase, "--version"],
+        [*phase, "doctor"],
+        [*phase, "contracts", "list"],
+        [*phase, "contracts", "describe", "--contract", "source_admission.v1@1.0.0"],
+        [*phase, "contracts", "describe", "--contract", "knowledge_admission.v1@1.0.0"],
+        [*phase, "validate", "--help"],
+        [*phase, "plan", "--help"],
+        [*phase, "execute", "--help"],
+        [*phase, "inspect", "--help"],
     ]
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
@@ -28,7 +29,7 @@ def main() -> int:
         completed = subprocess.run(command, cwd=repository, env=environment, capture_output=True, text=True, check=False)
         if completed.returncode != 0:
             raise AssertionError(f"documented command failed: {command!r} stdout={completed.stdout!r} stderr={completed.stderr!r}")
-        records.append({"command": command[1:], "stdout_lines": len(completed.stdout.splitlines())})
+        records.append({"command": command[len(phase):], "stdout_lines": len(completed.stdout.splitlines())})
     if records[0]["stdout_lines"] != 1:
         raise AssertionError("version output is not one line")
     for index in (1, 2, 3, 4):

@@ -5,6 +5,7 @@ import json
 import multiprocessing
 import os
 import subprocess
+import sys
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
@@ -199,7 +200,7 @@ def test_executed_receipt_schema_requires_durable_intent_digest(tmp_path: Path) 
 
 def test_cli_validate_plan_execute_and_inspect_fixture_create(tmp_path: Path) -> None:
     request, target, evidence, payload = create_request(tmp_path, run_id="unused")
-    phase = ROOT / ".venv" / "Scripts" / ("phase.exe" if os.name == "nt" else "phase")
+    phase = [sys.executable, "-m", "phase_tool"]
     common = [
         "--contract-id", request.contract_id,
         "--contract-version", request.contract_version,
@@ -216,7 +217,7 @@ def test_cli_validate_plan_execute_and_inspect_fixture_create(tmp_path: Path) ->
     outputs: dict[str, dict[str, object]] = {}
     for command in ("validate", "plan"):
         process = subprocess.run(
-            [str(phase), command, *common, "--run-id", f"cli-{command}"],
+            [*phase, command, *common, "--run-id", f"cli-{command}"],
             capture_output=True,
             text=True,
             env=env,
@@ -226,7 +227,7 @@ def test_cli_validate_plan_execute_and_inspect_fixture_create(tmp_path: Path) ->
         outputs[command] = json.loads(process.stdout)
         assert snapshot_tree(target) == before
     execute = subprocess.run(
-        [str(phase), "execute", *common, "--run-id", "cli-execute"],
+        [*phase, "execute", *common, "--run-id", "cli-execute"],
         capture_output=True,
         text=True,
         env=env,
@@ -238,7 +239,7 @@ def test_cli_validate_plan_execute_and_inspect_fixture_create(tmp_path: Path) ->
     assert (target / "objects" / "item.bin").read_bytes() == payload
     inspect = subprocess.run(
         [
-            str(phase),
+            *phase,
             "inspect",
             "--evidence-root", str(evidence),
             "--run-id", "cli-execute",

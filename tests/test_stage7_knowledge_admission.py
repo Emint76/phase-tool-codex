@@ -602,8 +602,13 @@ def test_stage7_real_cli_acceptance_and_factual_walkthrough(tmp_path: Path) -> N
         assert value in walkthrough
 
 
-def test_stage7_cli_acceptance_reads_long_windows_descriptor_paths(tmp_path: Path) -> None:
-    cli_root = ROOT / ".stage7-tmp" / f"windows-descriptor-visibility-regression-{tmp_path.name}"
+def test_stage7_cli_acceptance_reads_long_descriptor_paths() -> None:
+    padding = 9 if os.name == "nt" else 19
+    components = tuple(f"segment-{index:02d}-" + "x" * padding for index in range(3))
+    assert all(len(component) < 96 for component in components)
+    cli_root = ROOT / ".stage7-tmp"
+    for component in components:
+        cli_root /= component
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
     completed = subprocess.run(
@@ -614,13 +619,16 @@ def test_stage7_cli_acceptance_reads_long_windows_descriptor_paths(tmp_path: Pat
         text=True,
         check=False,
     )
-    assert completed.returncode == 0, completed.stderr
     envelope = json.loads(completed.stdout)
     summary = parse_json_bytes(Path(envelope["summary"]).read_bytes())
-    assert summary["success"] is True
     descriptor_length = summary["knowledge_result"]["descriptor_path_length"]
+    assert descriptor_length >= 260
+    assert completed.returncode == 0, f"stdout={completed.stdout!r} stderr={completed.stderr!r}"
+    assert envelope["success"] is True
+    assert summary["success"] is True
     if os.name == "nt":
         assert descriptor_length >= 260
-    else:
-        assert descriptor_length <= 259
+    receipt_path = Path(envelope["summary"]).parent / "evidence" / ".phase" / "runs" / "knowledge-execute" / "receipt.json"
+    canonical = parse_json_bytes(receipt_path.read_bytes())["canonical_result"]
+    assert summary["knowledge_result"]["descriptor_locator"] == canonical["locator"]
     assert summary["checks"]["platform_safe_descriptor_read"] is True

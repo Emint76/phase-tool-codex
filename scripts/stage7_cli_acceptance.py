@@ -315,7 +315,7 @@ def main() -> int:
         "pythonpath_removed": "PYTHONPATH" not in env,
         "exact_binding": knowledge_digest.startswith("sha256:") and len(knowledge_digest) == 71,
         "target_verified": inspection["target_verified"] is True,
-        "platform_safe_descriptor_read": len(str(descriptor_path)) <= 259 or os.name == "nt",
+        "platform_safe_descriptor_read": descriptor["descriptor_locator"] == canonical["locator"],
         "ordered_effects": [item["effect_id"] for item in json.loads((evidence / ".phase" / "runs" / "knowledge-execute" / "attachments" / "effect-plan.json").read_text())["effects"]] == ["effect.0.blob", "effect.1.descriptor"],
         "descriptor_binds_blob": descriptor["artifact_digest"] == sha(blob_bytes) and descriptor["artifact_length"] == len(blob_bytes),
         "source_binding_preserved": descriptor["provenance"]["source_bindings"] == [source_binding],

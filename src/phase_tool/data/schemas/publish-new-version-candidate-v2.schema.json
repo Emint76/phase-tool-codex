@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fixture://schemas/publish-new-version-candidate.v2",
+  "title": "Publish New Version Candidate v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operation_id", "target_locator", "expected_current_digest", "content_utf8", "media_type", "idempotency_key"],
+  "properties": {
+    "operation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "target_locator": {"$ref": "#/$defs/relativeLocator"},
+    "expected_current_digest": {"$ref": "#/$defs/digest"},
+    "content_utf8": {"type": "string", "maxLength": 524288},
+    "media_type": {"type": "string", "minLength": 1, "maxLength": 255},
+    "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 128}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "relativeLocator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?(?:/[A-Za-z0-9_{}](?:[A-Za-z0-9_{}.-]*[A-Za-z0-9_{}])?)*$",
+      "not": {"pattern": "(?:^|/)(?:[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[A-Za-z0-9_{}.-]+)?(?:/|$)"}
+    }
+  }
+}

@@ -175,8 +175,16 @@ def build_static_plan(
             "on_failure": "stop_and_classify",
         })
     elif (hook := load_contract_hook(contract)) is not None:
-        setattr(hook, "_root_bindings", root_bindings)
-        effects.extend(hook.build_effects(contract, value, frozen_inputs, run_id=run_id, generated_at=generated_at))
+        effects.extend(
+            hook.build_effects(
+                contract,
+                value,
+                frozen_inputs,
+                run_id=run_id,
+                generated_at=generated_at,
+                root_bindings=root_bindings,
+            )
+        )
     elif operation["intent"] == "copy":
         frozen = frozen_inputs.get(value["input_binding"])
         if frozen is None:
@@ -258,7 +266,54 @@ def validate_static_plan(
             if effect.get("archive_length") is None:
                 raise PhaseError("plan.archive_binding_mismatch", str(effect["effect_id"]))
             archive_hex = str(effect["archive_digest"]).removeprefix("sha256:")
-            expected_archive_locator = f"archive/sha256/{archive_hex[:2]}/{archive_hex}"
+            mechanism_id = str(effect.get("mechanism", plan["mechanism"])["id"])
+            if mechanism_id == "mechanism.object_store_publish_v2":
+                expected_archive_locator = f"sha256/{archive_hex[:2]}/{archive_hex}"
+                content_object_target = effect.get("content_object_target")
+                if not isinstance(content_object_target, Mapping):
+                    raise PhaseError("plan.content_object_target_missing", str(effect["effect_id"]))
+                content_digest = effect.get("content_digest")
+                content_blob_digest = effect.get("content_blob_digest")
+                content_bytes_b64 = effect.get("content_bytes_b64")
+                content_length = effect.get("content_length")
+                content_source = effect.get("content_source")
+                media_type = effect.get("media_type")
+                if (
+                    effect.get("input_binding") is not None
+                    or not isinstance(content_source, Mapping)
+                    or content_source.get("kind") != "captured_candidate"
+                    or content_source.get("binding_id") is not None
+                ):
+                    raise PhaseError("plan.source_binding_mismatch")
+                if (
+                    not isinstance(content_digest, str)
+                    or content_blob_digest != content_digest
+                    or not isinstance(content_bytes_b64, str)
+                    or not isinstance(content_length, int)
+                    or isinstance(content_length, bool)
+                    or content_length < 0
+                ):
+                    raise PhaseError("plan.content_binding_mismatch")
+                if not isinstance(media_type, str) or not media_type:
+                    raise PhaseError("plan.media_type_missing")
+                try:
+                    decoded_content = base64.b64decode(content_bytes_b64, validate=True)
+                except (ValueError, base64.binascii.Error) as exc:
+                    raise PhaseError("plan.content_encoding_invalid") from exc
+                if digest_bytes(decoded_content) != content_digest or len(decoded_content) != content_length:
+                    raise PhaseError("plan.content_binding_mismatch")
+                if content_object_target["root_binding"] not in required_roots:
+                    raise PhaseError("plan.root_binding_unknown", content_object_target["root_binding"])
+                if content_object_target["root_binding"] != archive_target["root_binding"]:
+                    raise PhaseError("publish.object_root_mismatch")
+                content_hex = content_digest.removeprefix("sha256:")
+                expected_content_locator = f"sha256/{content_hex[:2]}/{content_hex}"
+                if safe_relative_locator(str(content_object_target["relative_locator"])) != expected_content_locator:
+                    raise PhaseError("plan.content_object_binding_mismatch", str(effect["effect_id"]))
+                if effect["target"]["root_binding"] == archive_target["root_binding"]:
+                    raise PhaseError("publish.objects_root_not_separate")
+            else:
+                expected_archive_locator = f"archive/sha256/{archive_hex[:2]}/{archive_hex}"
             if archive_locator != expected_archive_locator:
                 raise PhaseError("plan.archive_binding_mismatch", str(effect["effect_id"]))
             if archive_target == effect["target"]:

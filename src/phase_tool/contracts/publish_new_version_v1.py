@@ -203,13 +203,14 @@ class PublishNewVersionHook:
         *,
         run_id: str,
         generated_at: str,
+        root_bindings: Mapping[str, Path] | None = None,
     ) -> list[dict[str, Any]]:
         del run_id, generated_at
         frozen = frozen_inputs.get(PAYLOAD_BINDING)
         if frozen is None:
             raise PhaseError("input.required_missing", PAYLOAD_BINDING)
         effects = build_effects(contract, value, frozen)
-        root = Path(getattr(self, "_root_bindings", {}).get(ROOT_BINDING, "."))
+        root = Path((root_bindings or {}).get(ROOT_BINDING, "."))
         if root.exists():
             current = _state(root, effects[0]["target"]["relative_locator"])
             archive = _state(root, effects[0]["archive_target"]["relative_locator"])
@@ -230,7 +231,6 @@ class PublishNewVersionHook:
         evidence_root: Path | None = None,
     ) -> tuple[str, str, Any, Any, list[str]] | None:
         del evidence_root
-        setattr(self, "_root_bindings", root_bindings)
         if identifier == "publish_new_version.candidate_v1":
             schema = registry.schema_document(contract.document["candidate"]["schema_ref"], contract.document["candidate"]["schema_digest"])
             return validate_candidate(value, schema, registry, frozen_inputs, root_bindings)
@@ -249,8 +249,9 @@ class PublishNewVersionHook:
         frozen_inputs: Mapping[str, FrozenInput],
         target_root: Path,
         evidence_root: Path | None = None,
+        root_bindings: Mapping[str, Path] | None = None,
     ) -> None:
-        del contract, evidence_root
+        del contract, evidence_root, root_bindings
         if not isinstance(value, Mapping) or effect.get("kind") != "publish_new_version":
             return
         frozen = frozen_inputs.get(PAYLOAD_BINDING)
@@ -297,8 +298,10 @@ class PublishNewVersionHook:
         root: Path,
         registry: RegistrySnapshot,
         evidence_root: Path,
+        *,
+        root_bindings: Mapping[str, Path] | None = None,
     ) -> dict[str, Any]:
-        del registry, evidence_root
+        del registry, evidence_root, root_bindings
         if not plan["effects"]:
             raise PhaseError("publish.plan_missing")
         effect = plan["effects"][0]

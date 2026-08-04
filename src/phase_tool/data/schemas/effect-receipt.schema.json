@@ -17,6 +17,9 @@
     "archive_target": {"$ref": "#/$defs/target"},
     "archive_before": {"$ref": "#/$defs/observedState"},
     "archive_after": {"$ref": "#/$defs/observedState"},
+    "content_object_target": {"$ref": "#/$defs/target"},
+    "content_object_before": {"$ref": "#/$defs/observedState"},
+    "content_object_after": {"$ref": "#/$defs/observedState"},
     "bytes_written": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
     "operation_identity": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 256}]},
     "request_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
@@ -71,6 +74,10 @@
     {
       "if": {"required": ["kind"], "properties": {"kind": {"const": "publish_new_version"}}},
       "then": {"required": ["archive_target", "archive_before", "archive_after"]}
+    },
+    {
+      "if": {"required": ["content_object_target"]},
+      "then": {"required": ["content_object_before", "content_object_after"]}
     },
     {
       "if": {"required": ["kind"], "properties": {"kind": {"enum": ["exclusive_create", "append_record", "copy_blob"]}}},

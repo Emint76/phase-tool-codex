@@ -1,0 +1,8 @@
+{
+  "capability": "mutation_mechanism",
+  "descriptor_version": "1.0",
+  "execution_allowed": true,
+  "id": "mechanism.object_store_publish_v2",
+  "implementation": "effect_broker_builtin",
+  "version": "1.0.0"
+}

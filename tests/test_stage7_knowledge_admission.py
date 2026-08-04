@@ -618,5 +618,9 @@ def test_stage7_cli_acceptance_reads_long_windows_descriptor_paths(tmp_path: Pat
     envelope = json.loads(completed.stdout)
     summary = parse_json_bytes(Path(envelope["summary"]).read_bytes())
     assert summary["success"] is True
-    assert summary["knowledge_result"]["descriptor_path_length"] >= 260
+    descriptor_length = summary["knowledge_result"]["descriptor_path_length"]
+    if os.name == "nt":
+        assert descriptor_length >= 260
+    else:
+        assert descriptor_length <= 259
     assert summary["checks"]["platform_safe_descriptor_read"] is True

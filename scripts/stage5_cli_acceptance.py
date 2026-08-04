@@ -320,8 +320,8 @@ if __name__ == "__main__":
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tmp-root", type=Path, default=Path(".stage5-tmp") / "final-cli")
-    parser.add_argument("--phase", type=Path, default=Path(".venv") / "Scripts" / ("phase.exe" if os.name == "nt" else "phase"))
-    parser.add_argument("--python", type=Path, default=Path(".venv") / "Scripts" / ("python.exe" if os.name == "nt" else "python"))
+    parser.add_argument("--phase", type=Path)
+    parser.add_argument("--python", type=Path)
     args = parser.parse_args()
     root = args.tmp_root.resolve()
     if ".stage5-tmp" not in root.parts:
@@ -342,6 +342,8 @@ def main() -> int:
         (target / child).mkdir(parents=True)
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
+    phase = [str(args.phase.resolve())] if args.phase is not None else [sys.executable, "-m", "phase_tool"]
+    python = str(args.python.resolve()) if args.python is not None else sys.executable
 
     helper = root / "helpers" / "stage5_helper.py"
     _helper_script(helper)
@@ -359,7 +361,7 @@ def main() -> int:
                 payload_path = Path(raw_input.split("=", 1)[1])
         before = _tree(target)
         source_before = _file_snapshot(payload_path)
-        result = _run_process([str(args.phase), command, *common], env)
+        result = _run_process([*phase, command, *common], env)
         source_after = _file_snapshot(payload_path)
         after = _tree(target)
         run_id = str(common[common.index("--run-id") + 1])
@@ -370,7 +372,7 @@ def main() -> int:
         source_before = _file_snapshot(payload)
         result = _run_process(
             [
-                str(args.python),
+                python,
                 str(helper),
                 scenario,
                 "--candidate",

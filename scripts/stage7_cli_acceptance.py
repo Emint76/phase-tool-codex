@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -168,8 +169,8 @@ if __name__ == "__main__": main()
 def main() -> int:
     parser = argparse.ArgumentParser(description="Stage 7 real CLI acceptance harness")
     parser.add_argument("--tmp-root", type=Path, default=Path(".stage7-tmp") / "final-cli")
-    parser.add_argument("--phase", type=Path, default=Path(".venv") / "Scripts" / ("phase.exe" if os.name == "nt" else "phase"))
-    parser.add_argument("--python", type=Path, default=Path(".venv") / "Scripts" / ("python.exe" if os.name == "nt" else "python"))
+    parser.add_argument("--phase", type=Path)
+    parser.add_argument("--python", type=Path)
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
     root = args.tmp_root.resolve()
@@ -189,8 +190,8 @@ def main() -> int:
         path.mkdir()
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
-    phase = str(args.phase.resolve())
-    python = str(args.python.resolve())
+    phase = [str(args.phase.resolve())] if args.phase is not None else [sys.executable, "-m", "phase_tool"]
+    python = str(args.python.resolve()) if args.python is not None else sys.executable
     source_digest = registry_binding(repo, SOURCE_CONTRACT)
     knowledge_digest = registry_binding(repo, KNOWLEDGE_CONTRACT)
     matrix: dict[str, dict[str, Any]] = {}
@@ -219,7 +220,7 @@ def main() -> int:
 
     def cli(name: str, command: str, argv: list[str], expect: dict[str, Any]) -> dict[str, Any]:
         before = target_tree(target)
-        result = run_json([phase, command, *argv], env)
+        result = run_json([*phase, command, *argv], env)
         record(name, result, before, expect)
         return result
 

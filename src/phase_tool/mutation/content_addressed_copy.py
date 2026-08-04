@@ -8,7 +8,7 @@ from typing import Callable
 from ..canonical import digest_bytes
 from ..errors import PhaseError
 from ..paths import _is_reparse_point
-from .target_authority import TargetAuthority
+from .target_authority import TargetAuthority, TargetRootLock
 
 _MAX_CONTENT_BYTES = 16 * 1024 * 1024
 
@@ -65,6 +65,27 @@ def _same_content(observation: dict[str, object], effect: dict[str, object]) -> 
 
 
 def execute_content_addressed_copy(
+    effect: dict[str, object],
+    target_root: Path,
+    content: bytes,
+    *,
+    run_id: str,
+    timestamp: str,
+    faults: ContentAddressedCopyFaults | None = None,
+) -> dict[str, object]:
+    lock_scope = f"content-addressed-copy:{effect.get('content_digest', 'unbound')}"
+    with TargetRootLock(target_root, lock_scope):
+        return _execute_content_addressed_copy_locked(
+            effect,
+            target_root,
+            content,
+            run_id=run_id,
+            timestamp=timestamp,
+            faults=faults,
+        )
+
+
+def _execute_content_addressed_copy_locked(
     effect: dict[str, object],
     target_root: Path,
     content: bytes,
@@ -133,6 +154,11 @@ def execute_content_addressed_copy(
         except Exception:
             authority.close()
             raise
+    try:
+        authority.assert_namespace_binding()
+    except Exception:
+        authority.close()
+        raise
     descriptor: int | None = None
     written = 0
     try:
@@ -218,7 +244,8 @@ def execute_content_addressed_copy(
         if active.readback_error:
             raise OSError("injected read-back failure")
         after = authority.readback(active.readback_override, descriptor)
-    except OSError as exc:
+        authority.assert_namespace_binding()
+    except (OSError, PhaseError) as exc:
         if descriptor is not None:
             os.close(descriptor)
             descriptor = None
@@ -233,7 +260,7 @@ def execute_content_addressed_copy(
             after=_unknown(),
             bytes_written=written,
             verification_refs=[],
-            error_code="verification.readback_failed",
+            error_code=exc.code if isinstance(exc, PhaseError) else "verification.readback_failed",
             error_message=str(exc),
         )
     if descriptor is not None:

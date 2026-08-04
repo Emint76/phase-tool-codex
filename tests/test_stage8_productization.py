@@ -340,23 +340,43 @@ def test_mcp_stdio_stdout_contains_protocol_json_only_and_diagnostics_use_stderr
         {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
     ]
-    completed = subprocess.run(
-        [sys.executable, "-m", "phase_tool.mcp_server"],
-        cwd=ROOT,
-        input="".join(json.dumps(item, separators=(",", ":")) + "\n" for item in messages),
-        capture_output=True,
-        text=True,
-        env=environment,
-        timeout=60,
-        check=False,
-    )
 
-    assert completed.returncode == 0, completed.stderr
-    protocol = [json.loads(line) for line in completed.stdout.splitlines() if line]
+    async def exchange() -> tuple[int, str, str]:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "phase_tool.mcp_server",
+            cwd=ROOT,
+            env=environment,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        assert process.stdin is not None
+        assert process.stdout is not None
+        assert process.stderr is not None
+        responses: list[bytes] = []
+        for message in messages:
+            process.stdin.write((json.dumps(message, separators=(",", ":")) + "\n").encode("utf-8"))
+            await process.stdin.drain()
+            if "id" in message:
+                responses.append(await asyncio.wait_for(process.stdout.readline(), timeout=60))
+        process.stdin.close()
+        await process.stdin.wait_closed()
+        remaining_stdout, stderr = await asyncio.wait_for(
+            asyncio.gather(process.stdout.read(), process.stderr.read()),
+            timeout=60,
+        )
+        returncode = await asyncio.wait_for(process.wait(), timeout=60)
+        return returncode, b"".join(responses + [remaining_stdout]).decode("utf-8"), stderr.decode("utf-8")
+
+    returncode, stdout, stderr = asyncio.run(exchange())
+    assert returncode == 0, stderr
+    protocol = [json.loads(line) for line in stdout.splitlines() if line]
     assert [message["id"] for message in protocol] == [1, 2]
     assert all(message["jsonrpc"] == "2.0" for message in protocol)
-    assert "Processing request" not in completed.stdout
-    assert "Processing request" in completed.stderr
+    assert "Processing request" not in stdout
+    assert "Processing request" in stderr
 
 
 def test_publication_metadata_documentation_and_cross_platform_ci_are_complete() -> None:
@@ -396,6 +416,14 @@ def test_publication_metadata_documentation_and_cross_platform_ci_are_complete()
 
 def test_wheel_sdist_clean_install_uninstall_reinstall_acceptance() -> None:
     root = ROOT / ".stage8-tmp" / "clean-install-acceptance"
+    build_root = ROOT / "build"
+    build_before = (
+        build_root.exists(),
+        {
+            path.relative_to(build_root).as_posix(): path.read_bytes()
+            for path in build_root.rglob("*") if path.is_file()
+        },
+    )
     egg_info = ROOT / "src" / "phase_tool.egg-info"
     protected_before = {
         path.relative_to(egg_info).as_posix(): path.read_bytes()
@@ -419,7 +447,14 @@ def test_wheel_sdist_clean_install_uninstall_reinstall_acceptance() -> None:
         for path in egg_info.rglob("*") if path.is_file()
     }
     assert protected_after == protected_before
-    assert not (ROOT / "build").exists()
+    build_after = (
+        build_root.exists(),
+        {
+            path.relative_to(build_root).as_posix(): path.read_bytes()
+            for path in build_root.rglob("*") if path.is_file()
+        },
+    )
+    assert build_after == build_before
     summary = json.loads((root / "clean-install-summary.json").read_text(encoding="utf-8"))
     assert summary["success"] is True
     assert summary["wheel"]["sha256"].startswith("sha256:")

@@ -7,7 +7,7 @@ from typing import Callable
 
 from ..canonical import digest_bytes
 from ..errors import PhaseError
-from ..paths import _is_reparse_point, _platform_path
+from ..paths import _is_reparse_point
 from .target_authority import TargetAuthority
 
 _MAX_CONTENT_BYTES = 512 * 1024
@@ -113,6 +113,7 @@ def _ensure_object(
     expected_length = len(content)
     before = authority.observe()
     if _same(before, expected_digest, expected_length):
+        authority.assert_namespace_binding()
         return before, before, 0
     if before["exists"] is True:
         raise PhaseError("publish.object_conflict", authority.locator)
@@ -142,22 +143,22 @@ def _ensure_object(
         if not _same(staged, expected_digest, expected_length):
             raise PhaseError("publish.object_verification_failed", authority.locator)
         try:
-            os.link(_platform_path(temporary.target), _platform_path(authority.target))
+            authority.link_from(temporary)
         except FileExistsError:
             raced = authority.observe()
             if _same(raced, expected_digest, expected_length):
+                authority.assert_namespace_binding()
                 return before, raced, written
             raise PhaseError("publish.object_conflict", authority.locator)
         authority.fsync_parent()
         after = authority.observe()
+        authority.assert_namespace_binding()
+        temporary.assert_namespace_binding()
     finally:
         if descriptor is not None:
             os.close(descriptor)
         if temporary_owned:
-            try:
-                os.unlink(_platform_path(temporary.target))
-            except FileNotFoundError:
-                pass
+            temporary.unlink(missing_ok=True)
         temporary.close()
     if not _same(after, expected_digest, expected_length):
         raise PhaseError("publish.object_verification_failed", authority.locator)
@@ -201,6 +202,9 @@ def execute_object_store_publish(
         old_exact = _same(old_before, effect["archive_digest"], effect["archive_length"])
         new_exact = _same(new_before, effect["content_digest"], effect["content_length"])
         if current_is_new and old_exact and new_exact:
+            current.assert_namespace_binding()
+            old_object.assert_namespace_binding()
+            new_object.assert_namespace_binding()
             return _receipt(
                 effect, run_id=run_id, timestamp=timestamp, status="applied_verified", before=before,
                 after=before, old_before=old_before, old_after=old_before, new_before=new_before,
@@ -304,13 +308,27 @@ def execute_object_store_publish(
             )
         replace_completed = False
         try:
-            os.replace(_platform_path(temporary.target), _platform_path(current.target))
+            current.replace_from(temporary)
             replace_completed = True
+            temporary_owned = False
             current.fsync_parent()
             if active.after_replace is not None:
                 active.after_replace(current.target)
             after = current.readback(active.readback_override)
-        except OSError as exc:
+            observed_old = old_object.observe()
+            observed_new = new_object.observe()
+            current.assert_namespace_binding()
+            temporary.assert_namespace_binding()
+            old_object.assert_namespace_binding()
+            new_object.assert_namespace_binding()
+        except (OSError, PhaseError) as exc:
+            namespace_error: OSError | PhaseError | None = None
+            for authority in (current, temporary, old_object, new_object):
+                try:
+                    authority.assert_namespace_binding()
+                except (OSError, PhaseError) as binding_exc:
+                    namespace_error = binding_exc
+                    break
             try:
                 after = current.observe()
             except (OSError, PhaseError):
@@ -329,7 +347,13 @@ def execute_object_store_publish(
                 _same(observed_old, effect["archive_digest"], effect["archive_length"])
                 and _same(observed_new, effect["content_digest"], effect["content_length"])
             )
-            if not observations_known:
+            detected_namespace_error = (
+                exc
+                if isinstance(exc, PhaseError) and exc.code == "path.parent_identity_changed"
+                else namespace_error
+            )
+            namespace_unverified = detected_namespace_error is not None
+            if namespace_unverified or not observations_known:
                 status = "indeterminate"
             elif current_is_new:
                 status = "applied_unverified"
@@ -346,31 +370,36 @@ def execute_object_store_publish(
                     "publish.objects_exact" if objects_exact else "publish.objects_not_exact",
                 ],
                 error_code=(
-                    "mechanism.post_replace_verification_failed"
-                    if post_replace
-                    else "mechanism.atomic_replace_failed"
+                    detected_namespace_error.code
+                    if isinstance(detected_namespace_error, PhaseError)
+                    else "mechanism.post_replace_verification_failed"
+                    if isinstance(detected_namespace_error, OSError)
+                    else exc.code
+                    if isinstance(exc, PhaseError)
+                    else (
+                        "mechanism.post_replace_verification_failed"
+                        if post_replace
+                        else "mechanism.atomic_replace_failed"
+                    )
                 ),
-                error_message=str(exc),
+                error_message=str(detected_namespace_error or exc),
             )
         verified = (
             _same(after, effect["content_digest"], effect["content_length"])
-            and _same(old_object.observe(), effect["archive_digest"], effect["archive_length"])
-            and _same(new_object.observe(), effect["content_digest"], effect["content_length"])
+            and _same(observed_old, effect["archive_digest"], effect["archive_length"])
+            and _same(observed_new, effect["content_digest"], effect["content_length"])
         )
         return _receipt(
             effect, run_id=run_id, timestamp=timestamp,
             status="applied_verified" if verified else "applied_unverified", before=before, after=after,
-            old_before=old_before, old_after=old_after, new_before=new_before, new_after=new_after,
+            old_before=old_before, old_after=observed_old, new_before=new_before, new_after=observed_new,
             bytes_written=bytes_written, refs=["current.readback", "old_object.readback", "new_object.readback"],
             error_code=None if verified else "verification.result_mismatch",
         )
     finally:
         if temporary is not None:
             if temporary_owned:
-                try:
-                    os.unlink(_platform_path(temporary.target))
-                except FileNotFoundError:
-                    pass
+                temporary.unlink(missing_ok=True)
             temporary.close()
         new_object.close()
         old_object.close()

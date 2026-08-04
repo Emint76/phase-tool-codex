@@ -16,8 +16,9 @@ def _write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
 
 
-def _run(phase: Path, args: list[str], *, env: dict[str, str]) -> dict[str, object]:
-    process = subprocess.run([str(phase), *args], capture_output=True, text=True, env=env, check=False)
+def _run(phase: Path | None, args: list[str], *, env: dict[str, str]) -> dict[str, object]:
+    command = [str(phase.resolve())] if phase is not None else [sys.executable, "-m", "phase_tool"]
+    process = subprocess.run([*command, *args], capture_output=True, text=True, env=env, check=False)
     try:
         payload = json.loads(process.stdout)
     except json.JSONDecodeError as exc:
@@ -124,7 +125,7 @@ def _require_exact_target_tree(target: Path, failures: dict[str, object]) -> Non
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tmp-root", type=Path, required=True)
-    parser.add_argument("--phase", type=Path, default=Path(".venv") / "Scripts" / ("phase.exe" if os.name == "nt" else "phase"))
+    parser.add_argument("--phase", type=Path)
     args = parser.parse_args()
     root = args.tmp_root.resolve()
     if ".stage4-tmp" not in root.parts:

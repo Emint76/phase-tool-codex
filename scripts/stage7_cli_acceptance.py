@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -168,8 +169,8 @@ if __name__ == "__main__": main()
 def main() -> int:
     parser = argparse.ArgumentParser(description="Stage 7 real CLI acceptance harness")
     parser.add_argument("--tmp-root", type=Path, default=Path(".stage7-tmp") / "final-cli")
-    parser.add_argument("--phase", type=Path, default=Path(".venv") / "Scripts" / ("phase.exe" if os.name == "nt" else "phase"))
-    parser.add_argument("--python", type=Path, default=Path(".venv") / "Scripts" / ("python.exe" if os.name == "nt" else "python"))
+    parser.add_argument("--phase", type=Path)
+    parser.add_argument("--python", type=Path)
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
     root = args.tmp_root.resolve()
@@ -189,8 +190,8 @@ def main() -> int:
         path.mkdir()
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
-    phase = str(args.phase.resolve())
-    python = str(args.python.resolve())
+    phase = [str(args.phase.resolve())] if args.phase is not None else [sys.executable, "-m", "phase_tool"]
+    python = str(args.python.resolve()) if args.python is not None else sys.executable
     source_digest = registry_binding(repo, SOURCE_CONTRACT)
     knowledge_digest = registry_binding(repo, KNOWLEDGE_CONTRACT)
     matrix: dict[str, dict[str, Any]] = {}
@@ -219,7 +220,7 @@ def main() -> int:
 
     def cli(name: str, command: str, argv: list[str], expect: dict[str, Any]) -> dict[str, Any]:
         before = target_tree(target)
-        result = run_json([phase, command, *argv], env)
+        result = run_json([*phase, command, *argv], env)
         record(name, result, before, expect)
         return result
 
@@ -314,7 +315,7 @@ def main() -> int:
         "pythonpath_removed": "PYTHONPATH" not in env,
         "exact_binding": knowledge_digest.startswith("sha256:") and len(knowledge_digest) == 71,
         "target_verified": inspection["target_verified"] is True,
-        "platform_safe_descriptor_read": len(str(descriptor_path)) <= 259 or os.name == "nt",
+        "platform_safe_descriptor_read": descriptor["descriptor_locator"] == canonical["locator"],
         "ordered_effects": [item["effect_id"] for item in json.loads((evidence / ".phase" / "runs" / "knowledge-execute" / "attachments" / "effect-plan.json").read_text())["effects"]] == ["effect.0.blob", "effect.1.descriptor"],
         "descriptor_binds_blob": descriptor["artifact_digest"] == sha(blob_bytes) and descriptor["artifact_length"] == len(blob_bytes),
         "source_binding_preserved": descriptor["provenance"]["source_bindings"] == [source_binding],

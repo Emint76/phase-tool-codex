@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import venv as venv_module
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -96,12 +97,12 @@ def main() -> int:
                 raise AssertionError(entrypoints)
 
         venv = external / "venv"
-        run(["uv", "venv", "--python", sys.executable, str(venv)], cwd=external)
+        venv_module.EnvBuilder(with_pip=True).create(venv)
         python = venv / "Scripts" / "python.exe" if os.name == "nt" else venv / "bin" / "python"
         scripts = python.parent
         phase = scripts / ("phase.exe" if os.name == "nt" else "phase")
         phase_mcp = scripts / ("phase-mcp.exe" if os.name == "nt" else "phase-mcp")
-        run(["uv", "pip", "install", "--python", str(python), str(wheel)], cwd=external)
+        run([str(python), "-m", "pip", "install", str(wheel)], cwd=external)
 
         metadata = json.loads(run([str(python), "-c", "import importlib.metadata as m,json; d=m.distribution('phase-tool'); f=next((f for f in (d.files or []) if str(f).endswith('direct_url.json')),None); u=json.loads(d.locate_file(f).read_text()) if f else {}; print(json.dumps({'root':str(d.locate_file('')),'editable':bool(u.get('dir_info',{}).get('editable',False))}))"], cwd=external).stdout)
         version = run([str(phase), "--version"], cwd=external).stdout.strip()
@@ -146,10 +147,10 @@ def main() -> int:
             "evidence_root": str(evidence), "run_id": "clean-wheel-mcp", "root_bindings": {"fixture_result_root": str(target)},
         }, external))
 
-        run(["uv", "pip", "uninstall", "--python", str(python), "phase-tool"], cwd=external)
+        run([str(python), "-m", "pip", "uninstall", "--yes", "phase-tool"], cwd=external)
         absent = run([str(python), "-c", "import phase_tool"], cwd=external, check=False)
         uninstall_verified = absent.returncode != 0
-        run(["uv", "pip", "install", "--python", str(python), str(wheel)], cwd=external)
+        run([str(python), "-m", "pip", "install", str(wheel)], cwd=external)
         reinstall_verified = run([str(phase), "--version"], cwd=external).stdout.strip() == "phase 1.0.0"
 
         summary = {

@@ -2,6 +2,17 @@
 
 Phase Tool is a local, registry-driven execution product. Its CLI and MCP adapters are thin transports over one `PhaseApplication`, which resolves an exact contract binding and calls the existing `PhaseCore.run` lifecycle.
 
+## Architecture
+
+Phase is infrastructure for managed transitions of information state within a controlled contour.
+
+It binds a proposed transition to an exact contract and trusted domain runtime, persists durable intent, applies bounded physical effects, verifies the resulting state, and preserves machine-verifiable transition evidence.
+
+See:
+
+- [Architecture north star](ARCHITECTURE.md)
+- [Exclusive write contour ADR](ADR-EXCLUSIVE-WRITE-CONTOUR.md)
+
 ## Quick Start
 
 Install a built wheel in a normal virtual environment:

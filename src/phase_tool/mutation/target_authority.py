@@ -423,6 +423,50 @@ class TargetAuthority:
                 os.close(descriptor)
         return {"known": True, "exists": True, "digest": digest_bytes(observed_bytes), "length": len(observed_bytes), "head_token": None}
 
+    def replace_from(self, source: "TargetAuthority") -> None:
+        """Atomically replace this leaf from another pinned leaf authority."""
+
+        if os.name == "nt":
+            os.replace(_platform_path(source.target), _platform_path(self.target))
+            return
+        assert source.parent_fd is not None
+        assert self.parent_fd is not None
+        os.replace(
+            source.name,
+            self.name,
+            src_dir_fd=source.parent_fd,
+            dst_dir_fd=self.parent_fd,
+        )
+
+    def link_from(self, source: "TargetAuthority") -> None:
+        """Publish this leaf as a create-only hard link to a pinned source leaf."""
+
+        if os.name == "nt":
+            os.link(_platform_path(source.target), _platform_path(self.target))
+            return
+        assert source.parent_fd is not None
+        assert self.parent_fd is not None
+        os.link(
+            source.name,
+            self.name,
+            src_dir_fd=source.parent_fd,
+            dst_dir_fd=self.parent_fd,
+            follow_symlinks=False,
+        )
+
+    def unlink(self, *, missing_ok: bool = False) -> None:
+        """Remove this leaf through its pinned parent authority."""
+
+        try:
+            if os.name == "nt":
+                os.unlink(_platform_path(self.target))
+            else:
+                assert self.parent_fd is not None
+                os.unlink(self.name, dir_fd=self.parent_fd)
+        except FileNotFoundError:
+            if not missing_ok:
+                raise
+
     def fsync_parent(self) -> None:
         if self.parent_fd is not None:
             os.fsync(self.parent_fd)

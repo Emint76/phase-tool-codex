@@ -1,0 +1,44 @@
+{
+  "descriptor_version": "1.0",
+  "id": "phase.windows.authority.v1",
+  "version": "1.0.0",
+  "classification": "compatibility",
+  "vocabulary": {
+    "id": "phase.mutation-guarantees",
+    "version": "1.0.0",
+    "descriptor_digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624"
+  },
+  "provided_guarantees": [
+    "exclusive_create",
+    "readback_verification",
+    "cross_process_serialization"
+  ],
+  "storage_scope": {
+    "filesystem": "Local Windows filesystem supporting CreateFileW create-new semantics and named mutexes.",
+    "mount_boundary": "Each authority is limited to one resolved root; Local named-mutex serialization is limited to one Windows session; pathname-based replacement is not claimed as a guarantee by this profile.",
+    "cooperating_processes_only": true
+  },
+  "limitations": [
+    "cross_process_serialization is limited to cooperating processes in one Windows session because the implementation uses a Local named mutex.",
+    "Namespace components are checked for reparse points but mutations are pathname-based and parent identity replacement is not detected; namespace_bound_mutation is not provided.",
+    "Parent-directory fsync is unavailable in this implementation; namespace_metadata_flush_attempted is not provided.",
+    "Pathname-based replacement is not claimed as atomic_replace.",
+    "No process-crash recovery or power-loss durability guarantee is claimed."
+  ],
+  "implementation": {
+    "id": "phase.windows.authority",
+    "version": "1.0.0",
+    "artifact": "phase_tool/mutation/windows/authority.py",
+    "artifact_digest": "sha256:4a0be8f709805bc3f36b0d7da378252006938f48fd282f66162df7a38350b8f0"
+  },
+  "descriptor_digest_binding": {
+    "algorithm": "sha256",
+    "canonicalization": "raw_artifact_bytes",
+    "registry_field": "artifact_digest"
+  },
+  "conformance": [
+    {"guarantee": "exclusive_create", "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"},
+    {"guarantee": "readback_verification", "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"},
+    {"guarantee": "cross_process_serialization", "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"}
+  ]
+}

@@ -11,6 +11,7 @@ from ...canonical import digest_bytes
 from ...errors import PhaseError
 from ...paths import _is_reparse_point, _platform_path, safe_relative_locator
 from ..authority import TargetAuthority
+from ..guarantees import GuaranteeProfileBinding, registered_profile_binding
 
 _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 _GENERIC_READ = 0x80000000
@@ -310,6 +311,9 @@ class WindowsTargetAuthority:
 
 
 class WindowsAuthorityProvider:
+    def guarantee_profile_binding(self) -> GuaranteeProfileBinding:
+        return registered_profile_binding("phase.windows.authority.v1@1.0.0")
+
     def open_authority(
         self,
         root: Path,

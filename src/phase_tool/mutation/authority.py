@@ -4,6 +4,8 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Callable, Protocol, runtime_checkable
 
+from .guarantees import GuaranteeProfileBinding
+
 
 class TargetAuthority(Protocol):
     root: Path
@@ -34,6 +36,11 @@ class TargetAuthority(Protocol):
     def fsync_parent(self) -> None: ...
 
     def close(self) -> None: ...
+
+
+@runtime_checkable
+class GuaranteeProfileProvider(Protocol):
+    def guarantee_profile_binding(self) -> GuaranteeProfileBinding: ...
 
 
 @runtime_checkable

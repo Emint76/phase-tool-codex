@@ -11,6 +11,7 @@ from ...canonical import digest_bytes
 from ...errors import PhaseError
 from ...paths import _is_reparse_point, safe_relative_locator
 from ..authority import TargetAuthority
+from ..guarantees import GuaranteeProfileBinding, registered_profile_binding
 
 
 def _read_descriptor(descriptor: int) -> bytes:
@@ -188,6 +189,9 @@ class PosixTargetAuthority:
 
 
 class PosixAuthorityProvider:
+    def guarantee_profile_binding(self) -> GuaranteeProfileBinding:
+        return registered_profile_binding("phase.posix.authority.v1@1.0.0")
+
     def open_authority(
         self,
         root: Path,

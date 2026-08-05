@@ -78,6 +78,7 @@ def test_host_installation_exposes_explicit_authority_provider() -> None:
 
 def test_core_propagates_installation_selected_provider_to_mutation(tmp_path: Path) -> None:
     provider = RecordingProvider()
+    assert isinstance(provider, AuthorityProvider)
     request, target, content = _request(tmp_path)
 
     outcome = PhaseCore(installation=Installation(authority_provider=provider)).run(request, execute=True)

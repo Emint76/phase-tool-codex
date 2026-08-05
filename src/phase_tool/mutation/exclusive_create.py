@@ -10,7 +10,6 @@ from ..canonical import digest_bytes
 from ..errors import PhaseError
 from ..paths import _is_reparse_point
 from .authority import AuthorityProvider
-from .legacy_authority import LEGACY_AUTHORITY_PROVIDER
 
 _MAX_CONTENT_BYTES = 1_048_576
 
@@ -87,7 +86,7 @@ def execute_exclusive_create(
     run_id: str,
     timestamp: str,
     faults: ExclusiveCreateFaults | None = None,
-    authority_provider: AuthorityProvider = LEGACY_AUTHORITY_PROVIDER,
+    authority_provider: AuthorityProvider,
 ) -> dict[str, object]:
     """Create one absent regular file with OS O_EXCL; never replace or clean up it."""
 

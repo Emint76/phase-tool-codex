@@ -8,7 +8,6 @@ from typing import Callable
 from phase_tool.core import PhaseCore, PhaseRequest
 from phase_tool.installation import Installation, host_installation
 from phase_tool.mutation.authority import AuthorityProvider, TargetAuthority
-from phase_tool.mutation.legacy_authority import LegacyAuthorityProvider
 from phase_tool.registry import BundledRegistry
 
 NOW = "2026-08-05T00:00:00Z"
@@ -16,7 +15,7 @@ NOW = "2026-08-05T00:00:00Z"
 
 class RecordingProvider:
     def __init__(self) -> None:
-        self.delegate = LegacyAuthorityProvider()
+        self.delegate = host_installation().authority_provider
         self.authorities: list[tuple[Path, str]] = []
         self.locks: list[tuple[Path, str]] = []
 

@@ -18,16 +18,27 @@ from phase_tool.canonical import digest_bytes, parse_json_bytes, profile_digest
 from phase_tool.core import CoreFaults, PhaseCore, PhaseRequest
 from phase_tool.errors import PhaseError
 from phase_tool.evidence import EvidenceStore
+from phase_tool.installation import host_installation
 from phase_tool.inspection import inspect_run
 from phase_tool.mutation import BrokerFaults
-from phase_tool.mutation.content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy
-from phase_tool.mutation.exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
+from phase_tool.mutation.content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy as _execute_content_addressed_copy
+from phase_tool.mutation.exclusive_create import ExclusiveCreateFaults, execute_exclusive_create as _execute_exclusive_create
 from phase_tool.registry import BundledRegistry
 from phase_tool.validation import ValidatorRunner
 
 NOW = "2026-07-28T12:00:00Z"
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "src" / "phase_tool"
+
+
+def execute_content_addressed_copy(*args: object, **kwargs: object) -> dict[str, object]:
+    kwargs["authority_provider"] = host_installation().authority_provider
+    return _execute_content_addressed_copy(*args, **kwargs)  # type: ignore[arg-type]
+
+
+def execute_exclusive_create(*args: object, **kwargs: object) -> dict[str, object]:
+    kwargs["authority_provider"] = host_installation().authority_provider
+    return _execute_exclusive_create(*args, **kwargs)  # type: ignore[arg-type]
 
 
 def _sha(data: bytes) -> str:

@@ -16,12 +16,18 @@ from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 from phase_tool.core import CoreFaults, PhaseCore, PhaseRequest
 from phase_tool.errors import PhaseError
 from phase_tool.evidence import EvidenceStore
+from phase_tool.installation import host_installation
 from phase_tool.mutation import BrokerFaults, ExclusiveCreateFaults
-from phase_tool.mutation.exclusive_create import execute_exclusive_create
+from phase_tool.mutation.exclusive_create import execute_exclusive_create as _execute_exclusive_create
 from phase_tool.registry import BundledRegistry
 
 NOW = "2026-07-27T03:00:00Z"
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def execute_exclusive_create(*args: object, **kwargs: object) -> dict[str, object]:
+    kwargs["authority_provider"] = host_installation().authority_provider
+    return _execute_exclusive_create(*args, **kwargs)  # type: ignore[arg-type]
 
 
 def _sha256(data: bytes) -> str:

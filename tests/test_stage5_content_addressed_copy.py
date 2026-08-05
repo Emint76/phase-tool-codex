@@ -16,14 +16,20 @@ import pytest
 from phase_tool.canonical import canonical_bytes, parse_json_bytes
 from phase_tool.core import CoreFaults, PhaseCore, PhaseRequest
 from phase_tool.errors import PhaseError
+from phase_tool.installation import host_installation
 from phase_tool.inspection import inspect_run
 from phase_tool.mutation import BrokerFaults
-from phase_tool.mutation.content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy
+from phase_tool.mutation.content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy as _execute_content_addressed_copy
 from phase_tool.planning import validate_static_plan
 from phase_tool.registry import BundledRegistry
 
 NOW = "2026-07-27T05:00:00Z"
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def execute_content_addressed_copy(*args: object, **kwargs: object) -> dict[str, object]:
+    kwargs["authority_provider"] = host_installation().authority_provider
+    return _execute_content_addressed_copy(*args, **kwargs)  # type: ignore[arg-type]
 
 GOLDEN_COPY_VECTORS = [
     (

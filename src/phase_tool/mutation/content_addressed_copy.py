@@ -9,7 +9,6 @@ from ..canonical import digest_bytes
 from ..errors import PhaseError
 from ..paths import _is_reparse_point
 from .authority import AuthorityProvider
-from .legacy_authority import LEGACY_AUTHORITY_PROVIDER
 from .target_authority import TargetAuthority  # compatibility seam for existing fault-injection tests
 
 _MAX_CONTENT_BYTES = 16 * 1024 * 1024
@@ -74,7 +73,7 @@ def execute_content_addressed_copy(
     run_id: str,
     timestamp: str,
     faults: ContentAddressedCopyFaults | None = None,
-    authority_provider: AuthorityProvider = LEGACY_AUTHORITY_PROVIDER,
+    authority_provider: AuthorityProvider,
 ) -> dict[str, object]:
     lock_scope = f"content-addressed-copy:{effect.get('content_digest', 'unbound')}"
     with authority_provider.lock_target_root(target_root, lock_scope):
@@ -97,7 +96,7 @@ def _execute_content_addressed_copy_locked(
     run_id: str,
     timestamp: str,
     faults: ContentAddressedCopyFaults | None = None,
-    authority_provider: AuthorityProvider = LEGACY_AUTHORITY_PROVIDER,
+    authority_provider: AuthorityProvider,
 ) -> dict[str, object]:
     active = faults or ContentAddressedCopyFaults()
     if len(content) > _MAX_CONTENT_BYTES:

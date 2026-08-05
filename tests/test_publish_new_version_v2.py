@@ -13,12 +13,18 @@ from phase_tool.canonical import parse_json_bytes
 from phase_tool.contracts.publish_new_version_v2 import PublishNewVersionV2Hook
 from phase_tool.core import CoreFaults, PhaseCore, PhaseRequest
 from phase_tool.errors import PhaseError
+from phase_tool.installation import host_installation
 from phase_tool.inspection import inspect_run
 from phase_tool.mutation import BrokerFaults, ObjectStorePublishFaults
-from phase_tool.mutation.object_store_publish import execute_object_store_publish
+from phase_tool.mutation.object_store_publish import execute_object_store_publish as _execute_object_store_publish
 from phase_tool.registry import BundledRegistry
 
 NOW = "2026-08-03T12:00:00Z"
+
+
+def execute_object_store_publish(*args: object, **kwargs: object) -> dict[str, object]:
+    kwargs["authority_provider"] = host_installation().authority_provider
+    return _execute_object_store_publish(*args, **kwargs)  # type: ignore[arg-type]
 
 
 def _sha(data: bytes) -> str:

@@ -9,7 +9,6 @@ from ..canonical import digest_bytes
 from ..errors import PhaseError
 from ..paths import _is_reparse_point
 from .authority import AuthorityProvider, TargetAuthority
-from .legacy_authority import LEGACY_AUTHORITY_PROVIDER
 
 _MAX_CONTENT_BYTES = 512 * 1024
 
@@ -176,7 +175,7 @@ def execute_object_store_publish(
     run_id: str,
     timestamp: str,
     faults: ObjectStorePublishFaults | None = None,
-    authority_provider: AuthorityProvider = LEGACY_AUTHORITY_PROVIDER,
+    authority_provider: AuthorityProvider,
 ) -> dict[str, object]:
     active = faults or ObjectStorePublishFaults()
     if len(content) > _MAX_CONTENT_BYTES:

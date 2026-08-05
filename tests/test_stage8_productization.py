@@ -226,7 +226,8 @@ def test_cli_mcp_and_application_are_contract_agnostic_thin_adapters() -> None:
         assert "knowledge_admission" not in source
     assert "PhaseCore" not in cli_source
     assert "PhaseCore" not in mcp_source
-    assert application_source.count("PhaseCore(self.registry).run") == 1
+    assert "PhaseCore(self.registry, self.installation).run(" in application_source
+    assert application_source.count("PhaseCore(") == 1
 
     mcp_tree = ast.parse(mcp_source)
     tool_names = {

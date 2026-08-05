@@ -17,6 +17,7 @@ from .errors import PhaseError
 from .evidence import EvidenceStore, evidence_file_exists, iter_run_artifacts, operational_lock_path, read_evidence_bytes, validate_intent, validate_receipt
 from .freeze import FrozenInput, freeze_declared_inputs
 from .inspection import inspect_run
+from .installation import Installation, host_installation
 from .mutation import BrokerFaults, EffectBroker
 from .planning import build_idempotency_digests, build_static_plan, validate_static_plan
 from .registry import BundledRegistry, RegistrySnapshot, ResolvedContract
@@ -97,8 +98,13 @@ class PhaseOutcome:
 class PhaseCore:
     """One lifecycle coordinator; canonical target writes belong only to EffectBroker."""
 
-    def __init__(self, registry: RegistrySnapshot | None = None) -> None:
+    def __init__(
+        self,
+        registry: RegistrySnapshot | None = None,
+        installation: Installation | None = None,
+    ) -> None:
         self.registry = registry or BundledRegistry.load()
+        self.installation = installation or host_installation()
 
     @staticmethod
     def _timestamp(request: PhaseRequest) -> str:
@@ -783,7 +789,10 @@ class PhaseCore:
 
                 record_progress([])
                 lifecycle.append("broker")
-                effect_receipts = EffectBroker(self.registry).execute(
+                effect_receipts = EffectBroker(
+                    self.registry,
+                    self.installation.authority_provider,
+                ).execute(
                     plan,
                     contract,
                     frozen,

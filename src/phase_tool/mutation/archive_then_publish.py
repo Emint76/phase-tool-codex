@@ -8,7 +8,8 @@ from typing import Callable
 from ..canonical import digest_bytes
 from ..errors import PhaseError
 from ..paths import _is_reparse_point, _platform_path
-from .target_authority import TargetAuthority
+from .authority import AuthorityProvider, TargetAuthority
+from .legacy_authority import LEGACY_AUTHORITY_PROVIDER
 
 _MAX_CONTENT_BYTES = 16 * 1024 * 1024
 
@@ -167,6 +168,7 @@ def execute_archive_then_publish(
     run_id: str,
     timestamp: str,
     faults: ArchiveThenPublishFaults | None = None,
+    authority_provider: AuthorityProvider = LEGACY_AUTHORITY_PROVIDER,
 ) -> dict[str, object]:
     active = faults or ArchiveThenPublishFaults()
     if len(content) > _MAX_CONTENT_BYTES:
@@ -176,8 +178,8 @@ def execute_archive_then_publish(
     if effect["target"] == effect["archive_target"]:
         raise PhaseError("publish.target_archive_collision")
     detector = active.reparse_detector or _is_reparse_point
-    current_authority = TargetAuthority(target_root, str(effect["target"]["relative_locator"]), detector)  # type: ignore[index]
-    archive_authority = TargetAuthority(target_root, str(effect["archive_target"]["relative_locator"]), detector)  # type: ignore[index]
+    current_authority = authority_provider.open_authority(target_root, str(effect["target"]["relative_locator"]), detector)  # type: ignore[index]
+    archive_authority = authority_provider.open_authority(target_root, str(effect["archive_target"]["relative_locator"]), detector)  # type: ignore[index]
     archive_before: dict[str, object] = _unknown()
     archive_after: dict[str, object] = _unknown()
     bytes_written = 0

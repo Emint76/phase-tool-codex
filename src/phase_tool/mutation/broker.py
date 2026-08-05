@@ -22,7 +22,7 @@ from .exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
 from .expected_head_append import AppendRecordFaults, execute_append_record
 from .archive_then_publish import ArchiveThenPublishFaults, execute_archive_then_publish
 from .object_store_publish import ObjectStorePublishFaults, execute_object_store_publish
-from .target_authority import TargetRootLock
+from .authority import AuthorityProvider
 
 
 @dataclass(frozen=True)
@@ -42,8 +42,9 @@ class BrokerFaults:
 class EffectBroker:
     """The only boundary allowed to invoke a target mutation mechanism."""
 
-    def __init__(self, registry: RegistrySnapshot) -> None:
+    def __init__(self, registry: RegistrySnapshot, authority_provider: AuthorityProvider) -> None:
         self.registry = registry
+        self.authority_provider = authority_provider
         schema = registry.schema_document("https://phase-tool.local/schemas/effect-receipt.schema.json")
         self._receipt_validator = Draft202012Validator(
             schema,
@@ -199,7 +200,7 @@ class EffectBroker:
                 active.before_effect_lock(ordinal, intent_path)
             lock_scope = effect.get("lock_scope")
             if isinstance(lock_scope, str):
-                context = TargetRootLock(target_root, lock_scope)
+                context = self.authority_provider.lock_target_root(target_root, lock_scope)
             else:
                 context = None
             if context is None:
@@ -288,6 +289,7 @@ class EffectBroker:
                 run_id=str(contract.document.get("_run_id", intent.get("run_id"))),
                 timestamp=timestamp,
                 faults=active.exclusive_create,
+                authority_provider=self.authority_provider,
             )
         if effect["kind"] == "append_record":
             return execute_append_record(
@@ -315,6 +317,7 @@ class EffectBroker:
                     run_id=str(intent.get("run_id")),
                     timestamp=timestamp,
                     faults=active.object_store_publish,
+                    authority_provider=self.authority_provider,
                 )
             return execute_archive_then_publish(
                 effect,
@@ -323,6 +326,7 @@ class EffectBroker:
                 run_id=str(intent.get("run_id")),
                 timestamp=timestamp,
                 faults=active.archive_then_publish,
+                authority_provider=self.authority_provider,
             )
         copy_faults = active.content_addressed_copy
         if active.content_addressed_copy_fail_after_bytes is not None:
@@ -334,4 +338,5 @@ class EffectBroker:
             run_id=str(intent.get("run_id")),
             timestamp=timestamp,
             faults=copy_faults,
+            authority_provider=self.authority_provider,
         )

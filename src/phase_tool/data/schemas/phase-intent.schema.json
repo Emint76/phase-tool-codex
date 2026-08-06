@@ -76,6 +76,7 @@
       }
     },
     "effect_plan_digest": {"$ref": "#/$defs/digest"},
+    "implementation_binding": {"$ref": "https://phase-tool.local/schemas/mutation-implementation-binding.schema.json"},
     "execution_requested": {"type": "boolean"},
     "evidence": {
       "type": "object",

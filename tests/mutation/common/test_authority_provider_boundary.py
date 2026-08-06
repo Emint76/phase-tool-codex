@@ -8,6 +8,7 @@ from typing import Callable
 from phase_tool.core import PhaseCore, PhaseRequest
 from phase_tool.installation import Installation, host_installation
 from phase_tool.mutation.authority import AuthorityProvider, TargetAuthority
+
 from phase_tool.registry import BundledRegistry
 
 NOW = "2026-08-05T00:00:00Z"
@@ -76,13 +77,14 @@ def test_host_installation_exposes_explicit_authority_provider() -> None:
     assert isinstance(installation.authority_provider, AuthorityProvider)
 
 
-def test_core_propagates_installation_selected_provider_to_mutation(tmp_path: Path) -> None:
+def test_core_rejects_unbound_installation_provider_before_mutation(tmp_path: Path) -> None:
     provider = RecordingProvider()
     assert isinstance(provider, AuthorityProvider)
-    request, target, content = _request(tmp_path)
+    request, target, _content = _request(tmp_path)
 
     outcome = PhaseCore(installation=Installation(authority_provider=provider)).run(request, execute=True)
 
-    assert outcome.exit_code == 0
-    assert (target / "objects" / "item.bin").read_bytes() == content
-    assert provider.authorities == [(target, "objects/item.bin")]
+    assert outcome.exit_code != 0
+    assert outcome.receipt["blockers"] == ["authority.guarantee_profile_unavailable"]
+    assert not (target / "objects" / "item.bin").exists()
+    assert provider.authorities == []

@@ -54,15 +54,22 @@ class RegistrySnapshot:
         return json.loads(canonical_bytes(self._document).decode("utf-8"))
 
     def contract_bindings(self) -> dict[str, dict[str, str]]:
-        return {
-            f"{entry['id']}@{entry['version']}": {
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for entry in self._document["entries"]:
+            if entry.get("kind") == "contract":
+                groups.setdefault(f"{entry['id']}@{entry['version']}", []).append(entry)
+        bindings: dict[str, dict[str, str]] = {}
+        for exact_binding, entries in groups.items():
+            current = [entry for entry in entries if entry.get("current", True) is True]
+            if len(current) != 1:
+                raise PhaseError("registry.entry_ambiguous", exact_binding)
+            entry = current[0]
+            bindings[exact_binding] = {
                 "id": entry["id"],
                 "version": entry["version"],
                 "package_digest": entry["package_digest"],
             }
-            for entry in self._document["entries"]
-            if entry.get("kind") == "contract"
-        }
+        return bindings
 
     def guarantee_profile_bindings(self) -> dict[str, dict[str, str]]:
         return {
@@ -110,9 +117,10 @@ class RegistrySnapshot:
         if package_artifacts is not None:
             verified: list[dict[str, str]] = []
             for item in package_artifacts:
-                actual = digest_bytes(self.resource_bytes(item["resource"]))
+                physical_resource = item.get("archive_resource", item["resource"])
+                actual = digest_bytes(self.resource_bytes(physical_resource))
                 if actual != item["digest"]:
-                    raise PhaseError("registry.digest_mismatch", item["resource"])
+                    raise PhaseError("registry.digest_mismatch", physical_resource)
                 verified.append({"resource": item["resource"], "digest": actual})
             package = {"profile": "phase_contract_package_v1", "artifacts": verified}
             if canonical_digest(package) != entry.get("package_digest"):
@@ -164,6 +172,7 @@ class RegistrySnapshot:
             if entry.get("kind") == "schema"
             and entry.get("schema_ref") == schema_ref
             and (digest is None or entry.get("artifact_digest") == digest)
+            and (digest is not None or entry.get("current", True) is True)
         ]
         if not matches:
             raise PhaseError("registry.entry_not_found", schema_ref)
@@ -181,7 +190,7 @@ class RegistrySnapshot:
     def schema_registry(self) -> Registry:
         registry = Registry()
         for entry in self._document["entries"]:
-            if entry.get("kind") != "schema":
+            if entry.get("kind") != "schema" or entry.get("current", True) is not True:
                 continue
             self._verify_entry(entry)
             schema = parse_json_bytes(self.resource_bytes(entry["artifact"]))

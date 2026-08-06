@@ -69,10 +69,19 @@ def clear_directory_contents(path: Path) -> None:
 
 def binding(repo: Path, contract_id: str) -> str:
     registry = json.loads((repo / "src" / "phase_tool" / "data" / "registry.json").read_text(encoding="utf-8"))
-    for item in registry["entries"]:
-        if item.get("kind") == "contract" and item.get("id") == contract_id and item.get("version") == "1.0.0":
-            return str(item["package_digest"])
-    raise AssertionError(f"contract binding absent: {contract_id}")
+    matches = [
+        item
+        for item in registry["entries"]
+        if (
+            item.get("kind") == "contract"
+            and item.get("id") == contract_id
+            and item.get("version") == "1.0.0"
+            and item.get("current", True) is True
+        )
+    ]
+    if len(matches) != 1:
+        raise AssertionError(f"ambiguous contract binding: {contract_id}: {len(matches)} current entries")
+    return str(matches[0]["package_digest"])
 
 
 def source_candidate(

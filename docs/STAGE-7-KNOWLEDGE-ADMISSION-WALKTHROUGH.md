@@ -8,7 +8,7 @@ The exact active registry binding exercised below is:
 
 ```text
 knowledge_admission.v1@1.0.0
-package_digest: sha256:d015367dc85347bd3f36abb6a2ba5158ef1b135f3b4add544bbc94f632cebad8
+package_digest: sha256:fc18258bb397493feadb34bf0a0a22ed54456ebf16e5f93cb2a94ebcdf192f42
 ```
 
 ## Reused generic mechanisms

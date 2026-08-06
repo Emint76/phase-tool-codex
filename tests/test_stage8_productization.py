@@ -6,11 +6,13 @@ import json
 import os
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
 
 from phase_tool.application import PhaseApplication
+from scripts.stage8_integrity_audit import generation_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 NOW = "2026-07-30T12:00:00Z"
@@ -488,6 +490,23 @@ def test_documented_commands_and_links_smoke() -> None:
     assert summary["success"] is True
     assert summary["commands"] == 9
     assert summary["links_checked"] >= 5
+
+
+def test_integrity_audit_rejects_zero_and_multiple_current_generations() -> None:
+    entries = json.loads((ROOT / "src" / "phase_tool" / "data" / "registry.json").read_text(encoding="utf-8"))["entries"]
+    assert generation_errors(entries) == []
+
+    zero_current = deepcopy(entries)
+    for entry in zero_current:
+        if entry.get("kind") == "contract" and entry.get("id") == "fixture_copy.v1":
+            entry["current"] = False
+    assert generation_errors(zero_current)
+
+    multiple_current = deepcopy(entries)
+    for entry in multiple_current:
+        if entry.get("kind") == "schema" and entry.get("schema_ref") == "https://phase-tool.local/schemas/phase-receipt.schema.json":
+            entry["current"] = True
+    assert generation_errors(multiple_current)
 
 
 def test_package_schema_registry_manifest_and_wheel_integrity_audit() -> None:

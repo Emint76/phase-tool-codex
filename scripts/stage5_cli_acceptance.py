@@ -38,10 +38,19 @@ def _locator(data: bytes) -> str:
 
 def _binding(contract_id: str) -> str:
     registry = json.loads((Path(__file__).resolve().parents[1] / "src" / "phase_tool" / "data" / "registry.json").read_text(encoding="utf-8"))
-    for entry in registry["entries"]:
-        if entry.get("kind") == "contract" and entry.get("id") == contract_id and entry.get("version") == "1.0.0":
-            return str(entry["package_digest"])
-    raise AssertionError(f"missing contract binding: {contract_id}")
+    matches = [
+        entry
+        for entry in registry["entries"]
+        if (
+            entry.get("kind") == "contract"
+            and entry.get("id") == contract_id
+            and entry.get("version") == "1.0.0"
+            and entry.get("current", True) is True
+        )
+    ]
+    if len(matches) != 1:
+        raise AssertionError(f"ambiguous contract binding: {contract_id}: {len(matches)} current entries")
+    return str(matches[0]["package_digest"])
 
 
 def _run_process(command: list[str], env: dict[str, str]) -> dict[str, Any]:
@@ -189,7 +198,12 @@ def emit(value: object, code: int) -> None:
 def binding(contract_id: str) -> str:
     registry = json.loads((Path(__file__).resolve().parents[3] / "src" / "phase_tool" / "data" / "registry.json").read_text(encoding="utf-8"))
     for entry in registry["entries"]:
-        if entry.get("kind") == "contract" and entry.get("id") == contract_id and entry.get("version") == "1.0.0":
+        if (
+            entry.get("kind") == "contract"
+            and entry.get("id") == contract_id
+            and entry.get("version") == "1.0.0"
+            and entry.get("current", True) is True
+        ):
             return str(entry["package_digest"])
     raise AssertionError(contract_id)
 

@@ -22,7 +22,9 @@ from .exclusive_create import ExclusiveCreateFaults, execute_exclusive_create
 from .expected_head_append import AppendRecordFaults, execute_append_record
 from .archive_then_publish import ArchiveThenPublishFaults, execute_archive_then_publish
 from .object_store_publish import ObjectStorePublishFaults, execute_object_store_publish
-from .authority import AuthorityProvider
+from .authority import AuthorityProvider, GuaranteeProfileProvider
+from .implementation import mechanism_authority_usage, mechanism_supports_effect_kind
+from .platform import HostAuthorityProvider
 
 
 @dataclass(frozen=True)
@@ -66,7 +68,7 @@ class EffectBroker:
         contract: ResolvedContract,
         root_bindings: Mapping[str, Path],
         intent_path: Path,
-    ) -> dict[str, object]:
+    ) -> tuple[dict[str, object], dict[str, object]]:
         intent = parse_json_bytes(intent_path.read_bytes())
         run_root = intent_path.parent
         plan_path = run_root / "attachments" / "effect-plan.json"
@@ -88,9 +90,64 @@ class EffectBroker:
             raise PhaseError("broker.intent_mechanism_mismatch")
         if intent.get("effect_plan_digest") != profile_digest("effect-plan", attached_plan):
             raise PhaseError("broker.intent_plan_mismatch")
+        self._validate_intent_implementation(intent, attached_plan)
         locked_plan = parse_json_bytes(canonical_bytes(attached_plan))
         validate_static_plan(locked_plan, contract, root_bindings, self.registry)
-        return locked_plan
+        return locked_plan, intent
+
+    def _validate_intent_implementation(
+        self,
+        intent: Mapping[str, object],
+        plan: Mapping[str, object],
+    ) -> None:
+        binding = intent.get("implementation_binding")
+        if not isinstance(binding, Mapping):
+            raise PhaseError("broker.intent_implementation_mismatch")
+        mechanism = plan.get("mechanism")
+        expected_plan_digest = profile_digest("effect-plan", plan)
+        if binding.get("mechanism") != mechanism or binding.get("effect_plan_digest") != expected_plan_digest:
+            raise PhaseError("broker.intent_implementation_mismatch")
+        if not isinstance(mechanism, Mapping):
+            raise PhaseError("broker.intent_implementation_mismatch")
+        self.registry.resolve_mechanism(mechanism)
+        authority_usage = mechanism_authority_usage(mechanism)
+        effects = plan.get("effects")
+        if not isinstance(effects, list):
+            raise PhaseError("broker.intent_implementation_mismatch")
+        for effect in effects:
+            if not isinstance(effect, Mapping):
+                raise PhaseError("broker.intent_implementation_mismatch")
+            effect_mechanism = effect.get("mechanism", mechanism)
+            if not isinstance(effect_mechanism, Mapping):
+                raise PhaseError("broker.intent_implementation_mismatch")
+            self.registry.resolve_mechanism(effect_mechanism)
+            if (
+                mechanism_authority_usage(effect_mechanism) != authority_usage
+                or not mechanism_supports_effect_kind(effect_mechanism, effect.get("kind"))
+            ):
+                raise PhaseError("broker.intent_implementation_mismatch")
+
+        authority = binding.get("authority")
+        if authority_usage == "mechanism_managed":
+            expected_authority = {"usage": "mechanism_managed", "profile": None, "provider": None}
+        else:
+            if type(self.authority_provider) is not HostAuthorityProvider or not isinstance(
+                self.authority_provider, GuaranteeProfileProvider
+            ):
+                raise PhaseError("broker.intent_implementation_mismatch")
+            profile = self.authority_provider.guarantee_profile_binding()
+            expected_authority = {
+                "usage": "provider_backed",
+                "profile": profile.as_dict(),
+                "provider": {
+                    "id": profile.implementation_id,
+                    "version": profile.implementation_version,
+                    "artifact_digest": profile.implementation_artifact_digest,
+                },
+            }
+            self.registry.resolve_guarantee_profile(profile.as_dict())
+        if authority != expected_authority:
+            raise PhaseError("broker.intent_implementation_mismatch")
 
     @staticmethod
     def _attached_blob_content(effect: Mapping[str, object], intent_path: Path, intent: Mapping[str, object]) -> bytes:
@@ -154,18 +211,16 @@ class EffectBroker:
         active = faults or BrokerFaults()
         if not intent_path.is_file():
             raise PhaseError("broker.intent_missing")
-        intent = parse_json_bytes(intent_path.read_bytes())
+        locked_plan, intent = self._locked_plan_from_evidence(plan, contract, root_bindings, intent_path)
         if intent.get("execution_requested") is not True:
             raise PhaseError("broker.execution_not_requested")
-        locked_plan = self._locked_plan_from_evidence(plan, contract, root_bindings, intent_path)
         if active.mutate_plan_after_intent:
             plan["effects"].append(deepcopy(plan["effects"][0]))  # type: ignore[union-attr,index]
         if intent.get("effect_plan_digest") != profile_digest("effect-plan", plan):
             raise PhaseError("broker.plan_changed_after_intent")
         if active.before_mechanism is not None:
             active.before_mechanism(intent_path)
-        locked_plan = self._locked_plan_from_evidence(plan, contract, root_bindings, intent_path)
-        intent = parse_json_bytes(intent_path.read_bytes())
+        locked_plan, intent = self._locked_plan_from_evidence(plan, contract, root_bindings, intent_path)
         if intent.get("execution_requested") is not True:
             raise PhaseError("broker.execution_not_requested")
         effects = locked_plan["effects"]
@@ -199,7 +254,7 @@ class EffectBroker:
             if active.before_effect_lock is not None:
                 active.before_effect_lock(ordinal, intent_path)
             lock_scope = effect.get("lock_scope")
-            if isinstance(lock_scope, str):
+            if isinstance(lock_scope, str) and mechanism_authority_usage(mechanism) == "provider_backed":
                 context = self.authority_provider.lock_target_root(target_root, lock_scope)
             else:
                 context = None

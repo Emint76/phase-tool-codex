@@ -19,6 +19,9 @@ from .freeze import FrozenInput, freeze_declared_inputs
 from .inspection import inspect_run
 from .installation import Installation, host_installation
 from .mutation import BrokerFaults, EffectBroker
+from .mutation.authority import GuaranteeProfileProvider
+from .mutation.implementation import mechanism_authority_usage
+from .mutation.platform import HostAuthorityProvider
 from .planning import build_idempotency_digests, build_static_plan, validate_static_plan
 from .registry import BundledRegistry, RegistrySnapshot, ResolvedContract
 from .validation import ValidatorRunner
@@ -211,6 +214,7 @@ class PhaseCore:
         content_blob_digests: list[str],
         execution_requested: bool,
     ) -> dict[str, Any]:
+        implementation_binding = self._implementation_binding(plan)
         return {
             "phase_intent_version": "1.0",
             "run_id": request.run_id,
@@ -234,12 +238,38 @@ class PhaseCore:
                 "root_identity_digest": root_identity_digest,
             },
             "effect_plan_digest": profile_digest("effect-plan", plan),
+            "implementation_binding": implementation_binding,
             "execution_requested": execution_requested,
             "evidence": {
                 "effect_plan_attachment_digest": effect_plan_attachment_digest,
                 "content_blob_digests": sorted(content_blob_digests),
             },
             "status": "intent_recorded",
+        }
+
+    def _implementation_binding(self, plan: Mapping[str, Any]) -> dict[str, Any]:
+        mechanism = dict(plan["mechanism"])
+        effect_plan_digest = profile_digest("effect-plan", plan)
+        if mechanism_authority_usage(mechanism) == "mechanism_managed":
+            authority = {"usage": "mechanism_managed", "profile": None, "provider": None}
+        else:
+            provider = self.installation.authority_provider
+            if type(provider) is not HostAuthorityProvider or not isinstance(provider, GuaranteeProfileProvider):
+                raise PhaseError("authority.guarantee_profile_unavailable")
+            profile = provider.guarantee_profile_binding()
+            authority = {
+                "usage": "provider_backed",
+                "profile": profile.as_dict(),
+                "provider": {
+                    "id": profile.implementation_id,
+                    "version": profile.implementation_version,
+                    "artifact_digest": profile.implementation_artifact_digest,
+                },
+            }
+        return {
+            "authority": authority,
+            "mechanism": mechanism,
+            "effect_plan_digest": effect_plan_digest,
         }
 
     @staticmethod
@@ -342,6 +372,7 @@ class PhaseCore:
         timestamp: str,
         intent_digest: str,
         attachment_digests: list[str],
+        implementation_binding: Mapping[str, Any],
     ) -> dict[str, Any]:
         return self._base_receipt(request, validator_results, timestamp) | {
             "terminal_status": "validated_planned",
@@ -350,6 +381,7 @@ class PhaseCore:
             "result_state": "planned_no_effect",
             "canonical_result": None,
             "effect_receipts": [],
+            "implementation_binding": dict(implementation_binding),
             "evidence": {
                 "finalization_status": "finalized",
                 "intent_digest": intent_digest,
@@ -382,6 +414,7 @@ class PhaseCore:
             "result_state": "verified_result",
             "canonical_result": prior_receipt["canonical_result"],
             "effect_receipts": [],
+            "implementation_binding": prior_receipt.get("implementation_binding"),
             "evidence": {
                 "finalization_status": "finalized",
                 "intent_digest": None,
@@ -405,9 +438,10 @@ class PhaseCore:
         *,
         intent_digest: str | None = None,
         attachment_digests: list[str] | None = None,
+        implementation_binding: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         blockers = sorted({item for result in validator_results for item in result.get("blockers", [])}) or [blocker]
-        return self._base_receipt(request, validator_results, timestamp) | {
+        receipt = self._base_receipt(request, validator_results, timestamp) | {
             "terminal_status": "rejected",
             "execution_disposition": "not_executed",
             "mutation_attempted": False,
@@ -426,6 +460,9 @@ class PhaseCore:
             "blockers": blockers,
             "exit_code": 10,
         }
+        if implementation_binding is not None:
+            receipt["implementation_binding"] = dict(implementation_binding)
+        return receipt
 
     @staticmethod
     def _canonical_result(contract: ResolvedContract, effect: Mapping[str, Any], observation: Mapping[str, Any], timestamp: str) -> dict[str, Any] | None:
@@ -473,6 +510,7 @@ class PhaseCore:
         timestamp: str,
         intent_digest: str,
         attachment_digests: list[str],
+        implementation_binding: Mapping[str, Any],
         *,
         finalization_failed: bool,
         required_attachments_present: bool = True,
@@ -535,6 +573,7 @@ class PhaseCore:
                 else None
             ),
             "effect_receipts": effect_receipts,
+            "implementation_binding": dict(implementation_binding),
             "evidence": {
                 "finalization_status": "failed" if finalization_failed else "finalized",
                 "intent_digest": intent_digest,
@@ -572,6 +611,9 @@ class PhaseCore:
                 request.contract_digest,
                 core_version=__version__,
             )
+            exact_binding = f"{request.contract_id}@{request.contract_version}"
+            if self.registry.contract_bindings().get(exact_binding) != self._requested_binding(request):
+                raise PhaseError("registry.contract_generation_inactive", exact_binding)
             lifecycle.append("capture")
             candidate = capture_structured(Path(request.candidate_path), maximum_bytes=request.maximum_candidate_bytes)
             hook = load_contract_hook(contract)
@@ -641,6 +683,7 @@ class PhaseCore:
                     timestamp,
                     intent_digest,
                     attachment_digests,
+                    intent["implementation_binding"],
                     finalization_failed=True,
                     required_attachments_present=final_validators_published,
                 )
@@ -666,6 +709,7 @@ class PhaseCore:
                 exc.code,
                 intent_digest=intent_digest,
                 attachment_digests=attachment_digests,
+                implementation_binding=intent["implementation_binding"] if intent is not None else None,
             )
             validate_receipt(receipt, self.registry)
             store.write_canonical("receipt.json", receipt)
@@ -776,7 +820,14 @@ class PhaseCore:
             intent_path, _ = store.write_canonical("intent.json", intent)
             intent_digest = profile_digest("intent", intent)
             if not execute:
-                receipt = self._planned_receipt(request, validator_results, timestamp, intent_digest, attachment_digests)
+                receipt = self._planned_receipt(
+                    request,
+                    validator_results,
+                    timestamp,
+                    intent_digest,
+                    attachment_digests,
+                    intent["implementation_binding"],
+                )
             else:
                 def record_progress(receipts: list[dict[str, object]]) -> None:
                     nonlocal progress_digest, latest_progress
@@ -834,6 +885,7 @@ class PhaseCore:
                     timestamp,
                     intent_digest,
                     attachment_digests,
+                    intent["implementation_binding"],
                     finalization_failed=active_faults.fail_receipt_write,
                 )
             validate_receipt(receipt, self.registry)
@@ -868,6 +920,7 @@ class PhaseCore:
                     timestamp,
                     intent_digest,
                     attachment_digests,
+                    intent["implementation_binding"],
                     finalization_failed=True,
                     required_attachments_present=False if incomplete_ordered_prefix else final_validators_published,
                 )
@@ -900,6 +953,7 @@ class PhaseCore:
                 exc.code,
                 intent_digest=intent_digest,
                 attachment_digests=attachment_digests,
+                implementation_binding=intent["implementation_binding"] if intent is not None else None,
             )
             validate_receipt(receipt, self.registry)
             store.write_canonical("receipt.json", receipt)

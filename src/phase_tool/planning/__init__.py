@@ -211,6 +211,27 @@ def build_static_plan(
     return plan
 
 
+def validate_plan_mechanism_authorization(
+    plan: Mapping[str, Any],
+    contract: ResolvedContract,
+    registry: RegistrySnapshot | None,
+) -> None:
+    operation = contract.document["operation"]
+    if plan.get("mechanism") != _exact(operation["mechanism"]):
+        raise PhaseError("plan.mechanism_mismatch")
+    allowed_mechanisms = {
+        tuple(_exact(binding).items())
+        for binding in [operation["mechanism"], *operation.get("effect_mechanisms", [])]
+    }
+    for effect in plan.get("effects", []):
+        if "mechanism" not in effect:
+            continue
+        if tuple(_exact(effect["mechanism"]).items()) not in allowed_mechanisms:
+            raise PhaseError("plan.effect_mechanism_not_allowed", str(effect["effect_id"]))
+        if registry is not None:
+            registry.resolve_mechanism(effect["mechanism"])
+
+
 def validate_static_plan(
     plan: dict[str, Any],
     contract: ResolvedContract,
@@ -225,8 +246,7 @@ def validate_static_plan(
             raise PhaseError("plan.schema_invalid", errors[0].message)
     if plan.get("contract") != {"id": contract.document["identity"]["id"], "version": contract.document["identity"]["version"], "package_digest": contract.package_digest}:
         raise PhaseError("plan.contract_mismatch")
-    if plan.get("mechanism") != _exact(contract.document["operation"]["mechanism"]):
-        raise PhaseError("plan.mechanism_mismatch")
+    validate_plan_mechanism_authorization(plan, contract, registry)
     effects = plan.get("effects", [])
     if len(effects) > contract.document["operation"]["maximum_effects"] or not effects:
         raise PhaseError("plan.incomplete")
@@ -236,16 +256,12 @@ def validate_static_plan(
     locators = [(effect["target"]["root_binding"], effect["target"]["relative_locator"]) for effect in effects]
     if len(locators) != len(set(locators)):
         raise PhaseError("plan.locator_collision")
-    allowed = set(contract.document["operation"]["allowed_effects"])
+    operation = contract.document["operation"]
+    allowed = set(operation["allowed_effects"])
     required_roots = {item["binding_id"] for item in contract.document["write_scope"]["roots"]}
     for effect in effects:
         if effect["kind"] not in allowed:
             raise PhaseError("plan.effect_not_allowed", effect["kind"])
-        if "mechanism" in effect:
-            try:
-                registry.resolve_mechanism(effect["mechanism"]) if registry is not None else None
-            except PhaseError:
-                raise
         if effect["target"]["root_binding"] not in required_roots:
             raise PhaseError("plan.root_binding_unknown", effect["target"]["root_binding"])
         safe_relative_locator(effect["target"]["relative_locator"])

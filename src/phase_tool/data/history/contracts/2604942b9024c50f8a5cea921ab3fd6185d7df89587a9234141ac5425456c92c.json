@@ -3,27 +3,27 @@
     "canonicalization": "canonical_json_v1",
     "input_mode": "structured_json",
     "privacy_policy_id": "privacy.no_secrets_v1",
-    "schema_digest": "sha256:d924a9b974d6d1e3c120aafd9debe84bc4265d3a2a0f1feb6438ab479c2328bb",
-    "schema_ref": "fixture://schemas/fixture-copy-candidate.v1"
+    "schema_digest": "sha256:5b36781c00fe62a6044c33c888d5957b8bfb94661414200b548bb6767e5d0273",
+    "schema_ref": "https://phase-tool.local/schemas/content-addressed-publish-candidate.schema.json"
   },
   "canonical_result": {
     "authority_rule": "authority.content_digest_v1",
     "locator_template": "objects/{object_id}",
-    "owner_id": "fixture.copy.owner",
+    "owner_id": "content.addressed.owner",
     "result_reference_schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
-    "result_schema_digest": "sha256:9e74ee0f49f4f5f081fe3abfa94ecc7153668041fda879b4277d1786ff75e1b4",
-    "result_schema_ref": "fixture://schemas/fixture-copy-result.v1",
-    "root_binding": "fixture_result_root"
+    "result_schema_digest": "sha256:54d2f369e56a08e4ce0fb30e90048d5753b6328e70eeb794df492dda51282137",
+    "result_schema_ref": "https://phase-tool.local/schemas/content-addressed-publish-result.schema.json",
+    "root_binding": "phase_result_root"
   },
   "evidence": {
-    "receipt_schema_digest": "sha256:e4e1126d71be6e05049ac57a9acb38ed92540a7b14ac90fb2bf45225e060de0d",
+    "receipt_schema_digest": "sha256:b68327ee676e8a51fabbd231e66ed5b3195171c9a169207a03782700892834bf",
     "receipt_schema_ref": "https://phase-tool.local/schemas/phase-receipt.schema.json",
     "redaction_policy_id": "redaction.no_secrets_v1",
     "required_attachment_kinds": [
       "effect_receipts",
       "validator_results"
     ],
-    "retention_policy_id": "retention.fixture_v1"
+    "retention_policy_id": "retention.content_addressed_v1"
   },
   "idempotency": {
     "incomplete_previous_execution": "inspect_before_retry",
@@ -43,7 +43,7 @@
       "maximum_exclusive": "2.0.0",
       "minimum": "1.0.0"
     },
-    "id": "fixture_copy.v1",
+    "id": "content_addressed_publish.v1",
     "version": "1.0.0"
   },
   "input_bindings": [
@@ -179,7 +179,7 @@
     "roots": [
       {
         "access": "write",
-        "binding_id": "fixture_result_root",
+        "binding_id": "phase_result_root",
         "path_policy": {
           "capability": "path_policy",
           "id": "path.strict_local_v1",

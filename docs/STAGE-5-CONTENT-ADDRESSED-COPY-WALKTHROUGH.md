@@ -31,7 +31,7 @@ Canonical result reference:
   "authority_rule": "authority.content_digest_v1",
   "contract": {
     "id": "fixture_copy.v1",
-    "package_digest": "sha256:c2e3e89752308ac6aba0febf038f01ef739d72bdd4d6efd555715b5261da48b6",
+    "package_digest": "sha256:87e9c905d7c078c00526ae0633523a129b4bd65fa5998ee4aa46dadfb105e06c",
     "version": "1.0.0"
   },
   "locator": "objects/d6631fa3b666c3f252ddda64da2b2d0c6a11b494f68da7e8afd0aa38609092cb",
@@ -51,13 +51,13 @@ Evidence paths for run `copy-execute`, relative to `.phase/runs/copy-execute/`:
 
 The listed `intent.json` and `receipt.json` hashes are captured root-identity-bound evidence from the preserved acceptance root used for this run, not cross-root reproducibility invariants. Recreating the resolved target root intentionally changes the idempotency root identity and its downstream intent/receipt linkage; the effect plan, copied bytes, canonical result, and root-independent attachments remain stable.
 
-- `attachments/effect-plan.json`, `length=1361`, `sha256=348c77311f962ea80eb852c636dea5b0d208f99c24962b74d66be552bfb0b6fe`
+- `attachments/effect-plan.json`, `length=1361`, `sha256=3120fcf7816bc61ebfd3caad01fe50da04fe4af940d2ae39ce3b00a1207940d7`
 - `attachments/effect-receipts.json`, `length=532`, `sha256=6175ae761e454460a08857a0ea6419745d6aac0fc9aaa80e56a721cc586aec7a`
 - `attachments/pre-validator-results.json`, `length=2426`, `sha256=573d6c593a76f64863d032ebc3bf6534c0d80578f498f02c9a32dd598db8046b`
 - `attachments/validator-results.json`, `length=2755`, `sha256=ec919f0cd70c465f04ee9714d031f4c050fd0df83630cde8b090991695225dc5`
 - `blobs/d6631fa3b666c3f252ddda64da2b2d0c6a11b494f68da7e8afd0aa38609092cb`, `length=16`, `sha256=d6631fa3b666c3f252ddda64da2b2d0c6a11b494f68da7e8afd0aa38609092cb`
-- `intent.json`, `length=2050`, `sha256=74361d1147fa9d170de69887c81b1724b9968b59b71345e0d3fbb547ade6be99`
-- `receipt.json`, `length=5123`, `sha256=6ed4d76cf370b09dedce09aac6cc3ed72fc89c2f3323468e92ce62293cd9de81`
+- `intent.json`, `length=2677`, `sha256=d23213ceaf844710cb70cd61bc77c4c5a302a96f316a4d0fa2fdb39e1fc693be`
+- `receipt.json`, `length=5750`, `sha256=a3de22b3b90efa2389728c155567bf5dea513be6b7b5205bfb9eb809009894be`
 
 ## Runtime Path
 

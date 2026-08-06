@@ -179,4 +179,23 @@ def validate_intent(intent: dict[str, Any], registry: RegistrySnapshot) -> None:
 
 def validate_receipt(receipt: dict[str, Any], registry: RegistrySnapshot) -> None:
     schema = registry.schema_document("https://phase-tool.local/schemas/phase-receipt.schema.json")
-    Draft202012Validator(schema, registry=registry.schema_registry(), format_checker=FormatChecker()).validate(receipt)
+    validator_registry = registry.schema_registry()
+    Draft202012Validator(schema, registry=validator_registry, format_checker=FormatChecker()).validate(receipt)
+    contract_binding = receipt["contract"]
+    try:
+        contract = registry.resolve_contract(
+            contract_binding["id"],
+            contract_binding["version"],
+            contract_binding["package_digest"],
+            core_version=receipt["core"]["version"],
+        )
+    except PhaseError as exc:
+        if exc.code == "registry.entry_not_found":
+            return
+        raise
+    evidence = contract.document["evidence"]
+    exact_schema = registry.schema_document(
+        evidence["receipt_schema_ref"],
+        evidence["receipt_schema_digest"],
+    )
+    Draft202012Validator(exact_schema, registry=validator_registry, format_checker=FormatChecker()).validate(receipt)

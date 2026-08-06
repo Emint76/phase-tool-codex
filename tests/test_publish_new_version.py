@@ -124,6 +124,63 @@ def test_publish_plan_is_archive_first_format_neutral_and_does_not_mutate_target
     assert inspected["target_verified"] is None
 
 
+@pytest.mark.parametrize("receipt_present", [True, False])
+def test_inspection_rejects_same_kind_effect_mechanism_not_authorized_by_contract(
+    tmp_path: Path,
+    receipt_present: bool,
+) -> None:
+    request, _target, evidence, _current, _before, _after = _request(
+        tmp_path,
+        run_id=f"unauthorized-effect-mechanism-{receipt_present}",
+    )
+    outcome = PhaseCore().run(request)
+    assert outcome.exit_code == 0
+    run_root = evidence / ".phase" / "runs" / request.run_id
+    plan_path = run_root / "attachments" / "effect-plan.json"
+    intent_path = run_root / "intent.json"
+    receipt_path = run_root / "receipt.json"
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    intent = json.loads(intent_path.read_text(encoding="utf-8"))
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    registry = BundledRegistry.load()
+    v2_binding = registry.contract_bindings()["publish_new_version.v2@1.0.0"]
+    v2_contract = registry.resolve_contract(
+        v2_binding["id"],
+        v2_binding["version"],
+        v2_binding["package_digest"],
+        core_version="1.0.0",
+    )
+    v2_mechanism = v2_contract.document["operation"]["mechanism"]
+    plan["effects"][0]["mechanism"] = {
+        "id": v2_mechanism["id"],
+        "version": v2_mechanism["version"],
+        "package_digest": v2_mechanism["package_digest"],
+    }
+    old_plan_attachment_digest = intent["evidence"]["effect_plan_attachment_digest"]
+    plan_bytes = canonical_bytes(plan)
+    plan_attachment_digest = digest_bytes(plan_bytes)
+    plan_digest = profile_digest("effect-plan", plan)
+    intent["effect_plan_digest"] = plan_digest
+    intent["implementation_binding"]["effect_plan_digest"] = plan_digest
+    intent["evidence"]["effect_plan_attachment_digest"] = plan_attachment_digest
+    plan_path.write_bytes(plan_bytes)
+    intent_path.write_bytes(canonical_bytes(intent))
+    if receipt_present:
+        receipt["implementation_binding"]["effect_plan_digest"] = plan_digest
+        receipt["evidence"]["intent_digest"] = profile_digest("intent", intent)
+        receipt["evidence"]["attachment_digests"] = [
+            plan_attachment_digest if item == old_plan_attachment_digest else item
+            for item in receipt["evidence"]["attachment_digests"]
+        ]
+        receipt_path.write_bytes(canonical_bytes(receipt))
+    else:
+        receipt_path.unlink()
+
+    with pytest.raises(PhaseError) as error:
+        inspect_run(evidence, request.run_id)
+    assert error.value.code == "plan.effect_mechanism_not_allowed"
+
+
 def test_publish_execute_archives_exact_before_then_publishes_current_and_binds_receipt(tmp_path: Path) -> None:
     request, target, evidence, current, before, after = _request(tmp_path, run_id="publish-execute")
     archive = target / _archive_locator(before)

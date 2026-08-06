@@ -41,10 +41,19 @@ def read_target_bytes(path: Path) -> bytes:
 
 def registry_binding(repo: Path, contract_id: str) -> str:
     registry = json.loads((repo / "src" / "phase_tool" / "data" / "registry.json").read_text(encoding="utf-8"))
-    for entry in registry["entries"]:
-        if entry.get("kind") == "contract" and entry.get("id") == contract_id and entry.get("version") == "1.0.0":
-            return str(entry["package_digest"])
-    raise AssertionError(f"inactive contract: {contract_id}@1.0.0")
+    matches = [
+        entry
+        for entry in registry["entries"]
+        if (
+            entry.get("kind") == "contract"
+            and entry.get("id") == contract_id
+            and entry.get("version") == "1.0.0"
+            and entry.get("current", True) is True
+        )
+    ]
+    if len(matches) != 1:
+        raise AssertionError(f"ambiguous contract binding: {contract_id}: {len(matches)} current entries")
+    return str(matches[0]["package_digest"])
 
 
 def source_candidate(payload: bytes) -> dict[str, object]:

@@ -72,6 +72,23 @@
       "id": "mechanism.expected_head_append_v1",
       "package_digest": "sha256:ee49db0f5f2f67c7ec8d5b252a2ebab6384c3032364e449dc4df588ab8880d4a",
       "version": "1.0.0"
+    },
+    "required_guarantees": {
+      "mechanisms": [
+        {
+          "all_of": [],
+          "mechanism": {
+            "id": "mechanism.expected_head_append_v1",
+            "package_digest": "sha256:ee49db0f5f2f67c7ec8d5b252a2ebab6384c3032364e449dc4df588ab8880d4a",
+            "version": "1.0.0"
+          }
+        }
+      ],
+      "vocabulary": {
+        "descriptor_digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624",
+        "id": "phase.mutation-guarantees",
+        "version": "1.0.0"
+      }
     }
   },
   "outcomes": {

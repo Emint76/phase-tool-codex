@@ -12,6 +12,7 @@ from ..evidence import evidence_file_exists, iter_run_artifacts, read_evidence_b
 from ..paths import _platform_path, contained_read_path
 from ..planning import validate_plan_mechanism_authorization, validate_static_plan
 from ..registry import BundledRegistry, RegistrySnapshot, ResolvedContract
+from ..mutation.guarantees import GuaranteeProfileBinding, verify_guarantee_coverage
 from ..mutation.implementation import mechanism_authority_usage, mechanism_supports_effect_kind
 from ..append_codec import stream_head_token
 from ..contracts import load_contract_hook
@@ -99,6 +100,7 @@ def _verify_intent_blobs(run_root: Path, intent: Mapping[str, Any], plan: Mappin
 def _validate_implementation_binding(
     binding: Mapping[str, Any],
     plan: Mapping[str, Any],
+    contract: ResolvedContract,
     registry: RegistrySnapshot,
 ) -> None:
     mechanism = plan.get("mechanism")
@@ -127,6 +129,11 @@ def _validate_implementation_binding(
     if authority_usage == "mechanism_managed":
         if authority != {"usage": "mechanism_managed", "profile": None, "provider": None}:
             raise PhaseError("inspection.implementation_binding_mismatch")
+        requirements = contract.document["operation"].get("required_guarantees")
+        if requirements is not None:
+            mechanisms = [contract.document["operation"]["mechanism"]]
+            mechanisms.extend(contract.document["operation"].get("effect_mechanisms", []))
+            verify_guarantee_coverage(requirements, mechanisms, None, registry)
         return
     profile = authority.get("profile")
     provider = authority.get("provider")
@@ -141,6 +148,19 @@ def _validate_implementation_binding(
     }
     if provider != expected_provider:
         raise PhaseError("inspection.implementation_binding_mismatch")
+    requirements = contract.document["operation"].get("required_guarantees")
+    if requirements is not None:
+        mechanisms = [contract.document["operation"]["mechanism"]]
+        mechanisms.extend(contract.document["operation"].get("effect_mechanisms", []))
+        profile_binding = GuaranteeProfileBinding(
+            id=profile["id"],
+            version=profile["version"],
+            descriptor_digest=profile["descriptor_digest"],
+            implementation_id=implementation["id"],
+            implementation_version=implementation["version"],
+            implementation_artifact_digest=implementation["artifact_digest"],
+        )
+        verify_guarantee_coverage(requirements, mechanisms, profile_binding, registry)
 
 
 def _implementation_binding_required(contract: ResolvedContract, registry: RegistrySnapshot) -> bool:
@@ -216,7 +236,7 @@ def inspect_run(
         if implementation_binding is not None:
             if not isinstance(implementation_binding, Mapping):
                 raise PhaseError("inspection.implementation_binding_mismatch")
-            _validate_implementation_binding(implementation_binding, plan, registry)
+            _validate_implementation_binding(implementation_binding, plan, contract, registry)
         _verify_intent_blobs(run_root, intent, plan)
         state_classification = None
         hook = load_contract_hook(contract)
@@ -283,7 +303,7 @@ def inspect_run(
         if intent_binding is not None:
             if not isinstance(intent_binding, Mapping):
                 raise PhaseError("inspection.implementation_binding_mismatch")
-            _validate_implementation_binding(intent_binding, plan, registry)
+            _validate_implementation_binding(intent_binding, plan, contract_for_plan, registry)
         validators, validators_digest = _read_canonical(run_root / "attachments" / "validator-results.json")
         if validators != receipt["validator_results"]:
             raise PhaseError("inspection.validator_results_mismatch")

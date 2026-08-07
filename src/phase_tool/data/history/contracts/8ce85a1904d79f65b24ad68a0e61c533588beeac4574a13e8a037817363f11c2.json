@@ -3,16 +3,16 @@
     "canonicalization": "canonical_json_v1",
     "input_mode": "structured_json",
     "privacy_policy_id": "privacy.no_secrets_v1",
-    "schema_digest": "sha256:f94b322391f430e72a741ff49ba670447ae08e59f0063c2e59bb18ef753f5c16",
-    "schema_ref": "https://phase-tool.local/schemas/file-create-candidate.schema.json"
+    "schema_digest": "sha256:5b36781c00fe62a6044c33c888d5957b8bfb94661414200b548bb6767e5d0273",
+    "schema_ref": "https://phase-tool.local/schemas/content-addressed-publish-candidate.schema.json"
   },
   "canonical_result": {
-    "authority_rule": "authority.exclusive_create_v1",
-    "locator_template": "{target_locator}",
-    "owner_id": "file.create.owner",
+    "authority_rule": "authority.content_digest_v1",
+    "locator_template": "objects/{object_id}",
+    "owner_id": "content.addressed.owner",
     "result_reference_schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
-    "result_schema_digest": "sha256:6c290d7d81ba589b4bac4e59ff0fce81caa2ef1dc04a29832b925da929e1393b",
-    "result_schema_ref": "https://phase-tool.local/schemas/file-create-result.schema.json",
+    "result_schema_digest": "sha256:54d2f369e56a08e4ce0fb30e90048d5753b6328e70eeb794df492dda51282137",
+    "result_schema_ref": "https://phase-tool.local/schemas/content-addressed-publish-result.schema.json",
     "root_binding": "phase_result_root"
   },
   "evidence": {
@@ -23,7 +23,7 @@
       "effect_receipts",
       "validator_results"
     ],
-    "retention_policy_id": "retention.canonical_file_v1"
+    "retention_policy_id": "retention.content_addressed_v1"
   },
   "idempotency": {
     "incomplete_previous_execution": "inspect_before_retry",
@@ -43,7 +43,7 @@
       "maximum_exclusive": "2.0.0",
       "minimum": "1.0.0"
     },
-    "id": "file_create.v1",
+    "id": "content_addressed_publish.v1",
     "version": "1.0.0"
   },
   "input_bindings": [
@@ -59,39 +59,18 @@
   ],
   "operation": {
     "allowed_effects": [
-      "exclusive_create"
+      "copy_blob"
     ],
-    "atomicity_claim": "single_effect",
+    "atomicity_claim": "per_effect",
     "effect_order": "static_predeclared",
-    "intent": "create",
+    "intent": "copy",
     "maximum_effects": 1,
     "mechanism": {
       "availability": "bundled_v1",
       "capability": "mutation_mechanism",
-      "id": "mechanism.exclusive_create_v1",
-      "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b",
+      "id": "content_addressed_copy",
+      "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2",
       "version": "1.0.0"
-    },
-    "required_guarantees": {
-      "mechanisms": [
-        {
-          "all_of": [
-            "exclusive_create",
-            "readback_verification",
-            "cross_process_serialization"
-          ],
-          "mechanism": {
-            "id": "mechanism.exclusive_create_v1",
-            "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b",
-            "version": "1.0.0"
-          }
-        }
-      ],
-      "vocabulary": {
-        "descriptor_digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624",
-        "id": "phase.mutation-guarantees",
-        "version": "1.0.0"
-      }
     }
   },
   "outcomes": {
@@ -123,8 +102,8 @@
     {
       "binding": {
         "capability": "validator",
-        "id": "fixture.create.candidate_v1",
-        "package_digest": "sha256:a31ec19f1572680a4a096d05d8d0df7dded7de79329605f9550855c1464bd6db",
+        "id": "fixture.copy.candidate_v1",
+        "package_digest": "sha256:e7f2ea57bf6104d2ea99ad1e17c562616d3b75427f4a0152a6c2437df0b86e50",
         "version": "1.0.0"
       },
       "blocking": true,
@@ -145,8 +124,8 @@
     {
       "binding": {
         "capability": "validator",
-        "id": "validator.destination_absent_v1",
-        "package_digest": "sha256:1b98144e9398a1a9e44c2f7bbb29eacf23700a397408310de939285a9f852112",
+        "id": "validator.destination_preconditions_v1",
+        "package_digest": "sha256:be3eadbd783fc15b51e74a10202f970b02adbdc2758b6ef5e6379ee6e2de5fb8",
         "version": "1.0.0"
       },
       "blocking": true,
@@ -168,11 +147,17 @@
   "verification": {
     "observation_scope": "result_only",
     "required_predicates": [
+      "all_destinations_accounted",
       "digest_matches",
-      "length_matches",
-      "regular_file"
+      "no_replacement"
     ],
     "validators": [
+      {
+        "capability": "validator",
+        "id": "validator.destination_preconditions_v1",
+        "package_digest": "sha256:be3eadbd783fc15b51e74a10202f970b02adbdc2758b6ef5e6379ee6e2de5fb8",
+        "version": "1.0.0"
+      },
       {
         "capability": "validator",
         "id": "validator.result_digest_v1",

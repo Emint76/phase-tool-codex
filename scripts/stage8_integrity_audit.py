@@ -62,7 +62,7 @@ def main() -> int:
     package_artifacts: dict[str, str] = {}
     artifacts: dict[str, str] = {}
     for entry in entries:
-        resource = entry["artifact"]
+        resource = entry.get("archive_resource", entry["artifact"])
         expected = entry["artifact_digest"]
         prior = artifacts.setdefault(resource, expected)
         if prior != expected:

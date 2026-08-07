@@ -77,6 +77,29 @@
       "id": "mechanism.archive_then_publish_v1",
       "package_digest": "sha256:7b7e5ab183e6ef08e86b9fd0a408def310f325a4eca73dbcddfb18627fdb6cd6",
       "version": "1.0.0"
+    },
+    "required_guarantees": {
+      "mechanisms": [
+        {
+          "all_of": [
+            "exclusive_create",
+            "readback_verification",
+            "cross_process_serialization",
+            "namespace_bound_mutation",
+            "namespace_metadata_flush_attempted"
+          ],
+          "mechanism": {
+            "id": "mechanism.archive_then_publish_v1",
+            "package_digest": "sha256:7b7e5ab183e6ef08e86b9fd0a408def310f325a4eca73dbcddfb18627fdb6cd6",
+            "version": "1.0.0"
+          }
+        }
+      ],
+      "vocabulary": {
+        "descriptor_digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624",
+        "id": "phase.mutation-guarantees",
+        "version": "1.0.0"
+      }
     }
   },
   "outcomes": {

@@ -20,6 +20,7 @@ from .inspection import inspect_run
 from .installation import Installation, host_installation
 from .mutation import BrokerFaults, EffectBroker
 from .mutation.authority import GuaranteeProfileProvider
+from .mutation.guarantees import verify_guarantee_coverage
 from .mutation.implementation import mechanism_authority_usage
 from .mutation.platform import HostAuthorityProvider
 from .planning import build_idempotency_digests, build_static_plan, validate_static_plan
@@ -256,7 +257,11 @@ class PhaseCore:
             provider = self.installation.authority_provider
             if type(provider) is not HostAuthorityProvider or not isinstance(provider, GuaranteeProfileProvider):
                 raise PhaseError("authority.guarantee_profile_unavailable")
-            profile = provider.guarantee_profile_binding()
+            profile = self.installation.authority_profile_binding
+            if profile is None:
+                raise PhaseError("authority.guarantee_profile_unavailable")
+            if provider.guarantee_profile_binding() != profile:
+                raise PhaseError("guarantee.profile_provider_disagreement")
             authority = {
                 "usage": "provider_backed",
                 "profile": profile.as_dict(),
@@ -271,6 +276,72 @@ class PhaseCore:
             "mechanism": mechanism,
             "effect_plan_digest": effect_plan_digest,
         }
+
+    def _verify_contract_guarantees(
+        self,
+        contract: ResolvedContract,
+        root_bindings: Mapping[str, Path],
+    ) -> dict[str, Any]:
+        requirements = contract.document["operation"].get("required_guarantees")
+        if not isinstance(requirements, Mapping):
+            raise PhaseError("contract.guarantee_requirements_missing")
+        mechanisms = [contract.document["operation"]["mechanism"]]
+        mechanisms.extend(contract.document["operation"].get("effect_mechanisms", []))
+        required_roots = {
+            str(root["binding_id"])
+            for root in contract.document["write_scope"]["roots"]
+            if root["access"] == "write"
+        }
+        missing_roots = sorted(required_roots - set(root_bindings))
+        if missing_roots:
+            raise PhaseError(
+                "guarantee.profile_scope_unsupported",
+                details={"missing_root_bindings": missing_roots},
+            )
+        if not any(mechanism_authority_usage(item) == "provider_backed" for item in mechanisms):
+            return verify_guarantee_coverage(requirements, mechanisms, None, self.registry)
+        provider = self.installation.authority_provider
+        if type(provider) is not HostAuthorityProvider or not isinstance(provider, GuaranteeProfileProvider):
+            raise PhaseError("authority.guarantee_profile_unavailable")
+        selected_profile = self.installation.authority_profile_binding
+        if selected_profile is None:
+            raise PhaseError("authority.guarantee_profile_unavailable")
+        if provider.guarantee_profile_binding() != selected_profile:
+            raise PhaseError("guarantee.profile_provider_disagreement")
+        self.installation.qualify_authority_roots(
+            {binding_id: root_bindings[binding_id] for binding_id in sorted(required_roots)}
+        )
+        return verify_guarantee_coverage(requirements, mechanisms, selected_profile, self.registry)
+
+    def _verify_plan_guarantees(
+        self,
+        required_guarantees: Mapping[str, Any],
+        plan: Mapping[str, Any],
+    ) -> None:
+        mechanisms_by_key: dict[tuple[str, str, str], Mapping[str, Any]] = {}
+        plan_mechanism = plan["mechanism"]
+        for mechanism in [plan_mechanism, *(effect.get("mechanism", plan_mechanism) for effect in plan["effects"])]:
+            key = (mechanism["id"], mechanism["version"], mechanism["package_digest"])
+            mechanisms_by_key[key] = mechanism
+        selected_requirements = {
+            "vocabulary": required_guarantees["vocabulary"],
+            "mechanisms": [
+                item
+                for item in required_guarantees["mechanisms"]
+                if (
+                    item["mechanism"]["id"],
+                    item["mechanism"]["version"],
+                    item["mechanism"]["package_digest"],
+                )
+                in mechanisms_by_key
+            ],
+        }
+        verify_guarantee_coverage(
+            selected_requirements,
+            list(mechanisms_by_key.values()),
+            self.installation.authority_profile_binding,
+            self.registry,
+        )
 
     @staticmethod
     def _publish_append_blobs(store: EvidenceStore, plan: dict[str, Any]) -> list[str]:
@@ -614,6 +685,8 @@ class PhaseCore:
             exact_binding = f"{request.contract_id}@{request.contract_version}"
             if self.registry.contract_bindings().get(exact_binding) != self._requested_binding(request):
                 raise PhaseError("registry.contract_generation_inactive", exact_binding)
+            lifecycle.append("guarantees")
+            required_guarantees = self._verify_contract_guarantees(contract, request.root_bindings)
             lifecycle.append("capture")
             candidate = capture_structured(Path(request.candidate_path), maximum_bytes=request.maximum_candidate_bytes)
             hook = load_contract_hook(contract)
@@ -640,6 +713,7 @@ class PhaseCore:
                     request,
                     store,
                     contract,
+                    required_guarantees,
                     candidate,
                     frozen,
                     validator_results,
@@ -658,6 +732,7 @@ class PhaseCore:
                     request,
                     store,
                     contract,
+                    required_guarantees,
                     candidate,
                     frozen,
                     validator_results,
@@ -721,6 +796,7 @@ class PhaseCore:
         request: PhaseRequest,
         store: EvidenceStore,
         contract: ResolvedContract,
+        required_guarantees: Mapping[str, Any],
         candidate: CapturedCandidate,
         frozen: Mapping[str, FrozenInput],
         validator_results: list[dict[str, Any]],
@@ -793,6 +869,7 @@ class PhaseCore:
                 request_digest=request_digest,
             )
             validate_static_plan(plan, contract, request.root_bindings, self.registry)
+            self._verify_plan_guarantees(required_guarantees, plan)
             content_blob_digests = self._publish_append_blobs(store, plan)
             _, plan_attachment_digest = store.write_canonical("attachments/effect-plan.json", plan)
             attachment_digests.append(plan_attachment_digest)
@@ -843,6 +920,7 @@ class PhaseCore:
                 effect_receipts = EffectBroker(
                     self.registry,
                     self.installation.authority_provider,
+                    self.installation.authority_profile_binding,
                 ).execute(
                     plan,
                     contract,

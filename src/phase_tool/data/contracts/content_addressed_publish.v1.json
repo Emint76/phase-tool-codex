@@ -71,6 +71,27 @@
       "id": "content_addressed_copy",
       "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2",
       "version": "1.0.0"
+    },
+    "required_guarantees": {
+      "mechanisms": [
+        {
+          "all_of": [
+            "exclusive_create",
+            "readback_verification",
+            "cross_process_serialization"
+          ],
+          "mechanism": {
+            "id": "content_addressed_copy",
+            "package_digest": "sha256:ea3dd62ad45312315c30da15a8aa53566e554d4e7733ee5f41c67d1c4cf37fa2",
+            "version": "1.0.0"
+          }
+        }
+      ],
+      "vocabulary": {
+        "descriptor_digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624",
+        "id": "phase.mutation-guarantees",
+        "version": "1.0.0"
+      }
     }
   },
   "outcomes": {

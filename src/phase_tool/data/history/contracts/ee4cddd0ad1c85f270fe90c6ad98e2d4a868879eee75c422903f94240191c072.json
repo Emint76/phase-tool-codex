@@ -3,16 +3,16 @@
     "canonicalization": "canonical_json_v1",
     "input_mode": "structured_json",
     "privacy_policy_id": "privacy.no_secrets_v1",
-    "schema_digest": "sha256:f94b322391f430e72a741ff49ba670447ae08e59f0063c2e59bb18ef753f5c16",
-    "schema_ref": "https://phase-tool.local/schemas/file-create-candidate.schema.json"
+    "schema_digest": "sha256:b19819d08afad387fffe7f202836fc3553507ddf3628d924098d0ec51a996943",
+    "schema_ref": "https://phase-tool.local/schemas/append-stream-candidate.schema.json"
   },
   "canonical_result": {
-    "authority_rule": "authority.exclusive_create_v1",
-    "locator_template": "{target_locator}",
-    "owner_id": "file.create.owner",
+    "authority_rule": "authority.append_head_v1",
+    "locator_template": "streams/{stream_id}.jsonl",
+    "owner_id": "append.stream.owner",
     "result_reference_schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
-    "result_schema_digest": "sha256:6c290d7d81ba589b4bac4e59ff0fce81caa2ef1dc04a29832b925da929e1393b",
-    "result_schema_ref": "https://phase-tool.local/schemas/file-create-result.schema.json",
+    "result_schema_digest": "sha256:b49e44d80306d53c0fd1185c3681d0cf6638f600a3bbff527affdad758b0c8d0",
+    "result_schema_ref": "https://phase-tool.local/schemas/append-stream-result.schema.json",
     "root_binding": "phase_result_root"
   },
   "evidence": {
@@ -23,7 +23,7 @@
       "effect_receipts",
       "validator_results"
     ],
-    "retention_policy_id": "retention.canonical_file_v1"
+    "retention_policy_id": "retention.append_stream_v1"
   },
   "idempotency": {
     "incomplete_previous_execution": "inspect_before_retry",
@@ -43,55 +43,35 @@
       "maximum_exclusive": "2.0.0",
       "minimum": "1.0.0"
     },
-    "id": "file_create.v1",
+    "id": "append_stream.v1",
     "version": "1.0.0"
   },
   "input_bindings": [
     {
-      "freeze_strategy": "copy_and_hash",
-      "id": "payload",
-      "mutable_upstream_after_freeze": "forbidden",
+      "freeze_strategy": "lock_snapshot_revalidate",
+      "id": "current_state",
+      "mutable_upstream_after_freeze": "allowed_with_revalidation",
       "provenance_required": false,
-      "required": true,
+      "required": false,
       "schema_digest": null,
       "schema_ref": null
     }
   ],
   "operation": {
     "allowed_effects": [
-      "exclusive_create"
+      "exclusive_create",
+      "append_record"
     ],
-    "atomicity_claim": "single_effect",
+    "atomicity_claim": "per_effect",
     "effect_order": "static_predeclared",
-    "intent": "create",
-    "maximum_effects": 1,
+    "intent": "append",
+    "maximum_effects": 2,
     "mechanism": {
       "availability": "bundled_v1",
       "capability": "mutation_mechanism",
-      "id": "mechanism.exclusive_create_v1",
-      "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b",
+      "id": "mechanism.expected_head_append_v1",
+      "package_digest": "sha256:ee49db0f5f2f67c7ec8d5b252a2ebab6384c3032364e449dc4df588ab8880d4a",
       "version": "1.0.0"
-    },
-    "required_guarantees": {
-      "mechanisms": [
-        {
-          "all_of": [
-            "exclusive_create",
-            "readback_verification",
-            "cross_process_serialization"
-          ],
-          "mechanism": {
-            "id": "mechanism.exclusive_create_v1",
-            "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b",
-            "version": "1.0.0"
-          }
-        }
-      ],
-      "vocabulary": {
-        "descriptor_digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624",
-        "id": "phase.mutation-guarantees",
-        "version": "1.0.0"
-      }
     }
   },
   "outcomes": {
@@ -123,8 +103,8 @@
     {
       "binding": {
         "capability": "validator",
-        "id": "fixture.create.candidate_v1",
-        "package_digest": "sha256:a31ec19f1572680a4a096d05d8d0df7dded7de79329605f9550855c1464bd6db",
+        "id": "fixture.append.candidate_v1",
+        "package_digest": "sha256:d6dbd3dff45443b8083a324d3231988f703916bff0ed76e757041ffbde1605fb",
         "version": "1.0.0"
       },
       "blocking": true,
@@ -134,19 +114,19 @@
     {
       "binding": {
         "capability": "validator",
-        "id": "validator.frozen_blob_v1",
-        "package_digest": "sha256:3dfe6c8051f2ce6c24f1f9dc6589a95a6b3f49d6d2417f8f9562678bf2d16039",
+        "id": "validator.expected_head_v1",
+        "package_digest": "sha256:0235f53aac0f4581a44d5d3e8b985780a994439d35985c3c4159fefca2e0ccd0",
         "version": "1.0.0"
       },
       "blocking": true,
       "config": {},
-      "phase": "input"
+      "phase": "pre_operation"
     },
     {
       "binding": {
         "capability": "validator",
-        "id": "validator.destination_absent_v1",
-        "package_digest": "sha256:1b98144e9398a1a9e44c2f7bbb29eacf23700a397408310de939285a9f852112",
+        "id": "validator.valid_tail_v1",
+        "package_digest": "sha256:2c41a18f0daf88a0b70d9cbf137fd02f7614a6158edf0e07df1b2c4f2e81e05d",
         "version": "1.0.0"
       },
       "blocking": true,
@@ -166,13 +146,19 @@
     }
   ],
   "verification": {
-    "observation_scope": "result_only",
+    "observation_scope": "historical_observation",
     "required_predicates": [
-      "digest_matches",
-      "length_matches",
-      "regular_file"
+      "valid_record_boundary",
+      "expected_record_present",
+      "head_matches"
     ],
     "validators": [
+      {
+        "capability": "validator",
+        "id": "validator.valid_tail_v1",
+        "package_digest": "sha256:2c41a18f0daf88a0b70d9cbf137fd02f7614a6158edf0e07df1b2c4f2e81e05d",
+        "version": "1.0.0"
+      },
       {
         "capability": "validator",
         "id": "validator.result_digest_v1",

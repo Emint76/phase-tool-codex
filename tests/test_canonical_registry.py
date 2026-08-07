@@ -53,9 +53,10 @@ def test_registry_digests_match_git_index_and_package_resources() -> None:
     resources = BundledRegistry.resources()
     for entry in registry.to_document()["entries"]:
         artifact = entry["artifact"]
-        committed = _git_index_bytes(f"src/phase_tool/data/{artifact}")
-        assert resources[artifact] == committed, artifact
-        assert entry["artifact_digest"] == digest_bytes(committed), artifact
+        physical_artifact = entry.get("archive_resource", artifact)
+        committed = _git_index_bytes(f"src/phase_tool/data/{physical_artifact}")
+        assert resources[physical_artifact] == committed, physical_artifact
+        assert entry["artifact_digest"] == digest_bytes(committed), physical_artifact
 
         package_artifacts = entry.get("package_artifacts")
         if package_artifacts is None:
@@ -75,7 +76,10 @@ def test_registry_digests_match_git_index_and_package_resources() -> None:
 def test_hash_bound_text_artifacts_are_forced_to_lf() -> None:
     registry = BundledRegistry.load().to_document()
     paths = {"src/phase_tool/data/registry.json", "fixtures/manifest.sha256"}
-    paths.update(f"src/phase_tool/data/{entry['artifact']}" for entry in registry["entries"])
+    paths.update(
+        f"src/phase_tool/data/{entry.get('archive_resource', entry['artifact'])}"
+        for entry in registry["entries"]
+    )
     paths.update(
         f"src/phase_tool/data/{item.get('archive_resource', item['resource'])}"
         for entry in registry["entries"]

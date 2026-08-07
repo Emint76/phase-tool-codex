@@ -23,6 +23,7 @@ from .expected_head_append import AppendRecordFaults, execute_append_record
 from .archive_then_publish import ArchiveThenPublishFaults, execute_archive_then_publish
 from .object_store_publish import ObjectStorePublishFaults, execute_object_store_publish
 from .authority import AuthorityProvider, GuaranteeProfileProvider
+from .guarantees import GuaranteeProfileBinding
 from .implementation import mechanism_authority_usage, mechanism_supports_effect_kind
 from .platform import HostAuthorityProvider
 
@@ -44,9 +45,15 @@ class BrokerFaults:
 class EffectBroker:
     """The only boundary allowed to invoke a target mutation mechanism."""
 
-    def __init__(self, registry: RegistrySnapshot, authority_provider: AuthorityProvider) -> None:
+    def __init__(
+        self,
+        registry: RegistrySnapshot,
+        authority_provider: AuthorityProvider,
+        authority_profile_binding: GuaranteeProfileBinding | None = None,
+    ) -> None:
         self.registry = registry
         self.authority_provider = authority_provider
+        self.authority_profile_binding = authority_profile_binding
         schema = registry.schema_document("https://phase-tool.local/schemas/effect-receipt.schema.json")
         self._receipt_validator = Draft202012Validator(
             schema,
@@ -135,7 +142,9 @@ class EffectBroker:
                 self.authority_provider, GuaranteeProfileProvider
             ):
                 raise PhaseError("broker.intent_implementation_mismatch")
-            profile = self.authority_provider.guarantee_profile_binding()
+            profile = self.authority_profile_binding
+            if profile is None or self.authority_provider.guarantee_profile_binding() != profile:
+                raise PhaseError("broker.intent_implementation_mismatch")
             expected_authority = {
                 "usage": "provider_backed",
                 "profile": profile.as_dict(),

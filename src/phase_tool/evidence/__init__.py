@@ -74,8 +74,6 @@ class EvidenceStore:
             raise PhaseError("evidence.run_exists", run_id) from exc
         self.blob_root = self.run_root / "blobs"
         self.attachment_root = self.run_root / "attachments"
-        os.mkdir(_platform_path(self.blob_root))
-        os.mkdir(_platform_path(self.attachment_root))
         self.operational_lock_root = phase_root / "locks"
         os.makedirs(_platform_path(self.operational_lock_root), exist_ok=True)
 
@@ -84,6 +82,7 @@ class EvidenceStore:
             parent_name, file_name = relative.split("/", 1)
             if parent_name != "attachments" or "/" in file_name:
                 raise PhaseError("evidence.invalid_path", relative)
+            self.attachment_root.mkdir(parents=False, exist_ok=True)
             path = self.attachment_root / file_name
         else:
             path = self.run_root / relative
@@ -103,6 +102,7 @@ class EvidenceStore:
     def replace_attachment_canonical(self, file_name: str, value: Any) -> tuple[Path, str]:
         if "/" in file_name or not file_name.endswith(".json"):
             raise PhaseError("evidence.invalid_path", file_name)
+        self.attachment_root.mkdir(parents=False, exist_ok=True)
         path = self.attachment_root / file_name
         data = canonical_bytes(value)
         tmp = self.attachment_root / (file_name + ".tmp")

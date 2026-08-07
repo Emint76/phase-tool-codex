@@ -15,7 +15,8 @@ from phase_tool.evidence import validate_receipt
 from phase_tool.inspection import inspect_run
 from phase_tool.installation import Installation, host_installation
 from phase_tool.mutation import BrokerFaults, EffectBroker
-from phase_tool.mutation.guarantees import GuaranteeProfileBinding
+from phase_tool.mutation.guarantees import GuaranteeProfileBinding, registered_profile_binding
+from phase_tool.mutation.platform import HostAuthorityProvider
 from phase_tool.registry import BundledRegistry, RegistrySnapshot
 
 NOW = "2026-08-05T00:00:00Z"
@@ -68,6 +69,47 @@ def _expected_authority(binding: GuaranteeProfileBinding) -> dict[str, object]:
             "artifact_digest": binding.implementation_artifact_digest,
         },
     }
+
+
+@pytest.mark.parametrize(
+    ("switch_at", "expected_blocker", "intent_recorded"),
+    [
+        (2, "guarantee.profile_provider_disagreement", False),
+        (3, "broker.intent_implementation_mismatch", True),
+    ],
+)
+def test_provider_profile_change_after_admission_fails_before_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    switch_at: int,
+    expected_blocker: str,
+    intent_recorded: bool,
+) -> None:
+    installation = host_installation()
+    selected = installation.authority_profile_binding
+    assert selected is not None
+    alternate_key = (
+        "phase.windows.authority.v1@1.0.0"
+        if selected.id == "phase.posix.authority.v1"
+        else "phase.posix.authority.v1@1.0.0"
+    )
+    alternate = registered_profile_binding(alternate_key)
+    call_count = 0
+
+    def changing_report(_provider: HostAuthorityProvider) -> GuaranteeProfileBinding:
+        nonlocal call_count
+        call_count += 1
+        return alternate if call_count >= switch_at else selected
+
+    monkeypatch.setattr(HostAuthorityProvider, "guarantee_profile_binding", changing_report)
+    request = _create_request(tmp_path, run_id=f"provider-change-{switch_at}")
+
+    outcome = PhaseCore(installation=installation).run(request, execute=True)
+
+    assert outcome.receipt["blockers"] == [expected_blocker]
+    assert (outcome.intent is not None) is intent_recorded
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not (request.root_bindings["fixture_result_root"] / "objects" / "item.bin").exists()
 
 
 def _append_request(tmp_path: Path, *, run_id: str = "append-binding") -> PhaseRequest:
@@ -183,7 +225,11 @@ def test_broker_rejects_effect_kind_bound_to_different_same_authority_mechanism(
     swapped_digest = profile_digest("effect-plan", swapped_plan)
     swapped_intent["effect_plan_digest"] = swapped_digest
     swapped_intent["implementation_binding"]["effect_plan_digest"] = swapped_digest
-    broker = EffectBroker(registry, installation.authority_provider)
+    broker = EffectBroker(
+        registry,
+        installation.authority_provider,
+        installation.authority_profile_binding,
+    )
 
     with pytest.raises(PhaseError) as error:
         broker._validate_intent_implementation(swapped_intent, swapped_plan)
@@ -428,7 +474,12 @@ def test_broker_returns_the_validated_intent_snapshot_with_locked_plan(tmp_path:
         contract_binding["package_digest"],
         core_version=outcome.intent["core"]["version"],
     )
-    broker = EffectBroker(registry, host_installation().authority_provider)
+    installation = host_installation()
+    broker = EffectBroker(
+        registry,
+        installation.authority_provider,
+        installation.authority_profile_binding,
+    )
 
     locked = broker._locked_plan_from_evidence(
         outcome.effect_plan,

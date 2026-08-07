@@ -3,17 +3,17 @@
     "canonicalization": "canonical_json_v1",
     "input_mode": "structured_json",
     "privacy_policy_id": "privacy.no_secrets_v1",
-    "schema_digest": "sha256:f94b322391f430e72a741ff49ba670447ae08e59f0063c2e59bb18ef753f5c16",
-    "schema_ref": "https://phase-tool.local/schemas/file-create-candidate.schema.json"
+    "schema_digest": "sha256:a16986f13526450b8d3b925e639ae541da547ba3638bb2d794ab1667e777771f",
+    "schema_ref": "fixture://schemas/fixture-create-candidate.v1"
   },
   "canonical_result": {
     "authority_rule": "authority.exclusive_create_v1",
     "locator_template": "{target_locator}",
-    "owner_id": "file.create.owner",
+    "owner_id": "fixture.create.owner",
     "result_reference_schema_ref": "https://phase-tool.local/schemas/phase-result-reference.schema.json",
-    "result_schema_digest": "sha256:6c290d7d81ba589b4bac4e59ff0fce81caa2ef1dc04a29832b925da929e1393b",
-    "result_schema_ref": "https://phase-tool.local/schemas/file-create-result.schema.json",
-    "root_binding": "phase_result_root"
+    "result_schema_digest": "sha256:80863548155e1efdacc45fda18464315b5768c9b6fff5e0c957dcc21b8397180",
+    "result_schema_ref": "fixture://schemas/fixture-create-result.v1",
+    "root_binding": "fixture_result_root"
   },
   "evidence": {
     "receipt_schema_digest": "sha256:e4e1126d71be6e05049ac57a9acb38ed92540a7b14ac90fb2bf45225e060de0d",
@@ -23,7 +23,7 @@
       "effect_receipts",
       "validator_results"
     ],
-    "retention_policy_id": "retention.canonical_file_v1"
+    "retention_policy_id": "retention.fixture_v1"
   },
   "idempotency": {
     "incomplete_previous_execution": "inspect_before_retry",
@@ -43,7 +43,7 @@
       "maximum_exclusive": "2.0.0",
       "minimum": "1.0.0"
     },
-    "id": "file_create.v1",
+    "id": "fixture_create.v1",
     "version": "1.0.0"
   },
   "input_bindings": [
@@ -71,27 +71,6 @@
       "id": "mechanism.exclusive_create_v1",
       "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b",
       "version": "1.0.0"
-    },
-    "required_guarantees": {
-      "mechanisms": [
-        {
-          "all_of": [
-            "exclusive_create",
-            "readback_verification",
-            "cross_process_serialization"
-          ],
-          "mechanism": {
-            "id": "mechanism.exclusive_create_v1",
-            "package_digest": "sha256:79564033bced595dda6c50b139c85d350c2eabbfbe586a17cfcbe5037884411b",
-            "version": "1.0.0"
-          }
-        }
-      ],
-      "vocabulary": {
-        "descriptor_digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624",
-        "id": "phase.mutation-guarantees",
-        "version": "1.0.0"
-      }
     }
   },
   "outcomes": {
@@ -194,7 +173,7 @@
     "roots": [
       {
         "access": "write",
-        "binding_id": "phase_result_root",
+        "binding_id": "fixture_result_root",
         "path_policy": {
           "capability": "path_policy",
           "id": "path.strict_local_v1",

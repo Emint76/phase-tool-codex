@@ -28,7 +28,7 @@ from phase_tool.mutation import (
 )
 from phase_tool.mutation.archive_then_publish import ArchiveThenPublishFaults
 from phase_tool.mutation.platform import HostAuthorityProvider
-from phase_tool.mutation.guarantees import GuaranteeProfileBinding, registered_profile_binding
+from phase_tool.mutation.guarantees import GuaranteeProfileBinding
 from phase_tool.registry import BundledRegistry, RegistrySnapshot
 
 NOW = "2026-08-05T00:00:00Z"
@@ -100,12 +100,7 @@ def test_provider_profile_change_after_admission_fails_before_mutation(
     installation = host_installation()
     selected = installation.authority_profile_binding
     assert selected is not None
-    alternate_key = (
-        "phase.windows.authority.v1@1.0.0"
-        if selected.id == "phase.posix.authority.v1"
-        else "phase.posix.authority.v1@1.0.0"
-    )
-    alternate = registered_profile_binding(alternate_key)
+    alternate = replace(selected, descriptor_digest="sha256:" + "0" * 64)
     call_count = 0
 
     def changing_report(_provider: HostAuthorityProvider) -> GuaranteeProfileBinding:

@@ -454,42 +454,6 @@ def test_final_progress_write_failure_preserves_durable_complete_receipts(
         assert inspection_error.value.code == "inspection.progress_semantic_mismatch"
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows sharing and reparse semantics")
-def test_windows_created_leaf_cannot_be_replaced_before_identity_bound_readback(tmp_path: Path) -> None:
-    target = tmp_path / "target"
-    target.mkdir()
-    content = b"created-object"
-    destination = target / "leaf.bin"
-    replacement_blocked = False
-
-    def try_replace(path: Path) -> None:
-        nonlocal replacement_blocked
-        try:
-            path.unlink()
-            path.write_bytes(content)
-        except PermissionError:
-            replacement_blocked = True
-
-    effect = {
-        "effect_id": "effect.0",
-        "kind": "exclusive_create",
-        "content_digest": _sha(content),
-        "content_length": len(content),
-        "target": {"root_binding": "target", "relative_locator": "leaf.bin"},
-    }
-    receipt = execute_exclusive_create(
-        effect,
-        target,
-        content,
-        run_id="leaf-window",
-        timestamp=NOW,
-        faults=ExclusiveCreateFaults(before_readback=try_replace),
-    )
-    assert replacement_blocked is True
-    assert receipt["status"] == "applied_verified"
-    assert destination.read_bytes() == content
-
-
 def _source_worker(base: str, name: str, queue: object) -> None:
     tmp = Path(base)
     request, _target, _evidence, _source, _payload = _request(tmp, run_id=name, payload=b"race", operation_id="op-race")

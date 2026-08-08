@@ -55,19 +55,6 @@ def test_contract_schema_accepts_versioned_technology_neutral_requirements() -> 
     Draft202012Validator(schema).validate(contract)
 
 
-def test_windows_profile_rejects_contract_requirement_it_does_not_cover() -> None:
-    with pytest.raises(PhaseError) as error:
-        verify_guarantee_coverage(
-            requirements("namespace_bound_mutation", "readback_verification"),
-            [EXCLUSIVE_CREATE],
-            registered_profile_binding("phase.windows.authority.v1@1.0.0"),
-            BundledRegistry.load(),
-        )
-
-    assert error.value.code == "guarantee.coverage_insufficient"
-    assert error.value.details == {"missing": ["namespace_bound_mutation"]}
-
-
 def test_contract_requirement_rejects_guarantee_outside_exact_vocabulary() -> None:
     with pytest.raises(PhaseError) as error:
         verify_guarantee_coverage(
@@ -245,12 +232,11 @@ def test_installation_profile_and_provider_report_must_agree_before_capture(tmp_
 def test_host_installation_selects_profile_independently_of_provider_report(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    configured_key = "phase.windows.authority.v1@1.0.0" if os.name == "nt" else "phase.posix.authority.v1@1.0.0"
-    other_key = "phase.posix.authority.v1@1.0.0" if os.name == "nt" else "phase.windows.authority.v1@1.0.0"
+    configured_key = "phase.posix.authority.v1@1.0.0"
     monkeypatch.setattr(
         HostAuthorityProvider,
         "guarantee_profile_binding",
-        lambda _self: registered_profile_binding(other_key),
+        lambda _self: replace(registered_profile_binding(configured_key), descriptor_digest="sha256:" + "0" * 64),
     )
 
     installation = host_installation()
@@ -258,10 +244,41 @@ def test_host_installation_selects_profile_independently_of_provider_report(
     assert installation.authority_profile_binding == registered_profile_binding(configured_key)
 
 
-@pytest.mark.skipif(
-    os.name != "nt" and not installation_module.sys.platform.startswith("linux"),
-    reason="bundled host qualification supports Windows and Linux",
-)
+def test_non_linux_runtime_rejects_mutation_before_capture_or_authority_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = BundledRegistry.load()
+    binding = registry.contract_bindings()["fixture_create.v1@1.0.0"]
+    target = tmp_path / "target"
+    target.mkdir()
+    monkeypatch.setattr(installation_module.sys, "platform", "unsupported-test-host")
+
+    def forbidden_open(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("authority must not open on an unsupported runtime")
+
+    monkeypatch.setattr(HostAuthorityProvider, "open_authority", forbidden_open)
+    request = PhaseRequest(
+        contract_id=binding["id"],
+        contract_version=binding["version"],
+        contract_digest=binding["package_digest"],
+        candidate_path=tmp_path / "candidate-must-not-be-read.json",
+        evidence_root=tmp_path / "evidence",
+        run_id="unsupported-runtime",
+        input_paths={"payload": tmp_path / "payload-must-not-be-read.bin"},
+        root_bindings={"fixture_result_root": target},
+        timestamp="2026-08-05T00:00:00Z",
+    )
+
+    outcome = PhaseCore().run(request, execute=True)
+
+    assert outcome.receipt["blockers"] == ["platform.mutation_unsupported"]
+    assert outcome.lifecycle == ("resolve", "guarantees", "receipt")
+    assert outcome.intent is None
+    assert outcome.effect_plan is None
+    assert list(target.iterdir()) == []
+
+
 @pytest.mark.parametrize("binding_key", ["fixture_create.v1@1.0.0", "fixture_append.v1@1.0.0"])
 def test_uncreated_root_is_rejected_with_receipt_before_capture(tmp_path: Path, binding_key: str) -> None:
     registry = BundledRegistry.load()
@@ -296,10 +313,7 @@ def test_unqualified_filesystem_scope_is_rejected_before_capture(
     binding = registry.contract_bindings()["fixture_create.v1@1.0.0"]
     target = tmp_path / "target"
     target.mkdir()
-    if os.name == "nt":
-        monkeypatch.setattr(installation_module, "_windows_filesystem_type", lambda _path: "refs")
-    else:
-        monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda _path: "nfs")
+    monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda _path: "nfs")
     request = PhaseRequest(
         contract_id=binding["id"],
         contract_version=binding["version"],
@@ -331,10 +345,7 @@ def test_mechanism_managed_unqualified_scope_is_rejected_before_capture(
     binding = registry.contract_bindings()["fixture_append.v1@1.0.0"]
     target = tmp_path / "target"
     target.mkdir()
-    if os.name == "nt":
-        monkeypatch.setattr(installation_module, "_windows_filesystem_type", lambda _path: "refs")
-    else:
-        monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda _path: "nfs")
+    monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda _path: "nfs")
     request = PhaseRequest(
         contract_id=binding["id"],
         contract_version=binding["version"],
@@ -357,7 +368,6 @@ def test_mechanism_managed_unqualified_scope_is_rejected_before_capture(
     assert sorted(path.name for path in run_root.iterdir()) == ["receipt.json"]
 
 
-@pytest.mark.skipif(os.name == "nt", reason="portable directory symlink setup is POSIX-only")
 def test_mechanism_managed_symlink_root_is_rejected_before_capture(tmp_path: Path) -> None:
     registry = BundledRegistry.load()
     binding = registry.contract_bindings()["fixture_append.v1@1.0.0"]
@@ -518,32 +528,3 @@ def test_loop4_contract_and_schema_generation_remain_exactly_resolvable() -> Non
     assert "required_guarantees" not in historical.document["operation"]
     assert "required_guarantees" in current.document["operation"]
     assert "required_guarantees" not in historical_schema["properties"]["operation"]["properties"]
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows compatibility admission")
-def test_windows_rejects_uncovered_contract_before_capture_or_intent(tmp_path: Path) -> None:
-    registry = BundledRegistry.load()
-    binding = registry.contract_bindings()["publish_new_version.v2@1.0.0"]
-    target = tmp_path / "target-must-not-be-touched"
-    target.mkdir()
-    request = PhaseRequest(
-        contract_id=binding["id"],
-        contract_version=binding["version"],
-        contract_digest=binding["package_digest"],
-        candidate_path=tmp_path / "candidate-must-not-be-read.json",
-        evidence_root=tmp_path / "evidence",
-        run_id="windows-guarantee-rejection",
-        input_paths={"payload": tmp_path / "payload-must-not-be-read.bin"},
-        root_bindings={"current_root": target, "objects_root": target},
-        timestamp="2026-08-05T00:00:00Z",
-    )
-
-    outcome = PhaseCore().run(request, execute=True)
-
-    assert outcome.receipt["blockers"] == ["guarantee.coverage_insufficient"]
-    assert outcome.intent is None
-    assert outcome.effect_plan is None
-    assert outcome.lifecycle == ("resolve", "guarantees", "receipt")
-    run_root = request.evidence_root / ".phase" / "runs" / request.run_id
-    assert sorted(path.name for path in run_root.iterdir()) == ["receipt.json"]
-    assert list(target.iterdir()) == []

@@ -949,12 +949,13 @@ class PhaseCore:
         except (PhaseError, OSError) as exc:
             intent_digest = profile_digest("intent", intent) if intent is not None else None
             if effect_receipts and intent_digest is not None and contract is not None and plan is not None:
+                required_attachments_present = True
                 try:
-                    _, effects_digest = store.write_canonical("attachments/effect-receipts.json", effect_receipts)
+                    _, effects_digest = store.write_or_verify_canonical("attachments/effect-receipts.json", effect_receipts)
                     if effects_digest not in attachment_digests:
                         attachment_digests.append(effects_digest)
                 except (PhaseError, OSError):
-                    pass
+                    required_attachments_present = False
                 if len(plan["effects"]) > 1:
                     latest_progress = self._ordered_progress(plan, effect_receipts)
                     try:
@@ -962,13 +963,13 @@ class PhaseCore:
                         if progress_digest not in attachment_digests:
                             attachment_digests.append(progress_digest)
                     except (PhaseError, OSError):
-                        pass
+                        required_attachments_present = False
                 try:
-                    _, validators_digest = store.write_canonical("attachments/validator-results.json", validator_results)
+                    _, validators_digest = store.write_or_verify_canonical("attachments/validator-results.json", validator_results)
                     if validators_digest not in attachment_digests:
                         attachment_digests.append(validators_digest)
                 except (PhaseError, OSError):
-                    pass
+                    required_attachments_present = False
                 receipt = self._executed_receipt(
                     request,
                     contract,
@@ -980,7 +981,7 @@ class PhaseCore:
                     attachment_digests,
                     intent["implementation_binding"],
                     finalization_failed=True,
-                    required_attachments_present=False,
+                    required_attachments_present=required_attachments_present,
                 )
                 validate_receipt(receipt, self.registry)
                 if not lifecycle or lifecycle[-1] != "receipt":

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import os
+import sys
 
-if os.name == "nt":
-    from .windows.authority import WindowsAuthorityProvider as HostAuthorityProvider
-    from .windows.authority import WindowsTargetAuthority as HostTargetAuthority
-    from .windows.authority import WindowsTargetRootLock as HostTargetRootLock
-else:
+if sys.platform.startswith("linux"):
     from .posix.authority import PosixAuthorityProvider as HostAuthorityProvider
     from .posix.authority import PosixTargetAuthority as HostTargetAuthority
     from .posix.authority import PosixTargetRootLock as HostTargetRootLock
+else:
+    from .unsupported import UnsupportedAuthorityProvider as HostAuthorityProvider
+    from .unsupported import UnsupportedTargetAuthority as HostTargetAuthority
+    from .unsupported import UnsupportedTargetRootLock as HostTargetRootLock
 
 __all__ = ["HostAuthorityProvider", "HostTargetAuthority", "HostTargetRootLock"]

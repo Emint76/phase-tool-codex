@@ -55,16 +55,18 @@ namespaces/{namespace}/knowledge-results/{logical_knowledge_id}/{knowledge_resul
 
 `knowledge_result_id` is derived from the exact contract identity, namespace, logical identity, artifact identity, artifact kind/format, provenance digest and exact `supersedes` reference. The descriptor binds the artifact and the source evidence. A changed request under the same idempotency key conflicts. An exact normalized result reuses the existing verified receipt even when the caller supplies a different operation key, but only after current candidate/source validation and complete inspection of the prior evidence and target.
 
-## Real CLI acceptance
+## Historical pre-Linux-only CLI acceptance
 
-The executable harness is:
+> **Historical record only.** The command and output below were captured before the production/release boundary became Linux/POSIX-only. They are retained to explain the preserved evidence values, not as a supported invocation or as current release verification. The current runtime rejects Windows mutation with `platform.mutation_unsupported` before candidate capture; current acceptance is executed only on qualified Linux hosts.
+
+The historical harness invocation (unsupported by the current runtime) was:
 
 ```bash
 env -u PYTHONPATH .venv/Scripts/python.exe scripts/stage7_cli_acceptance.py \
   --tmp-root .stage7-tmp/loop5-walkthrough
 ```
 
-Observed output:
+Historically observed output:
 
 ```json
 {"scenario_count":13,"success":true,"summary":"C:\\Users\\Gennady\\HermesWorkspace\\Research\\phase-tool-codex\\.stage7-tmp\\loop5-walkthrough\\stage7-cli-acceptance-summary.json"}
@@ -105,12 +107,6 @@ All structured checks were true:
 - the scalar effect-0 write failure reported a truthful partial outcome, while an unsafe effect-1 callback was rejected before mutation.
 
 The result, descriptor and receipt digests above are evidence from that exact root-authority-bound run; they are not asserted as cross-root constants.
-
-## Windows long-path regression
-
-Two clean isolated reproductions used descriptor paths of 275 characters. In both runs `os.walk` returned the exact descriptor while the ordinary path produced `os.path.lexists == false`, `Path.exists == false`, `Path.lstat` failure and `Path.open` failure. The same path with the Windows `\\?\` prefix produced `lexists == true`, `exists == true`, a regular 2,072-byte file, and a successful read. The descriptor and its parent had no symlink or reparse attributes. Execute and inspection subprocesses had already returned, their handles were closed, and cleanup had not started.
-
-This established a Windows `MAX_PATH` access defect rather than stale locator, cleanup race, open mutation handle or publication failure. Evidence freezing, evidence writes, evidence inspection/enumeration, source and supersedes receipt verification, idempotency scans, broker evidence reads and the acceptance harness now use the existing platform-path adapter where a long Windows path requires it. Platform conversion preserves lexical paths so symlink/reparse checks are not bypassed by resolution. Regressions cover the complete CLI acceptance under a descriptor path of at least 260 characters and long evidence paths for source, supersedes and same-key conflict handling; no sleep or retry logic is used.
 
 ## Claims not made
 

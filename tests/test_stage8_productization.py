@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import zipfile
 from copy import deepcopy
 from pathlib import Path
 
@@ -382,7 +383,7 @@ def test_mcp_stdio_stdout_contains_protocol_json_only_and_diagnostics_use_stderr
     assert "Processing request" in stderr
 
 
-def test_publication_metadata_documentation_and_cross_platform_ci_are_complete() -> None:
+def test_publication_metadata_documentation_and_linux_ci_are_complete() -> None:
     import tomllib
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
@@ -413,7 +414,7 @@ def test_publication_metadata_documentation_and_cross_platform_ci_are_complete()
     assert "source_admission.v1@1.0.0" in combined
     assert "knowledge_admission.v1@1.0.0" in combined
     workflow = required[-1].read_text(encoding="utf-8")
-    assert "windows-latest" in workflow
+    assert "windows-latest" not in workflow
     assert "ubuntu-latest" in workflow
 
 
@@ -528,6 +529,11 @@ def test_package_schema_registry_manifest_and_wheel_integrity_audit() -> None:
     assert summary["manifest_entries"] >= 60
     assert summary["wheel_entries"] >= summary["package_artifacts"]
     assert summary["errors"] == []
+    with zipfile.ZipFile(wheel) as archive:
+        wheel_entries = set(archive.namelist())
+    assert "phase_tool/mutation/unsupported.py" in wheel_entries
+    assert not any(name.startswith("phase_tool/mutation/windows/") for name in wheel_entries)
+    assert "phase_tool/data/descriptors/guarantee/phase.windows.authority.v1.json" not in wheel_entries
 
 
 def test_contract_describe_unknown_binding_has_same_cli_mcp_error_envelope() -> None:

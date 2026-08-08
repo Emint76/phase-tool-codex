@@ -155,13 +155,6 @@ def _admit_knowledge(tmp_path: Path, target: Path, evidence: Path, source_bindin
     return request, outcome
 
 
-def _move_evidence_to_long_windows_path(tmp_path: Path, evidence: Path) -> Path:
-    destination = tmp_path / ("e" * 120) / ("r" * 120) / "evidence"
-    os.makedirs(_platform_path(destination.parent), exist_ok=True)
-    os.replace(_platform_path(evidence), _platform_path(destination))
-    return destination
-
-
 def test_knowledge_contract_is_exactly_activated_and_integrity_bound() -> None:
     registry = BundledRegistry.load()
     entry = registry.contract_bindings()["knowledge_admission.v1@1.0.0"]
@@ -315,22 +308,6 @@ def test_exact_knowledge_result_reuses_under_a_new_operation_key(tmp_path: Path)
     assert second.receipt["mutation_attempted"] is False
     assert second.receipt["effect_receipts"] == []
     assert second.receipt["prior_verified_receipt_digest"] == first.receipt_digest
-
-
-def test_long_windows_evidence_paths_verify_source_supersedes_and_idempotency(tmp_path: Path) -> None:
-    target, evidence, binding = _admit_source(tmp_path)
-    artifact = b"long evidence v1"
-    _request, first = _admit_knowledge(tmp_path, target, evidence, [binding], run_id="knowledge-long-first", artifact=artifact, operation_id="op-long-first", logical_id="knowledge-long-first")
-    prior = inspect_run(evidence, "knowledge-long-first", root_bindings={"admission_result_root": target})["contract_result"]["reference"]
-    long_evidence = _move_evidence_to_long_windows_path(tmp_path, evidence)
-    assert len(str(long_evidence / ".phase" / "runs" / "source-run" / "receipt.json")) >= 260
-    second_candidate = _knowledge_candidate(b"long evidence v2", [binding], operation_id="op-long-second", logical_id="knowledge-long-second", supersedes=prior)
-    second = PhaseCore().run(_knowledge_request(tmp_path, target, long_evidence, second_candidate, b"long evidence v2", run_id="knowledge-long-second"), execute=True)
-    assert second.receipt["terminal_status"] == "succeeded_verified"
-    conflict_candidate = _knowledge_candidate(b"changed request", [binding], operation_id="op-long-first", logical_id="knowledge-long-first")
-    conflict = PhaseCore().run(_knowledge_request(tmp_path, target, long_evidence, conflict_candidate, b"changed request", run_id="knowledge-long-conflict"), execute=True)
-    assert conflict.receipt["terminal_status"] == "rejected"
-    assert conflict.receipt["blockers"] == ["idempotency.same_key_conflict"]
 
 
 def test_knowledge_sorts_source_bindings_and_rejects_duplicates(tmp_path: Path) -> None:
@@ -599,8 +576,9 @@ def test_stage7_real_cli_acceptance_and_factual_walkthrough(tmp_path: Path) -> N
         assert value in walkthrough
 
 
-def test_stage7_cli_acceptance_reads_long_descriptor_paths() -> None:
-    padding = 9 if os.name == "nt" else 19
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="production mutation runtime is Linux-only")
+def test_stage7_linux_cli_acceptance_reads_deep_descriptor_paths() -> None:
+    padding = 19
     components = tuple(f"segment-{index:02d}-" + "x" * padding for index in range(3))
     assert all(len(component) < 96 for component in components)
     cli_root = ROOT / ".stage7-tmp"
@@ -623,8 +601,6 @@ def test_stage7_cli_acceptance_reads_long_descriptor_paths() -> None:
     assert completed.returncode == 0, f"stdout={completed.stdout!r} stderr={completed.stderr!r}"
     assert envelope["success"] is True
     assert summary["success"] is True
-    if os.name == "nt":
-        assert descriptor_length >= 260
     receipt_path = Path(envelope["summary"]).parent / "evidence" / ".phase" / "runs" / "knowledge-execute" / "receipt.json"
     canonical = parse_json_bytes(receipt_path.read_bytes())["canonical_result"]
     assert summary["knowledge_result"]["descriptor_locator"] == canonical["locator"]

@@ -1447,7 +1447,7 @@
           "resource": "descriptors/guarantee/phase.mutation-guarantees.v1.json"
         },
         {
-          "digest": "sha256:6388dd4aae65e0f8785f80c780f1242b2555d1517e42d2528537934233f8f86b",
+          "digest": "sha256:497d2469491b28cf7c81500b7b17bfe54b45eeb0fd6ab95707014c09e5eb76a3",
           "resource": "schemas/mutation-guarantee-profile.schema.json"
         },
         {
@@ -1455,36 +1455,7 @@
           "resource": "schemas/mutation-guarantee-vocabulary.schema.json"
         }
       ],
-      "package_digest": "sha256:40324ed29694c357013615b4c2195ca91ca3eb356318ed36492fa4d310f5ec62",
-      "trust_root_id": "phase.release.v1",
-      "version": "1.0.0"
-    },
-    {
-      "artifact": "descriptors/guarantee/phase.windows.authority.v1.json",
-      "artifact_digest": "sha256:ffdecdd438ceee07a646f33a156a947e18fa64e8bb3315c427a491e5803c281a",
-      "capability": "mutation_authority",
-      "id": "phase.windows.authority.v1",
-      "kind": "guarantee_profile",
-      "mutable": false,
-      "package_artifacts": [
-        {
-          "digest": "sha256:ffdecdd438ceee07a646f33a156a947e18fa64e8bb3315c427a491e5803c281a",
-          "resource": "descriptors/guarantee/phase.windows.authority.v1.json"
-        },
-        {
-          "digest": "sha256:f7b158004b0bf7041286269c239c381cfd60db5987c6bf2173c645d5ac146624",
-          "resource": "descriptors/guarantee/phase.mutation-guarantees.v1.json"
-        },
-        {
-          "digest": "sha256:6388dd4aae65e0f8785f80c780f1242b2555d1517e42d2528537934233f8f86b",
-          "resource": "schemas/mutation-guarantee-profile.schema.json"
-        },
-        {
-          "digest": "sha256:e236e68a54fdff4298cc408a83c6e9e9fa4aa378d861f128839d2daa4bc22d8f",
-          "resource": "schemas/mutation-guarantee-vocabulary.schema.json"
-        }
-      ],
-      "package_digest": "sha256:6ac1458d249843d3c39e921cf6b77a23f27d7adf675ecab107b439b07f7e9edc",
+      "package_digest": "sha256:ab4ca23bab21d7201569acb9c778c16163af94a9d6cadace059dbd1036f9ae56",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"
     },
@@ -2032,12 +2003,12 @@
     },
     {
       "artifact": "schemas/mutation-guarantee-profile.schema.json",
-      "artifact_digest": "sha256:6388dd4aae65e0f8785f80c780f1242b2555d1517e42d2528537934233f8f86b",
+      "artifact_digest": "sha256:497d2469491b28cf7c81500b7b17bfe54b45eeb0fd6ab95707014c09e5eb76a3",
       "capability": "schema",
       "id": "schema.mutation_guarantee_profile",
       "kind": "schema",
       "mutable": false,
-      "package_digest": "sha256:6388dd4aae65e0f8785f80c780f1242b2555d1517e42d2528537934233f8f86b",
+      "package_digest": "sha256:497d2469491b28cf7c81500b7b17bfe54b45eeb0fd6ab95707014c09e5eb76a3",
       "schema_ref": "https://phase-tool.local/schemas/mutation-guarantee-profile.schema.json",
       "trust_root_id": "phase.release.v1",
       "version": "1.0.0"

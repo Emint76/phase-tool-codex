@@ -69,46 +69,19 @@ def _is_wsl() -> bool:
         return True
 
 
-def _windows_filesystem_type(path: Path) -> str:
-    import ctypes
-
-    resolved = str(_resolved_existing_root(path))
-    volume = ctypes.create_unicode_buffer(32768)
-    if not ctypes.windll.kernel32.GetVolumePathNameW(resolved, volume, len(volume)):
-        raise PhaseError("guarantee.profile_scope_unsupported", resolved)
-    filesystem = ctypes.create_unicode_buffer(256)
-    if not ctypes.windll.kernel32.GetVolumeInformationW(
-        volume.value,
-        None,
-        0,
-        None,
-        None,
-        None,
-        filesystem,
-        len(filesystem),
-    ):
-        raise PhaseError("guarantee.profile_scope_unsupported", resolved)
-    drive_type = ctypes.windll.kernel32.GetDriveTypeW(volume.value)
-    if drive_type != 3:  # DRIVE_FIXED
-        return f"{filesystem.value.lower()}:drive_type={drive_type}"
-    return filesystem.value.lower()
-
-
 def qualify_host_authority_roots(root_bindings: Mapping[str, Path]) -> None:
+    if not sys.platform.startswith("linux"):
+        raise PhaseError(
+            "platform.mutation_unsupported",
+            details={"platform": sys.platform},
+        )
     for binding_id, root in sorted(root_bindings.items()):
         try:
-            if os.name == "nt":
-                filesystem = _windows_filesystem_type(Path(root))
-                qualified = filesystem == "ntfs"
-            elif sys.platform.startswith("linux"):
-                filesystem = _linux_filesystem_type(Path(root))
-                is_wsl = _is_wsl()
-                qualified = not is_wsl and filesystem in {"ext4", "overlay"}
-                if is_wsl:
-                    filesystem = f"wsl:{filesystem}"
-            else:
-                filesystem = sys.platform
-                qualified = False
+            filesystem = _linux_filesystem_type(Path(root))
+            is_wsl = _is_wsl()
+            qualified = not is_wsl and filesystem in {"ext4", "overlay"}
+            if is_wsl:
+                filesystem = f"wsl:{filesystem}"
         except (FileNotFoundError, OSError) as exc:
             raise PhaseError("guarantee.profile_scope_unsupported", binding_id) from exc
         if not qualified:
@@ -123,8 +96,8 @@ def host_installation() -> Installation:
     """Build the explicit host installation configuration at one composition boundary."""
 
     provider = HostAuthorityProvider()
-    profile_key = "phase.windows.authority.v1@1.0.0" if os.name == "nt" else "phase.posix.authority.v1@1.0.0"
+    profile = registered_profile_binding("phase.posix.authority.v1@1.0.0") if sys.platform.startswith("linux") else None
     return Installation(
         authority_provider=provider,
-        authority_profile_binding=registered_profile_binding(profile_key),
+        authority_profile_binding=profile,
     )

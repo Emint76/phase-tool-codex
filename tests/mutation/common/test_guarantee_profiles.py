@@ -71,7 +71,7 @@ def _mutated_vocabulary_registry(mutate: object) -> tuple[RegistrySnapshot, dict
         entry["package_digest"] = canonical_digest(
             {"profile": "phase_contract_package_v1", "artifacts": deepcopy(entry["package_artifacts"])}
         )
-        if entry["id"] == "phase.windows.authority.v1":
+        if entry["id"] == "phase.posix.authority.v1":
             selected_binding = {"id": entry["id"], "version": entry["version"], "descriptor_digest": profile_digest}
     assert selected_binding is not None
     return RegistrySnapshot.from_document(document, resources), selected_binding
@@ -98,15 +98,9 @@ def test_bundled_guarantee_profiles_are_schema_and_digest_valid() -> None:
     registry = BundledRegistry.load()
     bindings = registry.guarantee_profile_bindings()
 
-    assert set(bindings) == {
-        "phase.posix.authority.v1@1.0.0",
-        "phase.windows.authority.v1@1.0.0",
-    }
+    assert set(bindings) == {"phase.posix.authority.v1@1.0.0"}
     posix = registry.resolve_guarantee_profile(bindings["phase.posix.authority.v1@1.0.0"])
-    windows = registry.resolve_guarantee_profile(bindings["phase.windows.authority.v1@1.0.0"])
     assert posix["classification"] == "production"
-    assert windows["classification"] == "compatibility"
-    assert posix["vocabulary"] == windows["vocabulary"]
 
 
 def test_profile_conformance_bindings_name_real_executable_tests() -> None:
@@ -157,7 +151,7 @@ def test_profile_cannot_claim_unknown_guarantee() -> None:
             {"guarantee": "process_crash_recovery", "test_id": "nonexistent"}
         )
 
-    registry, binding = _mutated_profile_registry("phase.windows.authority.v1", mutate)
+    registry, binding = _mutated_profile_registry("phase.posix.authority.v1", mutate)
 
     with pytest.raises(PhaseError) as error:
         registry.resolve_guarantee_profile(binding)
@@ -169,7 +163,7 @@ def test_profile_cannot_claim_guarantee_without_exact_conformance_evidence() -> 
     def mutate(descriptor: dict[str, object]) -> None:
         descriptor["conformance"].pop()  # type: ignore[union-attr]
 
-    registry, binding = _mutated_profile_registry("phase.windows.authority.v1", mutate)
+    registry, binding = _mutated_profile_registry("phase.posix.authority.v1", mutate)
 
     with pytest.raises(PhaseError) as error:
         registry.resolve_guarantee_profile(binding)
@@ -183,7 +177,7 @@ def test_profile_cannot_rebind_conformance_to_nonexistent_test() -> None:
         assert isinstance(conformance, list)
         conformance[0]["test_id"] = "tests::nonexistent"  # type: ignore[index]
 
-    registry, binding = _mutated_profile_registry("phase.windows.authority.v1", mutate)
+    registry, binding = _mutated_profile_registry("phase.posix.authority.v1", mutate)
 
     with pytest.raises(PhaseError) as error:
         registry.resolve_guarantee_profile(binding)
@@ -195,24 +189,12 @@ def test_profile_implementation_artifact_digest_mismatch_fails_closed() -> None:
     def mutate(descriptor: dict[str, object]) -> None:
         descriptor["implementation"]["artifact_digest"] = "sha256:" + "0" * 64  # type: ignore[index]
 
-    registry, binding = _mutated_profile_registry("phase.windows.authority.v1", mutate)
+    registry, binding = _mutated_profile_registry("phase.posix.authority.v1", mutate)
 
     with pytest.raises(PhaseError) as error:
         registry.resolve_guarantee_profile(binding)
 
     assert error.value.code == "guarantee_profile.implementation_digest_mismatch"
-
-
-def test_windows_profile_cannot_claim_production_classification() -> None:
-    def mutate(descriptor: dict[str, object]) -> None:
-        descriptor["classification"] = "production"
-
-    registry, binding = _mutated_profile_registry("phase.windows.authority.v1", mutate)
-
-    with pytest.raises(PhaseError) as error:
-        registry.resolve_guarantee_profile(binding)
-
-    assert error.value.code == "guarantee_profile.schema_invalid"
 
 
 def test_profile_identity_cannot_be_rebound_to_another_provider_identity() -> None:
@@ -221,29 +203,7 @@ def test_profile_identity_cannot_be_rebound_to_another_provider_identity() -> No
         assert isinstance(implementation, dict)
         implementation["id"] = "phase.alternate.authority"
 
-    registry, binding = _mutated_profile_registry("phase.windows.authority.v1", mutate)
-
-    with pytest.raises(PhaseError) as error:
-        registry.resolve_guarantee_profile(binding)
-
-    assert error.value.code == "guarantee_profile.schema_invalid"
-
-
-def test_windows_profile_cannot_claim_unsupported_posix_guarantee() -> None:
-    def mutate(descriptor: dict[str, object]) -> None:
-        provided = descriptor["provided_guarantees"]
-        conformance = descriptor["conformance"]
-        assert isinstance(provided, list)
-        assert isinstance(conformance, list)
-        provided.append("namespace_bound_mutation")
-        conformance.append(
-            {
-                "guarantee": "namespace_bound_mutation",
-                "test_id": "tests::fabricated_windows_namespace_binding",
-            }
-        )
-
-    registry, binding = _mutated_profile_registry("phase.windows.authority.v1", mutate)
+    registry, binding = _mutated_profile_registry("phase.posix.authority.v1", mutate)
 
     with pytest.raises(PhaseError) as error:
         registry.resolve_guarantee_profile(binding)

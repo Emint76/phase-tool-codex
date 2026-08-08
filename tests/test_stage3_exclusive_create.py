@@ -563,18 +563,17 @@ def test_receipt_finalization_failure_leaves_intent_without_durable_receipt(tmp_
 
 
 @pytest.mark.parametrize(
-    ("failure_path", "error_kind", "required_attachments_present"),
+    ("failure_path", "error_kind"),
     [
-        ("attachments/validator-results.json", "phase", False),
-        ("receipt.json", "os", True),
+        ("attachments/validator-results.json", "phase"),
+        ("receipt.json", "os"),
     ],
 )
-def test_real_post_mutation_evidence_failure_never_claims_not_executed(
+def test_transient_post_mutation_evidence_failure_finalizes_truthful_recovery_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     failure_path: str,
     error_kind: str,
-    required_attachments_present: bool,
 ) -> None:
     request, target, evidence, payload = create_request(
         tmp_path,
@@ -604,18 +603,18 @@ def test_real_post_mutation_evidence_failure_never_claims_not_executed(
     assert outcome.receipt["result_state"] == "committed_unverified"
     assert outcome.receipt["effect_receipts"][0]["status"] == "applied_verified"
     assert outcome.receipt["evidence"]["finalization_status"] == "failed"
-    assert outcome.receipt["evidence"]["required_attachments_present"] is required_attachments_present
+    assert outcome.receipt["evidence"]["required_attachments_present"] is True
     assert outcome.receipt["blockers"] == ["evidence.finalization_failed"]
-    assert outcome.receipt_digest is None
+    assert outcome.receipt_digest is not None
     assert (run_root / "intent.json").is_file()
-    assert not (run_root / "receipt.json").exists()
+    assert json.loads((run_root / "receipt.json").read_bytes()) == outcome.receipt
 
     from phase_tool.inspection import inspect_run
 
-    inspected = inspect_run(evidence, request.run_id)
-    assert inspected["receipt_present"] is False
+    inspected = inspect_run(evidence, request.run_id, root_bindings=request.root_bindings)
+    assert inspected["receipt_present"] is True
     assert inspected["intent_present"] is True
-    assert inspected["terminal_status"] is None
+    assert inspected["terminal_status"] == "committed_unverified"
 
 
 def test_plan_cannot_expand_after_durable_intent(tmp_path: Path) -> None:

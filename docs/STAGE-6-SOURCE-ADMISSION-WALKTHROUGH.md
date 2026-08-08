@@ -31,15 +31,17 @@ The blob is authoritative for exact bytes. The immutable canonical descriptor is
 
 Both mechanisms use the same mutation-boundary `TargetAuthority`. It validates and pins the target parent chain and prevents a parent replacement from redirecting create/readback.
 
-## Real CLI acceptance
+## Historical pre-Linux-only CLI acceptance
 
-Command:
+> **Historical record only.** The command and output below were captured before the production/release boundary became Linux/POSIX-only. They are retained to explain the preserved evidence values, not as a supported invocation or as current release verification. The current runtime rejects Windows mutation with `platform.mutation_unsupported` before candidate capture; current acceptance is executed only on qualified Linux hosts.
+
+Historical command (unsupported by the current runtime):
 
 ```text
 env -u PYTHONPATH .venv/Scripts/python.exe scripts/stage6_cli_acceptance.py
 ```
 
-Observed compact output:
+Historically observed compact output:
 
 ```json
 {"scenario_count":29,"success":true,"summary":"C:\\Users\\Gennady\\HermesWorkspace\\Research\\agent-task-journal\\.stage6-tmp\\final-cli\\stage6-cli-acceptance-summary.json"}

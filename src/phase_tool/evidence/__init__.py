@@ -130,6 +130,22 @@ class EvidenceStore:
             os.fsync(stream.fileno())
         return path, digest_bytes(data)
 
+    def write_or_verify_canonical(self, relative: str, value: Any) -> tuple[Path, str]:
+        data = canonical_bytes(value)
+        try:
+            return self.write_canonical(relative, value)
+        except FileExistsError:
+            if "/" in relative:
+                parent_name, file_name = relative.split("/", 1)
+                if parent_name != "attachments" or "/" in file_name:
+                    raise PhaseError("evidence.invalid_path", relative)
+                path = self.attachment_root / file_name
+            else:
+                path = self.run_root / relative
+            if read_evidence_bytes(path) != data:
+                raise PhaseError("evidence.artifact_conflict", relative)
+            return path, digest_bytes(data)
+
     def replace_attachment_canonical(self, file_name: str, value: Any) -> tuple[Path, str]:
         return replace_attachment_canonical(self.attachment_root, file_name, value)
 

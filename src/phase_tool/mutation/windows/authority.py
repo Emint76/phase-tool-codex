@@ -179,17 +179,23 @@ class WindowsTargetRootLock:
             raise PhaseError("path.reparse_forbidden", str(self.root))
         root = self.root.resolve(strict=True)
         self._directory = _WindowsPinnedDirectory(root, self.scope)
-        identity = self._directory.identity()
-        mutex_digest = digest_bytes(f"{identity[0]}:{identity[1]}:{identity[2]}:{self.scope}".encode("utf-8")).split(":", 1)[1]
-        self._mutex = _kernel32.CreateMutexW(None, False, "Local\\phase-tool-effect-" + mutex_digest)
-        if not self._mutex:
+        try:
+            identity = self._directory.identity()
+            mutex_digest = digest_bytes(f"{identity[0]}:{identity[1]}:{identity[2]}:{self.scope}".encode("utf-8")).split(":", 1)[1]
+            self._mutex = _kernel32.CreateMutexW(None, False, "Local\\phase-tool-effect-" + mutex_digest)
+            if not self._mutex:
+                raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
+            waited = _kernel32.WaitForSingleObject(self._mutex, _INFINITE)
+            if waited not in {_WAIT_OBJECT_0, _WAIT_ABANDONED}:
+                raise OSError(int(waited), "WaitForSingleObject failed")
+            return self
+        except Exception:
+            if self._mutex is not None:
+                _kernel32.CloseHandle(self._mutex)
+                self._mutex = None
             self._directory.close()
-            raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
-        waited = _kernel32.WaitForSingleObject(self._mutex, _INFINITE)
-        if waited not in {_WAIT_OBJECT_0, _WAIT_ABANDONED}:
-            self.__exit__()
-            raise OSError(int(waited), "WaitForSingleObject failed")
-        return self
+            self._directory = None
+            raise
 
     def __exit__(self, *_exc: object) -> None:
         if self._mutex is not None:
@@ -202,7 +208,13 @@ class WindowsTargetRootLock:
 
 
 class WindowsTargetAuthority:
-    def __init__(self, root: Path, locator: str, reparse_detector: Callable[[Path], bool] | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        locator: str,
+        reparse_detector: Callable[[Path], bool] | None = None,
+        expected_root_identity: tuple[int, int] | None = None,
+    ) -> None:
         self.locator = safe_relative_locator(locator)
         self.reparse_detector = reparse_detector or _is_reparse_point
         self.root = root.resolve(strict=True)
@@ -212,13 +224,18 @@ class WindowsTargetAuthority:
         self.parent_fd: int | None = None
         self._handles: list[_WindowsPinnedDirectory] = []
         try:
-            self._prepare_and_pin_parent()
+            self._prepare_and_pin_parent(expected_root_identity)
         except Exception:
             self.close()
             raise
 
-    def _prepare_and_pin_parent(self) -> None:
-        self._handles.append(_WindowsPinnedDirectory(self.root, self.locator))
+    def _prepare_and_pin_parent(self, expected_root_identity: tuple[int, int] | None) -> None:
+        root_handle = _WindowsPinnedDirectory(self.root, self.locator)
+        self._handles.append(root_handle)
+        volume, high, low = root_handle.identity()
+        root_identity = (int(volume), (int(high) << 32) | int(low))
+        if expected_root_identity is not None and root_identity != expected_root_identity:
+            raise PhaseError("broker.root_identity_mismatch")
         current = self.root
         for part in self.locator.split("/")[:-1]:
             current = current / part
@@ -319,8 +336,9 @@ class WindowsAuthorityProvider:
         root: Path,
         locator: str,
         reparse_detector: Callable[[Path], bool] | None = None,
+        expected_root_identity: tuple[int, int] | None = None,
     ) -> WindowsTargetAuthority:
-        return WindowsTargetAuthority(root, locator, reparse_detector)
+        return WindowsTargetAuthority(root, locator, reparse_detector, expected_root_identity)
 
     def lock_target_root(self, root: Path, scope: str) -> AbstractContextManager[object]:
         return WindowsTargetRootLock(root, scope)

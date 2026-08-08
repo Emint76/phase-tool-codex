@@ -36,7 +36,12 @@ class PosixTargetRootLock:
         root = self.root.resolve(strict=True)
         flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
         self._descriptor = os.open(root, flags)
-        fcntl.flock(self._descriptor, fcntl.LOCK_EX)
+        try:
+            fcntl.flock(self._descriptor, fcntl.LOCK_EX)
+        except Exception:
+            os.close(self._descriptor)
+            self._descriptor = None
+            raise
         return self
 
     def __exit__(self, *_exc: object) -> None:
@@ -47,7 +52,13 @@ class PosixTargetRootLock:
 
 
 class PosixTargetAuthority:
-    def __init__(self, root: Path, locator: str, reparse_detector: Callable[[Path], bool] | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        locator: str,
+        reparse_detector: Callable[[Path], bool] | None = None,
+        expected_root_identity: tuple[int, int] | None = None,
+    ) -> None:
         self.locator = safe_relative_locator(locator)
         self.reparse_detector = reparse_detector or _is_reparse_point
         self.root = root.resolve(strict=True)
@@ -58,7 +69,7 @@ class PosixTargetAuthority:
         self.parent_fd: int | None = None
         self._namespace_bindings: list[tuple[Path, tuple[int, int]]] = []
         try:
-            self._prepare_and_pin_parent()
+            self._prepare_and_pin_parent(expected_root_identity)
         except Exception:
             self.close()
             raise
@@ -67,13 +78,16 @@ class PosixTargetAuthority:
     def _directory_flags() -> int:
         return os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
 
-    def _prepare_and_pin_parent(self) -> None:
-        if self.reparse_detector(self.root):
-            raise PhaseError("path.reparse_forbidden", self.locator)
+    def _prepare_and_pin_parent(self, expected_root_identity: tuple[int, int] | None) -> None:
         root_fd = os.open(self.root, self._directory_flags())
         self._handles.append(root_fd)
         root_info = os.fstat(root_fd)
-        self._namespace_bindings.append((self.root, (int(root_info.st_dev), int(root_info.st_ino))))
+        root_identity = (int(root_info.st_dev), int(root_info.st_ino))
+        if expected_root_identity is not None and root_identity != expected_root_identity:
+            raise PhaseError("broker.root_identity_mismatch")
+        self._namespace_bindings.append((self.root, root_identity))
+        if self.reparse_detector(self.root):
+            raise PhaseError("path.reparse_forbidden", self.locator)
         parent_fd = root_fd
         current = self.root
         for part in self.locator.split("/")[:-1]:
@@ -197,8 +211,9 @@ class PosixAuthorityProvider:
         root: Path,
         locator: str,
         reparse_detector: Callable[[Path], bool] | None = None,
+        expected_root_identity: tuple[int, int] | None = None,
     ) -> PosixTargetAuthority:
-        return PosixTargetAuthority(root, locator, reparse_detector)
+        return PosixTargetAuthority(root, locator, reparse_detector, expected_root_identity)
 
     def lock_target_root(self, root: Path, scope: str) -> AbstractContextManager[object]:
         return PosixTargetRootLock(root, scope)

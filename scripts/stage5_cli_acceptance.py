@@ -488,7 +488,7 @@ def main() -> int:
     corrupted_payload = payload_dir / "corrupted.bin"
     corrupted_payload.write_bytes(b"corrupt me")
     _copy_candidate(corrupted, "corrupted-key")
-    record_helper("11_corrupted_frozen_blob_rejection", "corrupt_blob", corrupted, "corrupted-blob", corrupted_payload, {"exit": 10, "terminal_status": "rejected", "disposition": "not_executed", "mutation_attempted": False, "blocker": "broker.content_blob_mismatch"})
+    record_helper("11_corrupted_frozen_blob_rejection", "corrupt_blob", corrupted, "corrupted-blob", corrupted_payload, {"exit": 10, "terminal_status": "rejected", "disposition": "not_executed", "mutation_attempted": False, "blocker": "broker.unsafe_fault_callback"})
 
     create = candidate_dir / "create.json"
     create_payload = payload_dir / "create.bin"
@@ -519,7 +519,7 @@ def main() -> int:
     late_payload = payload_dir / "late-conflict.bin"
     late_payload.write_bytes(b"late conflict")
     _copy_candidate(late, "late-conflict-key")
-    record_helper("17_destination_appears_conflict", "destination_appears", late, "destination-appears", late_payload, {"exit": 20, "terminal_status": "failed_no_effect", "disposition": "executed", "mutation_attempted": True, "blocker": "target.same_key_conflict"})
+    record_helper("17_destination_appears_conflict", "destination_appears", late, "destination-appears", late_payload, {"exit": 10, "terminal_status": "rejected", "disposition": "not_executed", "mutation_attempted": False, "blocker": "broker.unsafe_fault_callback"})
 
     failures: dict[str, Any] = {}
     for name, scenario in matrix.items():

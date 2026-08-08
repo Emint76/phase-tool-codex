@@ -1,22 +1,34 @@
 from __future__ import annotations
 
 import json
+import inspect
+import os
 from copy import deepcopy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Mapping
 
 import pytest
 from jsonschema.exceptions import ValidationError
 
+import phase_tool.installation as installation_module
 from phase_tool.canonical import canonical_bytes, digest_bytes, profile_digest
 from phase_tool.core import CoreFaults, PhaseCore, PhaseRequest
 from phase_tool.errors import PhaseError
 from phase_tool.evidence import validate_receipt
 from phase_tool.inspection import inspect_run
 from phase_tool.installation import Installation, host_installation
-from phase_tool.mutation import BrokerFaults, EffectBroker
-from phase_tool.mutation.guarantees import GuaranteeProfileBinding, registered_profile_binding
+from phase_tool.mutation import (
+    AppendRecordFaults,
+    BrokerFaults,
+    ContentAddressedCopyFaults,
+    EffectBroker,
+    ExclusiveCreateFaults,
+    ObjectStorePublishFaults,
+)
+from phase_tool.mutation.archive_then_publish import ArchiveThenPublishFaults
 from phase_tool.mutation.platform import HostAuthorityProvider
+from phase_tool.mutation.guarantees import GuaranteeProfileBinding, registered_profile_binding
 from phase_tool.registry import BundledRegistry, RegistrySnapshot
 
 NOW = "2026-08-05T00:00:00Z"
@@ -177,7 +189,451 @@ def test_broker_rejects_provider_binding_changed_after_intent_before_mutation(tm
     )
 
     assert outcome.exit_code != 0
-    assert outcome.receipt["blockers"] == ["broker.intent_implementation_mismatch"]
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("fault_name", ["before_mechanism", "before_effect_lock", "before_effect"])
+def test_broker_rejects_root_identity_replacement_after_admission(
+    tmp_path: Path,
+    fault_name: str,
+) -> None:
+    request = _create_request(tmp_path, run_id=f"root-rebound-{fault_name}")
+    target_root = request.root_bindings["fixture_result_root"]
+    target = target_root / "objects" / "item.bin"
+
+    def replace_root(*_args: object) -> None:
+        displaced = tmp_path / "displaced-target"
+        target_root.rename(displaced)
+        target_root.mkdir()
+        (target_root / "objects").mkdir()
+
+    if fault_name == "before_mechanism":
+        broker_faults = BrokerFaults(before_mechanism=lambda _intent_path: replace_root())
+    elif fault_name == "before_effect_lock":
+        broker_faults = BrokerFaults(before_effect_lock=lambda _ordinal, _intent_path: replace_root())
+    else:
+        broker_faults = BrokerFaults(before_effect={0: lambda _intent_path: replace_root()})
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(broker=broker_faults),
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="portable directory symlink setup is POSIX-only")
+def test_broker_rejects_root_symlink_rebinding_after_admission(tmp_path: Path) -> None:
+    request = _create_request(tmp_path, run_id="root-symlink-rebound")
+    target_root = request.root_bindings["fixture_result_root"]
+    target = target_root / "objects" / "item.bin"
+
+    def replace_with_symlink(_ordinal: int, _intent_path: Path) -> None:
+        target_root.rename(tmp_path / "displaced-target")
+        alternate = tmp_path / "alternate-target"
+        alternate.mkdir()
+        (alternate / "objects").mkdir()
+        target_root.symlink_to(alternate, target_is_directory=True)
+
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(broker=BrokerFaults(before_effect_lock=replace_with_symlink)),
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+
+
+def test_mechanism_callback_is_rejected_before_it_can_rebind_roots(tmp_path: Path) -> None:
+    request = _create_request(tmp_path, run_id="mechanism-callback-root-rebound")
+    original_root = request.root_bindings["fixture_result_root"]
+    target = original_root / "objects" / "item.bin"
+    alternate_root = tmp_path / "alternate-target"
+    alternate_root.mkdir()
+    (alternate_root / "objects").mkdir()
+
+    def rebind_root(_target: Path) -> None:
+        request.root_bindings["fixture_result_root"] = alternate_root
+
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(
+            broker=BrokerFaults(
+                exclusive_create=ExclusiveCreateFaults(before_exclusive_create=rebind_root)
+            )
+        ),
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+    assert not (alternate_root / "objects" / "item.bin").exists()
+
+
+@pytest.mark.parametrize(
+    "mechanism_faults",
+    [
+        {"exclusive_create": ExclusiveCreateFaults(reparse_detector=lambda _path: False)},
+        {"content_addressed_copy": ContentAddressedCopyFaults(reparse_detector=lambda _path: False)},
+        {"archive_then_publish": ArchiveThenPublishFaults(reparse_detector=lambda _path: False)},
+        {"object_store_publish": ObjectStorePublishFaults(reparse_detector=lambda _path: False)},
+        {"append_record": AppendRecordFaults(write_primitive=lambda _descriptor, data: len(data))},
+    ],
+)
+def test_broker_rejects_callbacks_that_can_mutate_inside_authority_boundary(
+    tmp_path: Path,
+    mechanism_faults: dict[str, object],
+) -> None:
+    request = _create_request(tmp_path, run_id="unsafe-authority-callback")
+    target = request.root_bindings["fixture_result_root"] / "objects" / "item.bin"
+
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(broker=BrokerFaults(**mechanism_faults)),  # type: ignore[arg-type]
+    )
+
+    assert outcome.receipt["terminal_status"] == "rejected"
+    assert outcome.receipt["mutation_attempted"] is False
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert not target.exists()
+
+
+@pytest.mark.parametrize(
+    ("fault_key", "fault_type", "field_name"),
+    [
+        ("exclusive_create", ExclusiveCreateFaults, "before_exclusive_create"),
+        ("exclusive_create", ExclusiveCreateFaults, "before_readback"),
+        ("content_addressed_copy", ContentAddressedCopyFaults, "before_exclusive_create"),
+        ("content_addressed_copy", ContentAddressedCopyFaults, "before_readback"),
+        ("archive_then_publish", ArchiveThenPublishFaults, "before_archive_create"),
+        ("archive_then_publish", ArchiveThenPublishFaults, "before_publish"),
+        ("archive_then_publish", ArchiveThenPublishFaults, "before_current_write"),
+        ("object_store_publish", ObjectStorePublishFaults, "before_final_revalidation"),
+        ("object_store_publish", ObjectStorePublishFaults, "after_replace"),
+    ],
+)
+def test_path_callbacks_are_rejected_before_target_write(
+    tmp_path: Path,
+    fault_key: str,
+    fault_type: object,
+    field_name: str,
+) -> None:
+    request = _create_request(tmp_path, run_id=f"unsafe-path-callback-{field_name}")
+    target = request.root_bindings["fixture_result_root"] / "objects" / "item.bin"
+    called = False
+
+    def write_target(path: Path) -> None:
+        nonlocal called
+        called = True
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"callback mutation")
+
+    mechanism_fault = fault_type(**{field_name: write_target})  # type: ignore[operator]
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(broker=BrokerFaults(**{fault_key: mechanism_fault})),  # type: ignore[arg-type]
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert called is False
+    assert not target.exists()
+
+
+def test_duck_typed_mechanism_fault_is_rejected_before_callback(
+    tmp_path: Path,
+) -> None:
+    request = _create_request(tmp_path, run_id="duck-typed-fault")
+    target = request.root_bindings["fixture_result_root"] / "objects" / "item.bin"
+    called = False
+
+    def write_target(path: Path) -> None:
+        nonlocal called
+        called = True
+        path.write_bytes(b"duck callback mutation")
+
+    class DuckExclusiveCreateFaults:
+        maximum_write_size = None
+        fail_after_bytes = None
+        readback_override = None
+        readback_error = False
+        reparse_detector = None
+        write_primitive = None
+        before_exclusive_create = write_target
+        before_readback = None
+
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(
+            broker=BrokerFaults(exclusive_create=DuckExclusiveCreateFaults())  # type: ignore[arg-type]
+        ),
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.invalid_fault_configuration"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert called is False
+    assert not target.exists()
+
+
+def test_mechanism_fault_subclass_is_rejected(tmp_path: Path) -> None:
+    @dataclass(frozen=True)
+    class ExtendedExclusiveCreateFaults(ExclusiveCreateFaults):
+        extension: int = 1
+
+    request = _create_request(tmp_path, run_id="subclassed-fault")
+    target = request.root_bindings["fixture_result_root"] / "objects" / "item.bin"
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(
+            broker=BrokerFaults(exclusive_create=ExtendedExclusiveCreateFaults())
+        ),
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.invalid_fault_configuration"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("subclassed", [False, True])
+def test_core_fault_runtime_type_is_exact(tmp_path: Path, subclassed: bool) -> None:
+    if subclassed:
+        @dataclass(frozen=True)
+        class InvalidCoreFaults(CoreFaults):
+            extension: int = 1
+
+        invalid_faults: object = InvalidCoreFaults()
+    else:
+        class InvalidCoreFaults:
+            broker = None
+            fail_receipt_write = False
+
+        invalid_faults = InvalidCoreFaults()
+
+    request = _create_request(tmp_path, run_id=f"invalid-core-fault-{subclassed}")
+    target = request.root_bindings["fixture_result_root"] / "objects" / "item.bin"
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=invalid_faults,  # type: ignore[arg-type]
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.invalid_fault_configuration"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("subclassed", [False, True])
+def test_core_fault_type_check_never_calls_truthiness(tmp_path: Path, subclassed: bool) -> None:
+    target = tmp_path / "truthiness-target.bin"
+
+    if subclassed:
+        class TruthyCoreFaults(CoreFaults):
+            def __bool__(self) -> bool:
+                target.write_bytes(b"unexpected")
+                return False
+
+        invalid_faults: object = TruthyCoreFaults()
+    else:
+        class TruthyCoreFaults:
+            def __bool__(self) -> bool:
+                target.write_bytes(b"unexpected")
+                return False
+
+        invalid_faults = TruthyCoreFaults()
+
+    outcome = PhaseCore(installation=host_installation()).run(
+        _create_request(tmp_path, run_id=f"core-truthiness-{subclassed}"),
+        execute=False,
+        faults=invalid_faults,  # type: ignore[arg-type]
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.invalid_fault_configuration"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("subclassed", [False, True])
+def test_broker_fault_runtime_type_is_exact(tmp_path: Path, subclassed: bool) -> None:
+    if subclassed:
+        @dataclass(frozen=True)
+        class InvalidBrokerFaults(BrokerFaults):
+            extension: int = 1
+
+        invalid_faults: object = InvalidBrokerFaults()
+    else:
+        class InvalidBrokerFaults:
+            pass
+
+        invalid_faults = InvalidBrokerFaults()
+
+    request = _create_request(tmp_path, run_id=f"invalid-broker-fault-{subclassed}")
+    target = request.root_bindings["fixture_result_root"] / "objects" / "item.bin"
+    outcome = PhaseCore(installation=host_installation()).run(
+        request,
+        execute=True,
+        faults=CoreFaults(broker=invalid_faults),  # type: ignore[arg-type]
+    )
+
+    assert outcome.receipt["blockers"] == ["broker.invalid_fault_configuration"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.exists()
+
+
+def test_public_broker_execute_has_no_callback_or_external_sink_parameters() -> None:
+    parameters = inspect.signature(EffectBroker.execute).parameters
+    assert "progress_callback" not in parameters
+    assert "receipt_sink" not in parameters
+
+
+def test_broker_authority_qualification_ignores_non_contract_root_bindings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _create_request(tmp_path, run_id="ignore-non-contract-root")
+    unused_root = tmp_path / "unused-root"
+    unused_root.mkdir()
+    request = replace(request, root_bindings={**request.root_bindings, "unused_root": unused_root})
+    original = installation_module.qualify_host_authority_roots
+    observed: list[set[str]] = []
+
+    def reject_unrelated_root(roots: Mapping[str, Path]) -> None:
+        bindings = set(roots)
+        observed.append(bindings)
+        if "unused_root" in bindings:
+            raise PhaseError("guarantee.profile_scope_unsupported")
+        return original(roots)
+
+    monkeypatch.setattr(installation_module, "qualify_host_authority_roots", reject_unrelated_root)
+    outcome = PhaseCore(installation=host_installation()).run(request, execute=True)
+
+    assert outcome.receipt["terminal_status"] == "succeeded_verified"
+    assert observed
+    assert all("unused_root" not in bindings for bindings in observed)
+
+
+@pytest.mark.parametrize("subclassed", [False, True])
+def test_public_broker_fault_type_check_never_calls_truthiness(tmp_path: Path, subclassed: bool) -> None:
+    target = tmp_path / "broker-truthiness-target.bin"
+
+    if subclassed:
+        class TruthyBrokerFaults(BrokerFaults):
+            def __bool__(self) -> bool:
+                target.write_bytes(b"unexpected")
+                return False
+
+        invalid_faults: object = TruthyBrokerFaults()
+    else:
+        class TruthyBrokerFaults:
+            def __bool__(self) -> bool:
+                target.write_bytes(b"unexpected")
+                return False
+
+        invalid_faults = TruthyBrokerFaults()
+
+    installation = host_installation()
+    broker = EffectBroker(
+        BundledRegistry.load(),
+        installation.authority_provider,
+        installation.authority_profile_binding,
+    )
+    with pytest.raises(PhaseError) as error:
+        broker.execute(
+            {},
+            None,  # type: ignore[arg-type]
+            {},
+            {},
+            tmp_path / "missing-intent.json",
+            tmp_path / "locks",
+            timestamp="2026-08-05T00:00:00Z",
+            faults=invalid_faults,  # type: ignore[arg-type]
+        )
+
+    assert error.value.code == "broker.invalid_fault_configuration"
+    assert not target.exists()
+
+
+def test_authority_rejects_rebound_root_handle_before_leaf_creation(tmp_path: Path) -> None:
+    root = tmp_path / "target"
+    root.mkdir()
+    root_info = root.stat()
+    expected = (int(root_info.st_dev), int(root_info.st_ino))
+    root.rename(tmp_path / "displaced")
+    root.mkdir()
+
+    with pytest.raises(PhaseError) as exc_info:
+        HostAuthorityProvider().open_authority(
+            root,
+            "nested/item.bin",
+            expected_root_identity=expected,
+        )
+
+    assert exc_info.value.code == "broker.root_identity_mismatch"
+    assert not (root / "nested").exists()
+
+
+def test_intent_stores_canonical_root_identity_records_used_by_broker(tmp_path: Path) -> None:
+    request = _create_request(tmp_path, run_id="intent-root-identities")
+    outcome = PhaseCore(installation=host_installation()).run(request)
+
+    assert outcome.intent is not None
+    records = outcome.intent["idempotency"]["root_identities"]
+    root = request.root_bindings["fixture_result_root"].resolve(strict=True)
+    info = root.stat()
+    assert records == [
+        {
+            "binding_id": "fixture_result_root",
+            "resolved_path": os.path.normcase(str(root)),
+            "device": int(info.st_dev),
+            "inode": int(info.st_ino),
+        }
+    ]
+    assert outcome.intent["idempotency"]["root_identity_digest"] == profile_digest(
+        "resolved-root-identity",
+        records,
+    )
+
+
+def test_broker_passes_intent_identity_across_race_before_authority_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    installation = host_installation()
+    request = _create_request(tmp_path, run_id="natural-root-race")
+    root = request.root_bindings["fixture_result_root"]
+    target = root / "objects" / "item.bin"
+    original_open = HostAuthorityProvider.open_authority
+    replaced = False
+
+    def replace_before_open(
+        provider: HostAuthorityProvider,
+        selected_root: Path,
+        locator: str,
+        reparse_detector: object = None,
+        **kwargs: object,
+    ):
+        nonlocal replaced
+        if not replaced:
+            replaced = True
+            selected_root.rename(tmp_path / "displaced-target")
+            selected_root.mkdir()
+        return original_open(provider, selected_root, locator, reparse_detector, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(HostAuthorityProvider, "open_authority", replace_before_open)
+    outcome = PhaseCore(installation=installation).run(request, execute=True)
+
+    assert replaced is True
+    assert outcome.receipt["blockers"] == ["broker.root_identity_mismatch"]
     assert outcome.receipt["mutation_attempted"] is False
     assert not target.exists()
 
@@ -291,7 +747,11 @@ def test_executed_append_does_not_invoke_authority_provider(tmp_path: Path) -> N
     }
 
 
-def test_inspection_accepts_historical_evidence_without_implementation_binding(tmp_path: Path) -> None:
+@pytest.mark.parametrize("receipt_present", [True, False])
+def test_inspection_accepts_historical_evidence_without_current_intent_fields(
+    tmp_path: Path,
+    receipt_present: bool,
+) -> None:
     request = _create_request(tmp_path, run_id="historical-binding")
     outcome = PhaseCore(installation=host_installation()).run(request)
     assert outcome.exit_code == 0
@@ -303,6 +763,7 @@ def test_inspection_accepts_historical_evidence_without_implementation_binding(t
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
     intent.pop("implementation_binding")
+    intent["idempotency"].pop("root_identities")
     receipt.pop("implementation_binding")
     historical_package_digest = "sha256:3eeee20e539d5b49d08e0c4d93ff90218b797fbfe27b23035489cd6539059fa3"
     intent["contract"]["package_digest"] = historical_package_digest
@@ -320,12 +781,19 @@ def test_inspection_accepts_historical_evidence_without_implementation_binding(t
     receipt["evidence"]["intent_digest"] = profile_digest("intent", intent)
     plan_path.write_bytes(plan_bytes)
     intent_path.write_bytes(canonical_bytes(intent))
-    receipt_path.write_bytes(canonical_bytes(receipt))
+    if receipt_present:
+        receipt_path.write_bytes(canonical_bytes(receipt))
+    else:
+        receipt_path.unlink()
 
     summary = inspect_run(request.evidence_root, request.run_id)
 
     assert summary["implementation_binding"] is None
-    assert summary["terminal_status"] == "validated_planned"
+    if receipt_present:
+        assert summary["terminal_status"] == "validated_planned"
+    else:
+        assert summary["terminal_status"] is None
+        assert summary["state_classification"] is None
 
 
 def test_inspection_rejects_current_evidence_without_implementation_binding(tmp_path: Path) -> None:

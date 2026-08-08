@@ -56,6 +56,37 @@ def iter_run_artifacts(runs_root: Path, file_name: str) -> list[Path]:
     return sorted(artifacts, key=lambda path: path.parent.name)
 
 
+def replace_attachment_canonical(attachment_root: Path, file_name: str, value: Any) -> tuple[Path, str]:
+    if "/" in file_name or not file_name.endswith(".json"):
+        raise PhaseError("evidence.invalid_path", file_name)
+    attachment_root.mkdir(parents=False, exist_ok=True)
+    path = attachment_root / file_name
+    data = canonical_bytes(value)
+    tmp = attachment_root / (file_name + ".tmp")
+    try:
+        os.unlink(_platform_path(tmp))
+    except FileNotFoundError:
+        pass
+    with open(_platform_path(tmp), "xb", buffering=0) as stream:
+        view = memoryview(data)
+        written = 0
+        while written < len(view):
+            count = stream.write(view[written:])
+            if count is None or count <= 0:
+                raise PhaseError("evidence.short_write", file_name)
+            written += count
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(_platform_path(tmp), _platform_path(path))
+    if os.name != "nt":
+        descriptor = os.open(attachment_root, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    return path, digest_bytes(data)
+
+
 class EvidenceStore:
     def __init__(self, evidence_root: Path, run_id: str) -> None:
         validate_run_id(run_id)
@@ -100,34 +131,7 @@ class EvidenceStore:
         return path, digest_bytes(data)
 
     def replace_attachment_canonical(self, file_name: str, value: Any) -> tuple[Path, str]:
-        if "/" in file_name or not file_name.endswith(".json"):
-            raise PhaseError("evidence.invalid_path", file_name)
-        self.attachment_root.mkdir(parents=False, exist_ok=True)
-        path = self.attachment_root / file_name
-        data = canonical_bytes(value)
-        tmp = self.attachment_root / (file_name + ".tmp")
-        try:
-            os.unlink(_platform_path(tmp))
-        except FileNotFoundError:
-            pass
-        with open(_platform_path(tmp), "xb", buffering=0) as stream:
-            view = memoryview(data)
-            written = 0
-            while written < len(view):
-                count = stream.write(view[written:])
-                if count is None or count <= 0:
-                    raise PhaseError("evidence.short_write", file_name)
-                written += count
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(_platform_path(tmp), _platform_path(path))
-        if os.name != "nt":
-            descriptor = os.open(self.attachment_root, os.O_RDONLY)
-            try:
-                os.fsync(descriptor)
-            finally:
-                os.close(descriptor)
-        return path, digest_bytes(data)
+        return replace_attachment_canonical(self.attachment_root, file_name, value)
 
     def write_blob_exact(self, digest: str, data: bytes) -> Path:
         if not digest.startswith("sha256:") or len(digest) != 71:

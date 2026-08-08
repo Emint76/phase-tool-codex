@@ -258,6 +258,36 @@ def test_host_installation_selects_profile_independently_of_provider_report(
     assert installation.authority_profile_binding == registered_profile_binding(configured_key)
 
 
+@pytest.mark.skipif(
+    os.name != "nt" and not installation_module.sys.platform.startswith("linux"),
+    reason="bundled host qualification supports Windows and Linux",
+)
+@pytest.mark.parametrize("binding_key", ["fixture_create.v1@1.0.0", "fixture_append.v1@1.0.0"])
+def test_uncreated_root_is_rejected_with_receipt_before_capture(tmp_path: Path, binding_key: str) -> None:
+    registry = BundledRegistry.load()
+    binding = registry.contract_bindings()[binding_key]
+    future_root = tmp_path / "not-created" / "result-root"
+    request = PhaseRequest(
+        contract_id=binding["id"],
+        contract_version=binding["version"],
+        contract_digest=binding["package_digest"],
+        candidate_path=tmp_path / "candidate-must-not-be-read.json",
+        evidence_root=tmp_path / "evidence",
+        run_id="uncreated-profile-scope-root",
+        input_paths={"payload": tmp_path / "payload-must-not-be-read.bin"},
+        root_bindings={"fixture_result_root": future_root},
+        timestamp="2026-08-05T00:00:00Z",
+    )
+
+    outcome = PhaseCore().run(request, execute=True)
+
+    assert outcome.receipt["blockers"] == ["guarantee.profile_scope_unsupported"]
+    assert outcome.lifecycle == ("resolve", "guarantees", "receipt")
+    assert outcome.intent is None
+    assert outcome.effect_plan is None
+    assert not future_root.exists()
+
+
 def test_unqualified_filesystem_scope_is_rejected_before_capture(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -291,6 +321,68 @@ def test_unqualified_filesystem_scope_is_rejected_before_capture(
     run_root = request.evidence_root / ".phase" / "runs" / request.run_id
     assert sorted(path.name for path in run_root.iterdir()) == ["receipt.json"]
     assert list(target.iterdir()) == []
+
+
+def test_mechanism_managed_unqualified_scope_is_rejected_before_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = BundledRegistry.load()
+    binding = registry.contract_bindings()["fixture_append.v1@1.0.0"]
+    target = tmp_path / "target"
+    target.mkdir()
+    if os.name == "nt":
+        monkeypatch.setattr(installation_module, "_windows_filesystem_type", lambda _path: "refs")
+    else:
+        monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda _path: "nfs")
+    request = PhaseRequest(
+        contract_id=binding["id"],
+        contract_version=binding["version"],
+        contract_digest=binding["package_digest"],
+        candidate_path=tmp_path / "candidate-must-not-be-read.json",
+        evidence_root=tmp_path / "evidence",
+        run_id="mechanism-managed-unqualified-root",
+        input_paths={},
+        root_bindings={"fixture_result_root": target},
+        timestamp="2026-08-05T00:00:00Z",
+    )
+
+    outcome = PhaseCore().run(request, execute=True)
+
+    assert outcome.receipt["blockers"] == ["guarantee.profile_scope_unsupported"]
+    assert outcome.lifecycle == ("resolve", "guarantees", "receipt")
+    assert outcome.intent is None
+    assert outcome.effect_plan is None
+    run_root = request.evidence_root / ".phase" / "runs" / request.run_id
+    assert sorted(path.name for path in run_root.iterdir()) == ["receipt.json"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="portable directory symlink setup is POSIX-only")
+def test_mechanism_managed_symlink_root_is_rejected_before_capture(tmp_path: Path) -> None:
+    registry = BundledRegistry.load()
+    binding = registry.contract_bindings()["fixture_append.v1@1.0.0"]
+    actual = tmp_path / "actual-target"
+    actual.mkdir()
+    target = tmp_path / "target-link"
+    target.symlink_to(actual, target_is_directory=True)
+    request = PhaseRequest(
+        contract_id=binding["id"],
+        contract_version=binding["version"],
+        contract_digest=binding["package_digest"],
+        candidate_path=tmp_path / "candidate-must-not-be-read.json",
+        evidence_root=tmp_path / "evidence",
+        run_id="mechanism-managed-symlink-root",
+        input_paths={},
+        root_bindings={"fixture_result_root": target},
+        timestamp="2026-08-05T00:00:00Z",
+    )
+
+    outcome = PhaseCore().run(request, execute=True)
+
+    assert outcome.receipt["blockers"] == ["guarantee.profile_scope_unsupported"]
+    assert outcome.lifecycle == ("resolve", "guarantees", "receipt")
+    assert outcome.intent is None
+    assert outcome.effect_plan is None
 
 
 @pytest.mark.parametrize(
@@ -338,6 +430,69 @@ def test_wsl_root_is_not_admitted_as_posix_production(
 
     assert error.value.code == "guarantee.profile_scope_unsupported"
     assert error.value.details == {"binding_id": "result_root", "filesystem": "wsl:ext4"}
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Linux container classification")
+def test_overlay_root_container_is_not_classified_as_wsl(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(installation_module, "_linux_kernel_release", lambda: "6.6.87.2-microsoft-standard-WSL2")
+    monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda path: "overlay")
+
+    assert installation_module._is_wsl() is False
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Linux WSL classification")
+def test_non_containerized_microsoft_kernel_is_classified_as_wsl(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(installation_module, "_linux_kernel_release", lambda: "6.6.87.2-microsoft-standard-WSL2")
+    monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda path: "ext4")
+
+    assert installation_module._is_wsl() is True
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Linux WSL classification")
+def test_marker_file_does_not_bypass_wsl_rejection(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(installation_module, "_linux_kernel_release", lambda: "6.6.87.2-microsoft-standard-WSL2")
+    monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda path: "ext4")
+    monkeypatch.setattr(Path, "is_file", lambda self: str(self) in {"/.dockerenv", "/run/.containerenv"})
+
+    assert installation_module._is_wsl() is True
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Linux WSL classification")
+def test_unreadable_kernel_release_fails_closed_as_unsupported(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unreadable_release() -> str:
+        raise OSError("unavailable")
+
+    monkeypatch.setattr(installation_module, "_linux_kernel_release", unreadable_release)
+
+    assert installation_module._is_wsl() is True
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Linux host classification")
+@pytest.mark.parametrize("release", ["", "   ", "garbled-release"])
+def test_malformed_kernel_release_fails_closed(release: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(installation_module, "_linux_kernel_release", lambda: release)
+
+    assert installation_module._is_wsl() is True
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Linux WSL classification")
+def test_linux_scope_uses_one_wsl_observation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observations = iter((False, True))
+    calls = 0
+
+    def observe_wsl() -> bool:
+        nonlocal calls
+        calls += 1
+        return next(observations)
+
+    monkeypatch.setattr(installation_module, "_is_wsl", observe_wsl)
+    monkeypatch.setattr(installation_module, "_linux_filesystem_type", lambda path: "ext4")
+
+    installation_module.qualify_host_authority_roots({"result_root": tmp_path})
+
+    assert calls == 1
 
 
 def test_loop4_contract_and_schema_generation_remain_exactly_resolvable() -> None:

@@ -224,7 +224,7 @@ def test_knowledge_requires_exact_verified_source_binding(tmp_path: Path) -> Non
         assert blocker in outcome.receipt["blockers"]
 
 
-def test_source_binding_change_after_plan_rejects_before_artifact_mutation(tmp_path: Path) -> None:
+def test_source_binding_callback_is_rejected_before_artifact_mutation(tmp_path: Path) -> None:
     target, evidence, binding = _admit_source(tmp_path)
     artifact = b"race-artifact"
     request = _knowledge_request(tmp_path, target, evidence, _knowledge_candidate(artifact, [binding]), artifact, run_id="knowledge-source-race")
@@ -237,7 +237,8 @@ def test_source_binding_change_after_plan_rejects_before_artifact_mutation(tmp_p
     outcome = PhaseCore().run(request, execute=True, faults=CoreFaults(broker=BrokerFaults(before_mechanism=tamper_source)))
     assert outcome.receipt["terminal_status"] == "rejected"
     assert outcome.receipt["mutation_attempted"] is False
-    assert outcome.receipt["blockers"] == ["knowledge.source_descriptor_mismatch"]
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert _read_target(target, binding["source_descriptor_locator"]) != b"tampered"
     assert not any((target / "namespaces" / "example" / "knowledge-results").glob("**/*.json"))
 
 
@@ -388,7 +389,7 @@ def test_same_operation_different_request_rejects_before_mutation(tmp_path: Path
     assert outcome.receipt["blockers"] == ["idempotency.same_key_conflict"]
 
 
-def test_knowledge_effect1_conflict_after_new_blob_is_truthful_partial(tmp_path: Path) -> None:
+def test_knowledge_effect1_callback_is_rejected_before_new_blob(tmp_path: Path) -> None:
     target, evidence, binding = _admit_source(tmp_path)
     artifact = b"partial"
     request = _knowledge_request(tmp_path, target, evidence, _knowledge_candidate(artifact, [binding]), artifact, run_id="knowledge-partial")
@@ -402,11 +403,10 @@ def test_knowledge_effect1_conflict_after_new_blob_is_truthful_partial(tmp_path:
             stream.write(b"conflict")
 
     outcome = PhaseCore().run(request, execute=True, faults=CoreFaults(broker=BrokerFaults(before_effect={1: create_conflict})))
-    assert outcome.receipt["terminal_status"] == "failed_partial"
-    assert outcome.receipt["effect_receipts"][1]["status"] == "failed_no_effect"
-    progress = parse_json_bytes((evidence / ".phase" / "runs" / request.run_id / "attachments" / "ordered-effect-progress.json").read_bytes())
-    assert progress["verified_effect_ids"] == ["effect.0.blob"]
-    assert progress["failed_effect_id"] == "effect.1.descriptor"
+    assert outcome.receipt["terminal_status"] == "rejected"
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert outcome.receipt["mutation_attempted"] is False
+    assert not target.joinpath(*descriptor_locator.split("/")).exists()
 
 
 def test_knowledge_supersession_creates_new_result_without_rewrite(tmp_path: Path) -> None:
@@ -472,11 +472,8 @@ def _knowledge_race_worker(base: str, name: str, artifact: bytes, operation_id: 
     binding = parse_json_bytes((tmp / "binding.json").read_bytes())
     request = _knowledge_request(tmp, target, evidence, _knowledge_candidate(artifact, [binding], operation_id=operation_id), artifact, run_id=name)
 
-    def wait_on_descriptor(ordinal: int, _intent_path: Path) -> None:
-        if ordinal == 1:
-            barrier.wait(timeout=20)  # type: ignore[attr-defined]
-
-    outcome = PhaseCore().run(request, execute=True, faults=CoreFaults(broker=BrokerFaults(before_effect_lock=wait_on_descriptor)))
+    barrier.wait(timeout=20)  # type: ignore[attr-defined]
+    outcome = PhaseCore().run(request, execute=True)
     queue.put((outcome.receipt["terminal_status"], outcome.receipt["execution_disposition"], outcome.receipt["mutation_attempted"]))  # type: ignore[attr-defined]
 
 

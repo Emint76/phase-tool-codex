@@ -19,12 +19,19 @@ class Installation:
     authority_profile_binding: GuaranteeProfileBinding | None = None
 
     def qualify_authority_roots(self, root_bindings: Mapping[str, Path]) -> None:
-        if self.authority_profile_binding is not None:
-            qualify_host_authority_roots(root_bindings)
+        qualify_host_authority_roots(root_bindings)
+
+
+def _resolved_existing_root(path: Path) -> Path:
+    lexical = Path(os.path.abspath(path))
+    resolved = Path(path).resolve(strict=True)
+    if os.path.normcase(str(lexical)) != os.path.normcase(str(resolved)):
+        raise PhaseError("guarantee.profile_scope_unsupported", str(path))
+    return resolved
 
 
 def _linux_filesystem_type(path: Path) -> str:
-    resolved = str(path.resolve(strict=True))
+    resolved = str(_resolved_existing_root(path))
     selected: tuple[int, str] | None = None
     for line in Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines():
         left, separator, right = line.partition(" - ")
@@ -41,17 +48,31 @@ def _linux_filesystem_type(path: Path) -> str:
     return selected[1]
 
 
+def _linux_kernel_release() -> str:
+    return Path("/proc/sys/kernel/osrelease").read_text(encoding="utf-8")
+
+
+def _is_containerized_linux() -> bool:
+    try:
+        return _linux_filesystem_type(Path("/")) == "overlay"
+    except (PhaseError, OSError):
+        return False
+
+
 def _is_wsl() -> bool:
     try:
-        return "microsoft" in Path("/proc/sys/kernel/osrelease").read_text(encoding="utf-8").lower()
+        release = _linux_kernel_release().strip()
+        if re.fullmatch(r"[0-9]+\.[0-9]+[A-Za-z0-9._+-]*", release) is None:
+            return True
+        return "microsoft" in release.lower() and not _is_containerized_linux()
     except OSError:
-        return False
+        return True
 
 
 def _windows_filesystem_type(path: Path) -> str:
     import ctypes
 
-    resolved = str(path.resolve(strict=True))
+    resolved = str(_resolved_existing_root(path))
     volume = ctypes.create_unicode_buffer(32768)
     if not ctypes.windll.kernel32.GetVolumePathNameW(resolved, volume, len(volume)):
         raise PhaseError("guarantee.profile_scope_unsupported", resolved)
@@ -81,8 +102,9 @@ def qualify_host_authority_roots(root_bindings: Mapping[str, Path]) -> None:
                 qualified = filesystem == "ntfs"
             elif sys.platform.startswith("linux"):
                 filesystem = _linux_filesystem_type(Path(root))
-                qualified = not _is_wsl() and filesystem in {"ext4", "overlay"}
-                if _is_wsl():
+                is_wsl = _is_wsl()
+                qualified = not is_wsl and filesystem in {"ext4", "overlay"}
+                if is_wsl:
                     filesystem = f"wsl:{filesystem}"
             else:
                 filesystem = sys.platform

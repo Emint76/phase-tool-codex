@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import base64
 import os
 from pathlib import Path
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping
 
 from jsonschema import Draft202012Validator, FormatChecker
 
 from ..canonical import canonical_bytes, digest_bytes, parse_json_bytes, profile_digest
 from ..contracts import load_contract_hook
 from ..errors import PhaseError
+from ..evidence import replace_attachment_canonical
 
 from ..freeze import FrozenInput
-from ..planning import validate_static_plan
+from ..planning import root_identity_digest, validate_static_plan
 from ..paths import _platform_path
 from ..registry import RegistrySnapshot, ResolvedContract
 from .content_addressed_copy import ContentAddressedCopyFaults, execute_content_addressed_copy
@@ -40,6 +41,179 @@ class BrokerFaults:
     before_mechanism: Callable[[Path], None] | None = None
     before_effect: Mapping[int, Callable[[Path], None]] | None = None
     before_effect_lock: Callable[[int, Path], None] | None = None
+
+
+class BrokerExecutionResult(list[dict[str, Any]]):
+    """List-compatible broker result with an internal progress-persistence status."""
+
+    def __init__(
+        self,
+        effect_receipts: list[dict[str, Any]],
+        progress_error: str | None = None,
+        progress_digest: str | None = None,
+    ) -> None:
+        super().__init__(effect_receipts)
+        self.progress_error = progress_error
+        self.progress_digest = progress_digest
+
+    @property
+    def effect_receipts(self) -> tuple[dict[str, Any], ...]:
+        return tuple(self)
+
+
+def ordered_progress_document(plan: Mapping[str, Any], effect_receipts: list[dict[str, Any]]) -> dict[str, Any]:
+    receipt_by_id = {receipt["effect_id"]: receipt for receipt in effect_receipts}
+    completed: list[str] = []
+    verified: list[str] = []
+    not_started: list[str] = []
+    failed: str | None = None
+    effects: list[dict[str, Any]] = []
+    for index, effect in enumerate(plan["effects"]):
+        effect_id = effect["effect_id"]
+        receipt = receipt_by_id.get(effect_id)
+        target = {
+            "root_binding": effect["target"]["root_binding"],
+            "relative_locator": effect["target"]["relative_locator"],
+            "expected_digest": effect["content_digest"],
+        }
+        if receipt is None:
+            not_started.append(effect_id)
+            state = "not_started"
+            observation_digest = None
+            receipt_digest = None
+        else:
+            completed.append(effect_id)
+            status = receipt["status"]
+            observation_digest = profile_digest("effect-observation", {"effect_id": effect_id, "after": receipt["after"], "status": status})
+            receipt_digest = profile_digest("effect-receipt", receipt)
+            if status == "applied_verified":
+                verified.append(effect_id)
+                state = "verified_existing" if receipt.get("bytes_written") == 0 else "applied_new_verified"
+            else:
+                state = status
+                failed = failed or effect_id
+        effects.append({
+            "ordinal": effect.get("ordinal", index),
+            "effect_id": effect_id,
+            "kind": effect["kind"],
+            "mechanism": effect.get("mechanism", plan["mechanism"])["id"],
+            "state": state,
+            "target": target,
+            "receipt_digest": receipt_digest,
+            "observation_digest": observation_digest,
+        })
+    return {
+        "progress_version": "1.0",
+        "plan_digest": profile_digest("effect-plan", plan),
+        "maximum_effects": len(plan["effects"]),
+        "completed_effect_ids": completed,
+        "verified_effect_ids": verified,
+        "failed_effect_id": failed,
+        "not_started_effect_ids": not_started,
+        "effects": effects,
+    }
+
+
+_MECHANISM_FAULT_TYPES = {
+    "exclusive_create": ExclusiveCreateFaults,
+    "append_record": AppendRecordFaults,
+    "content_addressed_copy": ContentAddressedCopyFaults,
+    "archive_then_publish": ArchiveThenPublishFaults,
+    "object_store_publish": ObjectStorePublishFaults,
+}
+_INTEGER_FAULT_FIELDS = {
+    "maximum_write_size",
+    "fail_after_bytes",
+    "fail_after_archive_bytes",
+    "fail_after_current_bytes",
+    "fail_old_object_write_after_bytes",
+    "fail_new_object_write_after_bytes",
+    "fail_temporary_write_after_bytes",
+}
+_BYTES_FAULT_FIELDS = {"readback_override"}
+_BOOLEAN_FAULT_FIELDS = {
+    "readback_error",
+    "lock_acquire_error",
+    "fail_after_archive",
+    "fail_after_publish_before_readback",
+    "fail_after_objects",
+    "fail_atomic_replace",
+}
+
+
+def _validated_mechanism_fault(value: object, expected_type: type[object]) -> object | None:
+    if value is None:
+        return None
+    if type(value) is not expected_type:
+        raise PhaseError("broker.invalid_fault_configuration")
+    copied: dict[str, object] = {}
+    for field in fields(value):
+        item = getattr(value, field.name)
+        if field.name in _INTEGER_FAULT_FIELDS:
+            if item is not None and type(item) is not int:
+                raise PhaseError("broker.invalid_fault_configuration")
+        elif field.name in _BYTES_FAULT_FIELDS:
+            if item is not None and type(item) is not bytes:
+                raise PhaseError("broker.invalid_fault_configuration")
+        elif field.name in _BOOLEAN_FAULT_FIELDS:
+            if type(item) is not bool:
+                raise PhaseError("broker.invalid_fault_configuration")
+        elif item is not None:
+            if callable(item):
+                raise PhaseError("broker.unsafe_fault_callback")
+            raise PhaseError("broker.invalid_fault_configuration")
+        copied[field.name] = item
+    return expected_type(**copied)
+
+
+def validate_broker_faults(value: object) -> BrokerFaults:
+    if type(value) is not BrokerFaults:
+        raise PhaseError("broker.invalid_fault_configuration")
+    if value.content_addressed_copy_fail_after_bytes is not None and type(value.content_addressed_copy_fail_after_bytes) is not int:
+        raise PhaseError("broker.invalid_fault_configuration")
+    if type(value.mutate_plan_after_intent) is not bool:
+        raise PhaseError("broker.invalid_fault_configuration")
+    for callback in (value.before_mechanism, value.before_effect, value.before_effect_lock):
+        if callback is not None:
+            if callable(callback) or isinstance(callback, Mapping):
+                raise PhaseError("broker.unsafe_fault_callback")
+            raise PhaseError("broker.invalid_fault_configuration")
+    nested = {
+        name: _validated_mechanism_fault(getattr(value, name), expected_type)
+        for name, expected_type in _MECHANISM_FAULT_TYPES.items()
+    }
+    return BrokerFaults(
+        **nested,  # type: ignore[arg-type]
+        content_addressed_copy_fail_after_bytes=value.content_addressed_copy_fail_after_bytes,
+        mutate_plan_after_intent=value.mutate_plan_after_intent,
+    )
+
+
+class _IntentBoundAuthorityProvider:
+    def __init__(self, delegate: AuthorityProvider, root_identities: Mapping[str, tuple[int, int]]) -> None:
+        self.delegate = delegate
+        self.root_identities = root_identities
+
+    def open_authority(
+        self,
+        root: Path,
+        locator: str,
+        reparse_detector: Callable[[Path], bool] | None = None,
+        expected_root_identity: tuple[int, int] | None = None,
+    ):
+        key = os.path.normcase(str(Path(root).absolute()))
+        expected = self.root_identities.get(key)
+        if expected is None or (expected_root_identity is not None and expected_root_identity != expected):
+            raise PhaseError("broker.root_identity_mismatch")
+        return self.delegate.open_authority(
+            root,
+            locator,
+            reparse_detector,
+            expected_root_identity=expected,
+        )
+
+    def lock_target_root(self, root: Path, scope: str):
+        return self.delegate.lock_target_root(root, scope)
 
 
 class EffectBroker:
@@ -159,6 +333,59 @@ class EffectBroker:
             raise PhaseError("broker.intent_implementation_mismatch")
 
     @staticmethod
+    def _validate_execution_roots(
+        intent: Mapping[str, object],
+        contract: ResolvedContract,
+        root_bindings: Mapping[str, Path],
+    ) -> dict[str, tuple[int, int]]:
+        from ..installation import qualify_host_authority_roots
+
+        expected_bindings = {item["binding_id"] for item in contract.document["write_scope"]["roots"]}
+        qualify_host_authority_roots(
+            {
+                binding_id: root_bindings[binding_id]
+                for binding_id in sorted(expected_bindings)
+                if binding_id in root_bindings
+            }
+        )
+        idempotency = intent.get("idempotency")
+        expected = idempotency.get("root_identity_digest") if isinstance(idempotency, Mapping) else None
+        records = idempotency.get("root_identities") if isinstance(idempotency, Mapping) else None
+        if not isinstance(records, list) or expected != profile_digest("resolved-root-identity", records):
+            raise PhaseError("broker.root_identity_mismatch")
+        observed_bindings: set[str] = set()
+        root_identities: dict[str, tuple[int, int]] = {}
+        for record in records:
+            if not isinstance(record, Mapping):
+                raise PhaseError("broker.root_identity_mismatch")
+            binding_id = record.get("binding_id")
+            resolved_path = record.get("resolved_path")
+            device = record.get("device")
+            inode = record.get("inode")
+            if (
+                not isinstance(binding_id, str)
+                or binding_id not in expected_bindings
+                or binding_id in observed_bindings
+                or not isinstance(resolved_path, str)
+                or not isinstance(device, int)
+                or isinstance(device, bool)
+                or not isinstance(inode, int)
+                or isinstance(inode, bool)
+            ):
+                raise PhaseError("broker.root_identity_mismatch")
+            try:
+                configured_path = os.path.normcase(str(Path(root_bindings[binding_id]).absolute()))
+            except KeyError as exc:
+                raise PhaseError("broker.root_identity_mismatch") from exc
+            if configured_path != resolved_path:
+                raise PhaseError("broker.root_identity_mismatch")
+            observed_bindings.add(binding_id)
+            root_identities[configured_path] = (device, inode)
+        if observed_bindings != expected_bindings or expected != root_identity_digest(contract, root_bindings):
+            raise PhaseError("broker.root_identity_mismatch")
+        return root_identities
+
+    @staticmethod
     def _attached_blob_content(effect: Mapping[str, object], intent_path: Path, intent: Mapping[str, object]) -> bytes:
         blob_digest = effect.get("content_blob_digest")
         if not isinstance(blob_digest, str):
@@ -214,10 +441,8 @@ class EffectBroker:
         evidence_root: Path | None = None,
         timestamp: str,
         faults: BrokerFaults | None = None,
-        progress_callback: Callable[[list[dict[str, object]]], None] | None = None,
-        receipt_sink: list[dict[str, object]] | None = None,
-    ) -> list[dict[str, object]]:
-        active = faults or BrokerFaults()
+    ) -> BrokerExecutionResult:
+        active = validate_broker_faults(BrokerFaults() if faults is None else faults)
         if not intent_path.is_file():
             raise PhaseError("broker.intent_missing")
         locked_plan, intent = self._locked_plan_from_evidence(plan, contract, root_bindings, intent_path)
@@ -227,15 +452,15 @@ class EffectBroker:
             plan["effects"].append(deepcopy(plan["effects"][0]))  # type: ignore[union-attr,index]
         if intent.get("effect_plan_digest") != profile_digest("effect-plan", plan):
             raise PhaseError("broker.plan_changed_after_intent")
-        if active.before_mechanism is not None:
-            active.before_mechanism(intent_path)
         locked_plan, intent = self._locked_plan_from_evidence(plan, contract, root_bindings, intent_path)
         if intent.get("execution_requested") is not True:
             raise PhaseError("broker.execution_not_requested")
         effects = locked_plan["effects"]
+        self._validate_execution_roots(intent, contract, root_bindings)
         if not effects or any(effect["kind"] not in {"exclusive_create", "append_record", "copy_blob", "publish_new_version"} for effect in effects):
             raise PhaseError("broker.plan_not_executable")
-        receipts = receipt_sink if receipt_sink is not None else []
+        receipts: list[dict[str, Any]] = []
+        progress_digest: str | None = None
         hook = load_contract_hook(contract)
         if hook is not None:
             setattr(hook, "_registry", self.registry)
@@ -255,13 +480,12 @@ class EffectBroker:
             }
             if (mechanism["id"], mechanism["version"]) not in supported:
                 raise PhaseError("broker.mechanism_execution_unavailable", str(mechanism["id"]))
+            self._validate_execution_roots(intent, contract, root_bindings)
             root_id = effect["target"]["root_binding"]
             try:
                 target_root = Path(root_bindings[root_id]).resolve(strict=True)
             except KeyError as exc:
                 raise PhaseError("plan.root_binding_missing", str(root_id)) from exc
-            if active.before_effect_lock is not None:
-                active.before_effect_lock(ordinal, intent_path)
             lock_scope = effect.get("lock_scope")
             if isinstance(lock_scope, str) and mechanism_authority_usage(mechanism) == "provider_backed":
                 context = self.authority_provider.lock_target_root(target_root, lock_scope)
@@ -280,11 +504,18 @@ class EffectBroker:
                     )
             self._receipt_validator.validate(receipt)
             receipts.append(receipt)
-            if progress_callback is not None:
-                progress_callback(list(receipts))
+            if len(effects) > 1:
+                try:
+                    _, progress_digest = replace_attachment_canonical(
+                        intent_path.parent / "attachments",
+                        "ordered-effect-progress.json",
+                        ordered_progress_document(locked_plan, receipts),
+                    )
+                except (OSError, PhaseError):
+                    return BrokerExecutionResult(receipts, "evidence.finalization_failed", progress_digest)
             if receipt["status"] != "applied_verified":
                 break
-        return receipts
+        return BrokerExecutionResult(receipts, progress_digest=progress_digest)
 
     def _execute_one(
         self,
@@ -313,8 +544,12 @@ class EffectBroker:
                     evidence_root=evidence_root,
                     root_bindings=root_bindings,
                 )
-            if active.before_effect and ordinal in active.before_effect:
-                active.before_effect[ordinal](intent_path)
+            root_identities = self._validate_execution_roots(intent, contract, root_bindings)
+            bound_authority_provider = _IntentBoundAuthorityProvider(self.authority_provider, root_identities)
+            exclusive_faults = active.exclusive_create
+            copy_faults = active.content_addressed_copy
+            archive_faults = active.archive_then_publish
+            object_store_faults = active.object_store_publish
             if effect.get("content_blob_digest") is not None:
                 content = self._attached_blob_content(effect, intent_path, intent)
             elif effect["kind"] == "copy_blob":
@@ -352,8 +587,8 @@ class EffectBroker:
                 content,
                 run_id=str(contract.document.get("_run_id", intent.get("run_id"))),
                 timestamp=timestamp,
-                faults=active.exclusive_create,
-                authority_provider=self.authority_provider,
+                faults=exclusive_faults,
+                authority_provider=bound_authority_provider,
             )
         if effect["kind"] == "append_record":
             return execute_append_record(
@@ -364,6 +599,7 @@ class EffectBroker:
                 timestamp=timestamp,
                 operational_lock_root=intent_path.parent.parent.parent / "locks",
                 faults=active.append_record,
+                expected_root_identity=root_identities[os.path.normcase(str(target_root.absolute()))],
             )
         if effect["kind"] == "publish_new_version":
             mechanism = effect.get("mechanism", contract.document["operation"]["mechanism"])
@@ -380,8 +616,8 @@ class EffectBroker:
                     content,
                     run_id=str(intent.get("run_id")),
                     timestamp=timestamp,
-                    faults=active.object_store_publish,
-                    authority_provider=self.authority_provider,
+                    faults=object_store_faults,
+                    authority_provider=bound_authority_provider,
                 )
             return execute_archive_then_publish(
                 effect,
@@ -389,10 +625,9 @@ class EffectBroker:
                 content,
                 run_id=str(intent.get("run_id")),
                 timestamp=timestamp,
-                faults=active.archive_then_publish,
-                authority_provider=self.authority_provider,
+                faults=archive_faults,
+                authority_provider=bound_authority_provider,
             )
-        copy_faults = active.content_addressed_copy
         if active.content_addressed_copy_fail_after_bytes is not None:
             copy_faults = ContentAddressedCopyFaults(fail_after_bytes=active.content_addressed_copy_fail_after_bytes)
         return execute_content_addressed_copy(
@@ -402,5 +637,5 @@ class EffectBroker:
             run_id=str(intent.get("run_id")),
             timestamp=timestamp,
             faults=copy_faults,
-            authority_provider=self.authority_provider,
+            authority_provider=bound_authority_provider,
         )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import replace
 from pathlib import Path
 
@@ -17,6 +18,11 @@ from phase_tool.mutation.archive_then_publish import ArchiveThenPublishFaults
 from phase_tool.registry import BundledRegistry
 
 NOW = "2026-07-31T20:00:00Z"
+
+pytestmark = pytest.mark.skipif(
+    os.name == "nt",
+    reason="publish_new_version.v1 requires POSIX production guarantees",
+)
 
 
 def _sha(data: bytes) -> str:
@@ -249,7 +255,7 @@ def test_publish_reuses_exact_archive_and_blocks_mismatching_reuse(tmp_path: Pat
     assert outcome.receipt["effect_receipts"][0]["archive_before"]["digest"] == _sha(before)
 
 
-def test_publish_reverifies_exact_archive_immediately_before_current_publication(tmp_path: Path) -> None:
+def test_publish_rejects_archive_callback_before_mutation(tmp_path: Path) -> None:
     request, target, _evidence, current, before, _after = _request(tmp_path, run_id="archive-tamper-before-publish")
     archive = target / _archive_locator(before)
 
@@ -262,15 +268,15 @@ def test_publish_reverifies_exact_archive_immediately_before_current_publication
         faults=CoreFaults(broker=BrokerFaults(archive_then_publish=ArchiveThenPublishFaults(before_publish=tamper_archive))),
     )
 
-    assert outcome.receipt["terminal_status"] == "failed_partial"
-    assert outcome.receipt["effect_receipts"][0]["error"]["code"] == "publish.archive_verification_failed"
+    assert outcome.receipt["terminal_status"] == "rejected"
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
     assert current.read_bytes() == before
-    assert archive.read_bytes() == b"archive changed after initial verification"
+    assert not archive.exists()
 
 
 @pytest.mark.parametrize("tamper", ["current", "archive"])
-def test_publish_identity_bound_final_check_blocks_race_before_current_write(tmp_path: Path, tamper: str) -> None:
-    request, target, _evidence, current, before, after = _request(tmp_path, run_id=f"final-race-{tamper}")
+def test_publish_rejects_final_check_callback_before_mutation(tmp_path: Path, tamper: str) -> None:
+    request, target, _evidence, current, before, _after = _request(tmp_path, run_id=f"final-race-{tamper}")
     archive = target / _archive_locator(before)
 
     def race(_current_path: Path) -> None:
@@ -286,13 +292,14 @@ def test_publish_identity_bound_final_check_blocks_race_before_current_write(tmp
         ),
     )
 
-    assert outcome.receipt["terminal_status"] == "failed_partial"
-    assert outcome.receipt["effect_receipts"][0]["error"]["code"] == f"publish.{tamper}_verification_failed"
-    assert current.read_bytes() != after
+    assert outcome.receipt["terminal_status"] == "rejected"
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert current.read_bytes() == before
+    assert not archive.exists()
 
 
-def test_publish_exact_archive_create_race_is_verified_and_reused(tmp_path: Path) -> None:
-    request, target, _evidence, current, before, after = _request(tmp_path, run_id="archive-create-race")
+def test_publish_rejects_archive_create_callback_before_mutation(tmp_path: Path) -> None:
+    request, target, _evidence, current, before, _after = _request(tmp_path, run_id="archive-create-race")
     archive = target / _archive_locator(before)
 
     def create_exact(path: Path) -> None:
@@ -308,9 +315,10 @@ def test_publish_exact_archive_create_race_is_verified_and_reused(tmp_path: Path
         ),
     )
 
-    assert outcome.receipt["terminal_status"] == "succeeded_verified"
-    assert current.read_bytes() == after
-    assert archive.read_bytes() == before
+    assert outcome.receipt["terminal_status"] == "rejected"
+    assert outcome.receipt["blockers"] == ["broker.unsafe_fault_callback"]
+    assert current.read_bytes() == before
+    assert not archive.exists()
 
 
 def test_publish_failure_after_archive_is_safely_continuable_after_exact_inspection(tmp_path: Path) -> None:
@@ -383,7 +391,8 @@ def test_publish_replays_finalized_receipt_only_after_current_and_archive_inspec
 
 def test_publish_missing_receipt_inspection_classifies_no_effect_archived_and_published(tmp_path: Path) -> None:
     no_effect, target, evidence, _current, _before, _after = _request(tmp_path / "no-effect", run_id="missing-no-effect", key="missing-no-effect")
-    PhaseCore().run(no_effect, execute=True, faults=CoreFaults(broker=BrokerFaults(before_mechanism=lambda _path: (_ for _ in ()).throw(PhaseError("injected.before_mechanism")))))
+    planned = PhaseCore().run(no_effect, execute=False)
+    assert planned.receipt["execution_disposition"] == "not_executed"
     (evidence / ".phase" / "runs" / "missing-no-effect" / "receipt.json").unlink()
     inspected = inspect_run(evidence, "missing-no-effect", root_bindings={"fixture_result_root": target})
     assert inspected["state_classification"] == "no_effect_observed"

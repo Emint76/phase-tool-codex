@@ -50,6 +50,7 @@ class AuthorityProvider(Protocol):
         root: Path,
         locator: str,
         reparse_detector: Callable[[Path], bool] | None = None,
+        expected_root_identity: tuple[int, int] | None = None,
     ) -> TargetAuthority: ...
 
     def lock_target_root(self, root: Path, scope: str) -> AbstractContextManager[object]: ...

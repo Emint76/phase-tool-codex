@@ -6,14 +6,14 @@ Status: Loop 5 executable admission matrix. This document separates guarantees a
 
 Current executable profiles cover:
 
-- native POSIX hosts using the bundled POSIX authority implementation on tested local filesystems;
+- native Linux, plus Linux containers whose process root is identified as `overlay`, using the bundled POSIX authority implementation on qualified `ext4` or `overlay` target-root scope;
 - Windows 10/11 using the bundled Windows compatibility authority implementation on tested local NTFS configurations.
 
 Out of scope for strong guarantees unless separately qualified:
 
 - SMB, NFS, CIFS, SSHFS, FUSE, cloud-synced and cluster filesystems;
 - removable or unreliable media;
-- WSL-native and WSL `/mnt` filesystems until separately qualified;
+- WSL-native and WSL `/mnt` filesystems until separately qualified; marker files alone do not establish a container boundary, while an `overlay` process root does;
 - remote object stores;
 - power-loss durability beyond an explicitly named crash protocol.
 
@@ -26,7 +26,7 @@ Contracts express technology-neutral minimum requirements through the exact, ver
 | `phase.posix.authority.v1@1.0.0` | production | Linux roots identified as `ext4` or `overlay` | `exclusive_create`, `readback_verification`, `cross_process_serialization`, `namespace_bound_mutation`, `atomic_replace`, `namespace_metadata_flush_attempted` | power-loss durability, distributed locking, non-cooperating-writer exclusion, automatic process-crash recovery |
 | `phase.windows.authority.v1@1.0.0` | compatibility | Windows roots on fixed volumes identified as NTFS | `exclusive_create`, `readback_verification`, `cross_process_serialization` | `namespace_bound_mutation`, `atomic_replace`, `namespace_metadata_flush_attempted`, process-crash recovery |
 
-A contract requiring a guarantee outside the selected profile, or a root outside the profile's qualified filesystem scope, is rejected before capture, plan, intent, broker activity or target mutation.
+A contract requiring a guarantee outside the selected profile, a missing/symlink-resolved root, or a root outside the profile's qualified filesystem scope is rejected before capture, including mechanism-managed operations. Intent binds each resolved root identity. Broker execution rejects custom reparse-detector and write-primitive callbacks, revalidates roots after the remaining callbacks, and requires each opened root handle to match the intent-bound device/volume and inode/file identity before leaf creation or open. Mechanism-managed append uses this pinned-root identity check without claiming provider-backed guarantees.
 
 ## 3. Current implementation boundaries
 

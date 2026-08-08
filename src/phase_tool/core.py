@@ -19,6 +19,7 @@ from .freeze import FrozenInput, freeze_declared_inputs
 from .inspection import inspect_run
 from .installation import Installation, host_installation
 from .mutation import BrokerFaults, EffectBroker
+from .mutation.broker import ordered_progress_document, validate_broker_faults
 from .mutation.authority import GuaranteeProfileProvider
 from .mutation.guarantees import verify_guarantee_coverage
 from .mutation.implementation import mechanism_authority_usage
@@ -87,6 +88,15 @@ class CoreFaults:
     fail_receipt_write: bool = False
 
 
+def _validated_core_faults(value: object) -> CoreFaults:
+    if type(value) is not CoreFaults:
+        raise PhaseError("broker.invalid_fault_configuration")
+    if type(value.fail_receipt_write) is not bool:
+        raise PhaseError("broker.invalid_fault_configuration")
+    broker = None if value.broker is None else validate_broker_faults(value.broker)
+    return CoreFaults(broker=broker, fail_receipt_write=value.fail_receipt_write)
+
+
 @dataclass(frozen=True)
 class PhaseOutcome:
     run_id: str
@@ -118,7 +128,7 @@ class PhaseCore:
     def _check_root_separation(request: PhaseRequest) -> Path:
         evidence = Path(request.evidence_root).resolve(strict=False)
         for name, root_value in request.root_bindings.items():
-            root = Path(root_value).resolve(strict=True)
+            root = Path(root_value).resolve(strict=False)
             try:
                 evidence.relative_to(root)
             except ValueError:
@@ -211,6 +221,7 @@ class PhaseCore:
         request_digest: str,
         key: str | None,
         root_identity_digest: str,
+        root_identities: list[dict[str, object]],
         effect_plan_attachment_digest: str,
         content_blob_digests: list[str],
         execution_requested: bool,
@@ -237,6 +248,7 @@ class PhaseCore:
                 "scope_digest": scope_digest,
                 "request_digest": request_digest,
                 "root_identity_digest": root_identity_digest,
+                "root_identities": root_identities,
             },
             "effect_plan_digest": profile_digest("effect-plan", plan),
             "implementation_binding": implementation_binding,
@@ -298,6 +310,9 @@ class PhaseCore:
                 "guarantee.profile_scope_unsupported",
                 details={"missing_root_bindings": missing_roots},
             )
+        self.installation.qualify_authority_roots(
+            {binding_id: root_bindings[binding_id] for binding_id in sorted(required_roots)}
+        )
         if not any(mechanism_authority_usage(item) == "provider_backed" for item in mechanisms):
             return verify_guarantee_coverage(requirements, mechanisms, None, self.registry)
         provider = self.installation.authority_provider
@@ -308,9 +323,6 @@ class PhaseCore:
             raise PhaseError("authority.guarantee_profile_unavailable")
         if provider.guarantee_profile_binding() != selected_profile:
             raise PhaseError("guarantee.profile_provider_disagreement")
-        self.installation.qualify_authority_roots(
-            {binding_id: root_bindings[binding_id] for binding_id in sorted(required_roots)}
-        )
         return verify_guarantee_coverage(requirements, mechanisms, selected_profile, self.registry)
 
     def _verify_plan_guarantees(
@@ -367,57 +379,7 @@ class PhaseCore:
 
     @staticmethod
     def _ordered_progress(plan: Mapping[str, Any], effect_receipts: list[dict[str, Any]]) -> dict[str, Any]:
-        plan_digest = profile_digest("effect-plan", plan)
-        receipt_by_id = {receipt["effect_id"]: receipt for receipt in effect_receipts}
-        completed: list[str] = []
-        verified: list[str] = []
-        not_started: list[str] = []
-        failed: str | None = None
-        effects: list[dict[str, Any]] = []
-        for index, effect in enumerate(plan["effects"]):
-            effect_id = effect["effect_id"]
-            receipt = receipt_by_id.get(effect_id)
-            target = {
-                "root_binding": effect["target"]["root_binding"],
-                "relative_locator": effect["target"]["relative_locator"],
-                "expected_digest": effect["content_digest"],
-            }
-            if receipt is None:
-                not_started.append(effect_id)
-                state = "not_started"
-                observation_digest = None
-                receipt_digest = None
-            else:
-                completed.append(effect_id)
-                status = receipt["status"]
-                observation_digest = profile_digest("effect-observation", {"effect_id": effect_id, "after": receipt["after"], "status": status})
-                receipt_digest = profile_digest("effect-receipt", receipt)
-                if status == "applied_verified":
-                    verified.append(effect_id)
-                    state = "verified_existing" if receipt.get("bytes_written") == 0 else "applied_new_verified"
-                else:
-                    state = status
-                    failed = failed or effect_id
-            effects.append({
-                "ordinal": effect.get("ordinal", index),
-                "effect_id": effect_id,
-                "kind": effect["kind"],
-                "mechanism": effect.get("mechanism", plan["mechanism"])["id"],
-                "state": state,
-                "target": target,
-                "receipt_digest": receipt_digest if receipt is not None else None,
-                "observation_digest": observation_digest,
-            })
-        return {
-            "progress_version": "1.0",
-            "plan_digest": plan_digest,
-            "maximum_effects": len(plan["effects"]),
-            "completed_effect_ids": completed,
-            "verified_effect_ids": verified,
-            "failed_effect_id": failed,
-            "not_started_effect_ids": not_started,
-            "effects": effects,
-        }
+        return ordered_progress_document(plan, effect_receipts)
 
     def _base_receipt(
         self,
@@ -673,8 +635,9 @@ class PhaseCore:
         plan_digest: str | None = None
         attachment_digests: list[str] = []
         progress_digest: str | None = None
-        active_faults = faults or CoreFaults()
+        active_faults = CoreFaults()
         try:
+            active_faults = _validated_core_faults(CoreFaults() if faults is None else faults)
             lifecycle.append("resolve")
             contract = self.registry.resolve_contract(
                 request.contract_id,
@@ -703,7 +666,12 @@ class PhaseCore:
                 frozen_at=timestamp,
                 maximum_structured_bytes=request.maximum_candidate_bytes,
             )
-            scope_digest, request_digest, key, root_identity_digest = build_idempotency_digests(contract, candidate, frozen, request.root_bindings)
+            scope_digest, request_digest, key, root_identity_digest, root_identities = build_idempotency_digests(
+                contract,
+                candidate,
+                frozen,
+                request.root_bindings,
+            )
             idempotency_lock = None
             if key is not None:
                 lock_digest = profile_digest("idempotency-lock", {"key": key, "scope_digest": scope_digest})
@@ -723,6 +691,7 @@ class PhaseCore:
                     request_digest,
                     key,
                     root_identity_digest,
+                    root_identities,
                     evidence_root,
                     execute,
                     active_faults,
@@ -742,6 +711,7 @@ class PhaseCore:
                     request_digest,
                     key,
                     root_identity_digest,
+                    root_identities,
                     evidence_root,
                     execute,
                     active_faults,
@@ -806,6 +776,7 @@ class PhaseCore:
         request_digest: str,
         key: str | None,
         root_identity_digest: str,
+        root_identities: list[dict[str, object]],
         evidence_root: Path,
         execute: bool,
         active_faults: CoreFaults,
@@ -813,7 +784,6 @@ class PhaseCore:
         plan: dict[str, Any] | None = None
         intent: dict[str, Any] | None = None
         effect_receipts: list[dict[str, Any]] = []
-        final_validators_published = False
         plan_digest: str | None = None
         attachment_digests: list[str] = []
         progress_digest: str | None = None
@@ -888,6 +858,7 @@ class PhaseCore:
                 request_digest,
                 key,
                 root_identity_digest,
+                root_identities,
                 plan_attachment_digest,
                 content_blob_digests,
                 execute,
@@ -917,7 +888,7 @@ class PhaseCore:
 
                 record_progress([])
                 lifecycle.append("broker")
-                effect_receipts = EffectBroker(
+                broker_result = EffectBroker(
                     self.registry,
                     self.installation.authority_provider,
                     self.installation.authority_profile_binding,
@@ -931,9 +902,13 @@ class PhaseCore:
                     evidence_root=evidence_root,
                     timestamp=timestamp,
                     faults=active_faults.broker,
-                    progress_callback=record_progress,
-                    receipt_sink=effect_receipts,
                 )
+                effect_receipts = list(broker_result.effect_receipts)
+                if broker_result.progress_digest is not None:
+                    progress_digest = broker_result.progress_digest
+                    latest_progress = self._ordered_progress(plan, effect_receipts)
+                if broker_result.progress_error is not None:
+                    raise PhaseError(broker_result.progress_error)
                 lifecycle.append("effect")
                 _, effects_digest = store.write_canonical("attachments/effect-receipts.json", effect_receipts)
                 attachment_digests.append(effects_digest)
@@ -953,7 +928,6 @@ class PhaseCore:
                 )
                 _, final_validators_digest = store.write_canonical("attachments/validator-results.json", validator_results)
                 attachment_digests.append(final_validators_digest)
-                final_validators_published = True
                 receipt = self._executed_receipt(
                     request,
                     contract,
@@ -975,20 +949,26 @@ class PhaseCore:
         except (PhaseError, OSError) as exc:
             intent_digest = profile_digest("intent", intent) if intent is not None else None
             if effect_receipts and intent_digest is not None and contract is not None and plan is not None:
-                incomplete_ordered_prefix = len(effect_receipts) < len(plan["effects"])
-                if incomplete_ordered_prefix:
-                    try:
-                        _, effects_digest = store.write_canonical("attachments/effect-receipts.json", effect_receipts)
+                try:
+                    _, effects_digest = store.write_canonical("attachments/effect-receipts.json", effect_receipts)
+                    if effects_digest not in attachment_digests:
                         attachment_digests.append(effects_digest)
+                except (PhaseError, OSError):
+                    pass
+                if len(plan["effects"]) > 1:
+                    latest_progress = self._ordered_progress(plan, effect_receipts)
+                    try:
+                        _, progress_digest = store.replace_attachment_canonical("ordered-effect-progress.json", latest_progress)
+                        if progress_digest not in attachment_digests:
+                            attachment_digests.append(progress_digest)
                     except (PhaseError, OSError):
                         pass
-                    if len(plan["effects"]) > 1:
-                        latest_progress = self._ordered_progress(plan, effect_receipts)
-                        try:
-                            _, progress_digest = store.replace_attachment_canonical("ordered-effect-progress.json", latest_progress)
-                            attachment_digests.append(progress_digest)
-                        except (PhaseError, OSError):
-                            pass
+                try:
+                    _, validators_digest = store.write_canonical("attachments/validator-results.json", validator_results)
+                    if validators_digest not in attachment_digests:
+                        attachment_digests.append(validators_digest)
+                except (PhaseError, OSError):
+                    pass
                 receipt = self._executed_receipt(
                     request,
                     contract,
@@ -1000,18 +980,17 @@ class PhaseCore:
                     attachment_digests,
                     intent["implementation_binding"],
                     finalization_failed=True,
-                    required_attachments_present=False if incomplete_ordered_prefix else final_validators_published,
+                    required_attachments_present=False,
                 )
                 validate_receipt(receipt, self.registry)
                 if not lifecycle or lifecycle[-1] != "receipt":
                     lifecycle.append("receipt")
                 receipt_digest = None
-                if incomplete_ordered_prefix:
-                    try:
-                        store.write_canonical("receipt.json", receipt)
-                        receipt_digest = profile_digest("receipt", receipt)
-                    except (PhaseError, OSError):
-                        pass
+                try:
+                    store.write_canonical("receipt.json", receipt)
+                    receipt_digest = profile_digest("receipt", receipt)
+                except (PhaseError, OSError):
+                    pass
                 return PhaseOutcome(
                     request.run_id,
                     receipt["exit_code"],

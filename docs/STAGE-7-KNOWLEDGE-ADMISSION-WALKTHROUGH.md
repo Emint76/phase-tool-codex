@@ -102,7 +102,7 @@ All structured checks were true:
 - exact source binding preserved;
 - inspected target verified;
 - result/run/receipt linkage verified;
-- effect-0 and effect-1 failures reported truthful partial outcomes.
+- the scalar effect-0 write failure reported a truthful partial outcome, while an unsafe effect-1 callback was rejected before mutation.
 
 The result, descriptor and receipt digests above are evidence from that exact root-authority-bound run; they are not asserted as cross-root constants.
 

@@ -33,6 +33,8 @@ def _read_canonical(path: Path) -> tuple[Any, str]:
 
 
 def _validate_progress(progress: Mapping[str, Any], plan: Mapping[str, Any], effect_receipts: list[dict[str, Any]], registry: RegistrySnapshot) -> None:
+    from ..mutation.broker import ordered_progress_document
+
     schema = registry.schema_document("https://phase-tool.local/schemas/ordered-effect-progress.schema.json")
     Draft202012Validator(schema, registry=registry.schema_registry(), format_checker=FormatChecker()).validate(progress)
     if progress["plan_digest"] != profile_digest("effect-plan", plan):
@@ -59,6 +61,8 @@ def _validate_progress(progress: Mapping[str, Any], plan: Mapping[str, Any], eff
         observation_digest = profile_digest("effect-observation", {"effect_id": receipt["effect_id"], "after": receipt["after"], "status": receipt["status"]})
         if effect_progress["observation_digest"] != observation_digest:
             raise PhaseError("inspection.progress_observation_mismatch")
+    if progress != ordered_progress_document(plan, effect_receipts):
+        raise PhaseError("inspection.progress_semantic_mismatch")
 
 
 def _verify_intent_blobs(run_root: Path, intent: Mapping[str, Any], plan: Mapping[str, Any] | None = None) -> None:
@@ -308,10 +312,12 @@ def inspect_run(
         if validators != receipt["validator_results"]:
             raise PhaseError("inspection.validator_results_mismatch")
         attachment_digests = {plan_attachment_digest, validators_digest}
-        if receipt["effect_receipts"]:
+        claimed = set(receipt["evidence"]["attachment_digests"])
+        effect_receipts = receipt["effect_receipts"]
+        if effect_receipts:
             pre_validators, pre_validators_digest = _read_canonical(run_root / "attachments" / "pre-validator-results.json")
-            effect_receipts, effect_receipts_digest = _read_canonical(run_root / "attachments" / "effect-receipts.json")
-            if effect_receipts != receipt["effect_receipts"]:
+            stored_effect_receipts, effect_receipts_digest = _read_canonical(run_root / "attachments" / "effect-receipts.json")
+            if stored_effect_receipts != effect_receipts:
                 raise PhaseError("inspection.effect_receipts_mismatch")
             planned_ids = [item["effect_id"] for item in plan["effects"]]
             receipt_ids = [item["effect_id"] for item in effect_receipts]
@@ -319,13 +325,15 @@ def inspect_run(
                 raise PhaseError("inspection.effect_receipt_set_mismatch")
             if not isinstance(pre_validators, list):
                 raise PhaseError("inspection.validator_results_mismatch")
-            progress_path = run_root / "attachments" / "ordered-effect-progress.json"
-            if evidence_file_exists(progress_path):
-                progress, progress_digest = _read_canonical(progress_path)
+            attachment_digests.update({pre_validators_digest, effect_receipts_digest})
+        progress_path = run_root / "attachments" / "ordered-effect-progress.json"
+        if evidence_file_exists(progress_path):
+            progress, progress_digest = _read_canonical(progress_path)
+            if progress_digest in claimed:
                 _validate_progress(progress, plan, effect_receipts, registry)
                 attachment_digests.add(progress_digest)
-            attachment_digests.update({pre_validators_digest, effect_receipts_digest})
-        claimed = set(receipt["evidence"]["attachment_digests"])
+            elif receipt["evidence"]["finalization_status"] == "finalized":
+                attachment_digests.add(progress_digest)
         if attachment_digests != claimed:
             raise PhaseError("inspection.attachment_set_mismatch")
         _verify_intent_blobs(run_root, intent, plan)

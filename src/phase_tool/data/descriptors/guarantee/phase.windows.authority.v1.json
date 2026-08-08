@@ -29,7 +29,7 @@
     "id": "phase.windows.authority",
     "version": "1.0.0",
     "artifact": "phase_tool/mutation/windows/authority.py",
-    "artifact_digest": "sha256:4a0be8f709805bc3f36b0d7da378252006938f48fd282f66162df7a38350b8f0"
+    "artifact_digest": "sha256:61f6ff09ca804445442853d22f6d4296c171d23b59676a4c5cd0ff07fad3fd60"
   },
   "descriptor_digest_binding": {
     "algorithm": "sha256",
@@ -37,8 +37,17 @@
     "registry_field": "artifact_digest"
   },
   "conformance": [
-    {"guarantee": "exclusive_create", "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"},
-    {"guarantee": "readback_verification", "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"},
-    {"guarantee": "cross_process_serialization", "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"}
+    {
+      "guarantee": "exclusive_create",
+      "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"
+    },
+    {
+      "guarantee": "readback_verification",
+      "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"
+    },
+    {
+      "guarantee": "cross_process_serialization",
+      "test_id": "tests/mutation/windows/test_authority_conformance.py::test_windows_compatibility_profile_guarantees"
+    }
   ]
 }

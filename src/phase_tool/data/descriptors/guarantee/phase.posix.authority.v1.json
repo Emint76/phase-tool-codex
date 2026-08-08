@@ -30,7 +30,7 @@
     "id": "phase.posix.authority",
     "version": "1.0.0",
     "artifact": "phase_tool/mutation/posix/authority.py",
-    "artifact_digest": "sha256:bfeca26c284ae981145a815e01050cce3c53bef8dbf95c6822339b3822d62fc8"
+    "artifact_digest": "sha256:55e150103df579615232d7c213d03d777fe836dab1130d6b30647275be838ab6"
   },
   "descriptor_digest_binding": {
     "algorithm": "sha256",
@@ -38,11 +38,29 @@
     "registry_field": "artifact_digest"
   },
   "conformance": [
-    {"guarantee": "exclusive_create", "test_id": "tests/mutation/posix/test_authority_conformance.py::test_posix_production_profile_common_guarantees"},
-    {"guarantee": "readback_verification", "test_id": "tests/mutation/posix/test_authority_conformance.py::test_posix_production_profile_common_guarantees"},
-    {"guarantee": "cross_process_serialization", "test_id": "tests/mutation/posix/test_authority_conformance.py::test_posix_production_profile_common_guarantees"},
-    {"guarantee": "namespace_bound_mutation", "test_id": "tests/mutation/posix/test_guarantee_conformance.py::test_namespace_bound_mutation_uses_pinned_parent_and_detects_rebinding"},
-    {"guarantee": "atomic_replace", "test_id": "tests/mutation/posix/test_guarantee_conformance.py::test_atomic_replace_never_exposes_missing_or_partial_destination"},
-    {"guarantee": "namespace_metadata_flush_attempted", "test_id": "tests/mutation/posix/test_guarantee_conformance.py::test_namespace_metadata_flush_attempted_fsyncs_pinned_parent_descriptor"}
+    {
+      "guarantee": "exclusive_create",
+      "test_id": "tests/mutation/posix/test_authority_conformance.py::test_posix_production_profile_common_guarantees"
+    },
+    {
+      "guarantee": "readback_verification",
+      "test_id": "tests/mutation/posix/test_authority_conformance.py::test_posix_production_profile_common_guarantees"
+    },
+    {
+      "guarantee": "cross_process_serialization",
+      "test_id": "tests/mutation/posix/test_authority_conformance.py::test_posix_production_profile_common_guarantees"
+    },
+    {
+      "guarantee": "namespace_bound_mutation",
+      "test_id": "tests/mutation/posix/test_guarantee_conformance.py::test_namespace_bound_mutation_uses_pinned_parent_and_detects_rebinding"
+    },
+    {
+      "guarantee": "atomic_replace",
+      "test_id": "tests/mutation/posix/test_guarantee_conformance.py::test_atomic_replace_never_exposes_missing_or_partial_destination"
+    },
+    {
+      "guarantee": "namespace_metadata_flush_attempted",
+      "test_id": "tests/mutation/posix/test_guarantee_conformance.py::test_namespace_metadata_flush_attempted_fsyncs_pinned_parent_descriptor"
+    }
   ]
 }

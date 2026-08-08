@@ -21,19 +21,7 @@ def _exact(binding: Mapping[str, Any]) -> dict[str, str]:
     return {"id": str(binding["id"]), "version": str(binding["version"]), "package_digest": str(binding["package_digest"])}
 
 
-def build_idempotency_digests(
-    contract: ResolvedContract,
-    candidate: CapturedCandidate,
-    frozen_inputs: Mapping[str, FrozenInput],
-    root_bindings: Mapping[str, Path],
-) -> tuple[str, str, str | None, str]:
-    value = parse_json_bytes(candidate.canonical_bytes)
-    locator: Any = value.get("target_locator", sorted(value.get("destinations", [])))
-    if contract.document["operation"]["intent"] == "append":
-        locator = append_locator(contract.document, value)
-    hook = load_contract_hook(contract)
-    if hook is not None:
-        locator = hook.idempotency_locator(value, frozen_inputs, default=locator)
+def root_identity_records(contract: ResolvedContract, root_bindings: Mapping[str, Path]) -> list[dict[str, object]]:
     root_identities = []
     for declaration in sorted(contract.document["write_scope"]["roots"], key=lambda item: item["binding_id"]):
         binding_id = declaration["binding_id"]
@@ -48,7 +36,28 @@ def build_idempotency_digests(
             "device": int(info.st_dev),
             "inode": int(info.st_ino),
         })
-    root_identity_digest = profile_digest("resolved-root-identity", root_identities)
+    return root_identities
+
+
+def root_identity_digest(contract: ResolvedContract, root_bindings: Mapping[str, Path]) -> str:
+    return profile_digest("resolved-root-identity", root_identity_records(contract, root_bindings))
+
+
+def build_idempotency_digests(
+    contract: ResolvedContract,
+    candidate: CapturedCandidate,
+    frozen_inputs: Mapping[str, FrozenInput],
+    root_bindings: Mapping[str, Path],
+) -> tuple[str, str, str | None, str, list[dict[str, object]]]:
+    value = parse_json_bytes(candidate.canonical_bytes)
+    locator: Any = value.get("target_locator", sorted(value.get("destinations", [])))
+    if contract.document["operation"]["intent"] == "append":
+        locator = append_locator(contract.document, value)
+    hook = load_contract_hook(contract)
+    if hook is not None:
+        locator = hook.idempotency_locator(value, frozen_inputs, default=locator)
+    root_identities = root_identity_records(contract, root_bindings)
+    root_identity = profile_digest("resolved-root-identity", root_identities)
     scope = {
         "contract": {
             "id": contract.document["identity"]["id"],
@@ -56,7 +65,7 @@ def build_idempotency_digests(
             "package_digest": contract.package_digest,
         },
         "result_locator": locator,
-        "root_identity_digest": root_identity_digest,
+        "root_identity_digest": root_identity,
         "operation_intent": contract.document["operation"]["intent"],
     }
     scope_digest = profile_digest("idempotency-scope", scope)
@@ -68,7 +77,7 @@ def build_idempotency_digests(
             "inputs": [item.intent_record() for _, item in sorted(frozen_inputs.items())],
         },
     )
-    return scope_digest, request_digest, value.get("idempotency_key"), root_identity_digest
+    return scope_digest, request_digest, value.get("idempotency_key"), root_identity, root_identities
 
 
 def _require_roots(contract: ResolvedContract, root_bindings: Mapping[str, Path]) -> None:
